@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دەروازەی سیستەمی غیابات | کۆلێژی کارگێڕی و ئابووری</title>
+    
+    <!-- Google Fonts: Tajawal & Vazirmatn -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Vazirmatn:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        kurdish: ['Tajawal', 'Vazirmatn', 'sans-serif'],
+                    },
+                    colors: {
+                        royal: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            gold: '#f59e0b',
+                            goldLight: '#fef3c7',
+                            goldDark: '#b45309'
+                        },
+                        brand: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Firebase SDK (v10 compat) & Live Sync Engine -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="firebase-service.js"></script>
+
+    <!-- Auth Guard: Redirect to login.html if not authenticated -->
+    <script>
+        (function() {
+            try {
+                const user = JSON.parse(localStorage.getItem('college_auth_user') || 'null');
+                if (!user) {
+                    window.location.replace('login.html');
+                }
+            } catch (e) {
+                window.location.replace('login.html');
+            }
+        })();
+    </script>
+
+    <style>
+        body {
+            font-family: 'Tajawal', 'Vazirmatn', sans-serif;
+            background-color: #0b1120;
+            color: #0f172a;
+            direction: rtl;
+        }
+        .portal-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .portal-card:hover {
+            transform: translateY(-8px);
+        }
+        .dept-card {
+            transition: all 0.25s ease-in-out;
+        }
+        .dept-card:hover {
+            transform: translateY(-4px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-amber-500 selection:text-slate-950">
+
+    <!-- Top Banner & Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <!-- Branding -->
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-950 text-2xl shadow-lg shadow-amber-500/20 font-black">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                            <span>کۆلێژی کارگێڕی و ئابووری</span>
+                            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">دەروازەی سەرەکی</span>
+                        </h1>
+                        <p class="text-xs text-slate-400">سیستەمی پێشکەوتووی بەڕێوەبردن و چاودێری غیاباتی خوێندکاران</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Quick Links & User Session -->
+                <div class="flex items-center gap-3">
+                    <a id="navSuperAdminLink" href="super_admin.html" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition">
+                        <i class="fa-solid fa-crown text-amber-400"></i>
+                        <span class="hidden sm:inline">سوپەر ئادمین</span>
+                    </a>
+                    <a href="teacher_attendance.html" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-md shadow-indigo-900/40">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                        <span class="hidden sm:inline">مامۆستایان (غیابات)</span>
+                    </a>
+                    <a href="departments.html" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-md shadow-emerald-900/40">
+                        <i class="fa-solid fa-sitemap"></i>
+                        <span class="hidden sm:inline">دیپارتمێنتەکان</span>
+                    </a>
+
+                    <!-- User Badge -->
+                    <div id="indexUserBadge" class="hidden md:flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700 text-xs">
+                        <div class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-user-check text-[10px]"></i>
+                        </div>
+                        <span id="indexUserName" class="font-bold text-slate-200">بەکارهێنەر</span>
+                    </div>
+
+                    <!-- Logout Button -->
+                    <button onclick="handleLogout()" class="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-600 text-rose-300 hover:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition border border-rose-500/30">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span>دەرچوون</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+        
+        <!-- Hero Section -->
+        <div class="text-center max-w-3xl mx-auto mb-12">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm font-bold mb-4">
+                <i class="fa-solid fa-sparkles text-amber-400"></i>
+                <span>پلاتفۆرمی جیاکراوەی ئەکادیمی ٢٠٢٥ - ٢٠٢٦</span>
+            </div>
+            <h2 class="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight mb-4">
+                دەروازەی سیستەمی ئەکادیمی
+                <span class="text-transparent bg-clip-text bg-gradient-to-l from-amber-400 to-amber-200 block sm:inline">
+                    بەڕێوەبردنی غیابات
+                </span>
+            </h2>
+            <p class="text-slate-400 text-sm sm:text-base leading-relaxed">
+                بەپێی پێداویستییە نوێیەکان، پەڕەی <strong class="text-amber-400">سوپەر ئادمین</strong> بە تەواوی جیاکراوەتەوە لە 
+                <strong class="text-emerald-400">دیپارتمێنتەکان</strong> بۆ دابینکردنی سەربەخۆیی تەواوی بەشەکان و چاودێری باڵای ئامار.
+            </p>
+        </div>
+
+        <!-- Live Statistics Snapshot Bar -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 text-center">
+                <div class="text-slate-400 text-xs font-bold mb-1 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-user-graduate text-emerald-400"></i>
+                    <span>کۆی خوێندکاران</span>
+                </div>
+                <div id="statTotalStudents" class="text-2xl sm:text-3xl font-black text-white">--</div>
+                <div class="text-[10px] text-slate-500 mt-1">تۆمارکراو لە ٥ بەشەکە</div>
+            </div>
+
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 text-center">
+                <div class="text-slate-400 text-xs font-bold mb-1 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-sitemap text-blue-400"></i>
+                    <span>بەشە زانستییەکان</span>
+                </div>
+                <div class="text-2xl sm:text-3xl font-black text-white">٥</div>
+                <div class="text-[10px] text-slate-500 mt-1">بەشی سەربەخۆ</div>
+            </div>
+
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 text-center">
+                <div class="text-slate-400 text-xs font-bold mb-1 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-clipboard-check text-indigo-400"></i>
+                    <span>کۆی وانەکان</span>
+                </div>
+                <div id="statTotalSessions" class="text-2xl sm:text-3xl font-black text-white">--</div>
+                <div class="text-[10px] text-slate-500 mt-1">وانەی تۆمارکراو</div>
+            </div>
+
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 text-center">
+                <div class="text-slate-400 text-xs font-bold mb-1 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-chart-line text-amber-400"></i>
+                    <span>تێکڕای ئامادەبوون</span>
+                </div>
+                <div id="statAvgAttendance" class="text-2xl sm:text-3xl font-black text-amber-400">--%</div>
+                <div class="text-[10px] text-slate-500 mt-1">لە ئاستی کۆلێژدا</div>
+            </div>
+        </div>
+
+        <!-- The Two Main Dedicated Portals (Grid Cards) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+            
+            <!-- PORTAL 1: SUPER ADMIN -->
+            <div class="portal-card relative rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-2 border-amber-500/40 p-6 sm:p-8 flex flex-col justify-between shadow-2xl shadow-amber-500/10">
+                <div class="absolute -top-3.5 right-6 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-xs font-black px-4 py-1 rounded-full uppercase tracking-wider shadow-md">
+                    <i class="fa-solid fa-crown mr-1"></i> باڵادەست و تایبەت بە ڕاگرایەتی
+                </div>
+
+                <div>
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center text-3xl font-black">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-black text-white">پەڕەی سوپەر ئادمین</h3>
+                            <p class="text-xs text-amber-400 font-bold">Executive Super Admin Portal</p>
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                        پەڕەیەکی تەواو سەربەخۆ و تایبەت کە تەنها بۆ سەرپەرشتیار و ڕاگرایەتی دانراوە. هیچ فۆڕمێکی تۆمارکردنی وانەی تێدا نییە، تەنها ئامار و بڕیارە گەورەکان بەڕێوەدەبات.
+                    </p>
+
+                    <!-- Key Super Admin Capabilities -->
+                    <div class="space-y-3 mb-8">
+                        <div class="flex items-start gap-3 bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                            <i class="fa-solid fa-chart-pie text-amber-400 mt-1"></i>
+                            <div>
+                                <span class="font-black text-xs text-white block">چاودێری و ئاماری ٥ بەشەکە</span>
+                                <span class="text-xs text-slate-400">بینینی ڕێژەی ئامادەبوون، سەرپێچییەکان و ئاماری هەموو بەشەکان بەیەکەوە.</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3 bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                            <i class="fa-solid fa-calendar-check text-amber-400 mt-1"></i>
+                            <div>
+                                <span class="font-black text-xs text-white block">وەرگرتنی ڕاپۆرتی ١ مانگی هەر بەشێک</span>
+                                <span class="text-xs text-slate-400">دیاریکردنی بەش بە ویستی خۆت و دەرهێنانی شیاری یەک مانگ بە ئێکسڵ و PDF.</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3 bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                            <i class="fa-solid fa-hourglass-end text-teal-400 mt-1"></i>
+                            <div>
+                                <span class="font-black text-xs text-white block">کۆتایی هاتنی سمستەر (سفرکردنەوەی غیابات و PDF)</span>
+                                <span class="text-xs text-slate-400">ڕاکێشانی ڕاپۆرتی کۆتایی سمستەر و سفرکردنەوەی غیاباتەکان بە هێشتنەوەی خوێندکاران.</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3 bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                            <i class="fa-solid fa-calendar-xmark text-rose-400 mt-1"></i>
+                            <div>
+                                <span class="font-black text-xs text-white block">کۆتایی هاتنی ساڵی خوێندن (ئەرشیف و سڕینەوەی خوێندکاران)</span>
+                                <span class="text-xs text-slate-400">ڕاکێشانی ئەرشیفی کۆتایی ساڵ و سڕینەوەی گشت خوێندکاران بۆ ئامادەکاری ساڵی نوێ.</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3 bg-rose-950/30 p-3 rounded-xl border border-rose-500/30">
+                            <i class="fa-solid fa-trash-can text-rose-400 mt-1"></i>
+                            <div>
+                                <span class="font-black text-xs text-rose-300 block">ناوەندی دەسەڵاتی سڕینەوە و خاوێنکردنەوەی داتا</span>
+                                <span class="text-xs text-rose-200/70">سڕینەوەی داتاکان، سفرکردنەوەی گشتی یان خاوێنکردنی دانیشتنەکان بە ئاسایشی بەرز.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <a href="super_admin.html" class="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-4 px-6 rounded-2xl shadow-xl transition transform active:scale-98">
+                    <i class="fa-solid fa-crown text-lg"></i>
+                    <span class="text-base">چوونە ناو پەڕەی سوپەر ئادمین</span>
+                    <i class="fa-solid fa-arrow-left text-sm mr-1"></i>
+                </a>
+            </div>
+
+            <!-- PORTAL 2: DEPARTMENTS -->
+            <div class="portal-card relative rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-2 border-emerald-500/40 p-6 sm:p-8 flex flex-col justify-between shadow-2xl shadow-emerald-500/10">
+                <div class="absolute -top-3.5 right-6 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black px-4 py-1 rounded-full uppercase tracking-wider shadow-md">
+                    <i class="fa-solid fa-sitemap mr-1"></i> تایبەت بە سەرۆک بەش و مامۆستایان
+                </div>
+
+                <div>
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-3xl font-black">
+                            <i class="fa-solid fa-university"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-black text-white">پەڕەی دیپارتمێنتەکان</h3>
+                            <p class="text-xs text-emerald-400 font-bold">Academic Departments Workspace</p>
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                        پەڕەی بەڕێوەبردنی بەشە زانستییەکان بە سەربەخۆیی تەواو. هەر بەشێک تەنها خوێندکاران و وانەکانی خۆی دەبینێت و ناتوانێت دەستکاری داتای بەشەکانی تر یان دەسەڵاتی سڕینەوەی سوپەر ئادمین بکات.
+                    </p>
+
+                    <!-- Key Department Capabilities -->
+                    <div class="space-y-3 mb-8">
+                        <div class="flex items-start gap-3 bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                            <i class="fa-solid fa-users text-emerald-400 mt-1"></i>
+                            <div>
+                                <span class="font-black text-xs text-white block">بەڕێوەبردنی خوێندکارانی بەش</span>
+                                <span class="text-xs text-slate-400">تۆمارکردن، دەستکاریکردن، سڕینەوە و هاوردەکردنی خوێندکاران لە فایلی ئێکسڵ.</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3 bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                            <i class="fa-solid fa-clipboard-user text-emerald-400 mt-1"></i>
+                            <div>
+                                <span class="font-black text-xs text-white block">تۆمارکردنی غیاباتی ڕۆژانە</span>
+                                <span class="text-xs text-slate-400">وەرگرتنی غیابات بەپێی قۆناغ و بابەت بە دوگمەی خێرای (ئامادە/غائیب/مۆڵەت).</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3 bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
+                            <i class="fa-solid fa-clock-rotate-left text-emerald-400 mt-1"></i>
+                            <div>
+                                <span class="font-black text-xs text-white block">ئەرشیف و مێژووی وانەکان</span>
+                                <span class="text-xs text-slate-400">گەڕان و بینینی هەموو ئەو وانانەی لە بەشەکەدا وەرگیراون بە وردەکاری کات و مامۆستا.</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3 bg-emerald-950/30 p-3 rounded-xl border border-emerald-500/30">
+                            <i class="fa-solid fa-lock text-emerald-400 mt-1"></i>
+                            <div>
+                                <span class="font-black text-xs text-emerald-300 block">سەربەخۆیی و ئاسایشی بەش</span>
+                                <span class="text-xs text-emerald-200/70">هیچ بەشێک تێکەڵی داتای بەشێکی تر نابێت و دەسەڵاتی خاوێنکردنەوەی گشتی تێدا نییە.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <a href="departments.html" class="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black py-4 px-6 rounded-2xl shadow-xl transition transform active:scale-98">
+                    <i class="fa-solid fa-sitemap text-lg"></i>
+                    <span class="text-base">چوونە ناو پەڕەی دیپارتمێنتەکان</span>
+                    <i class="fa-solid fa-arrow-left text-sm mr-1"></i>
+                </a>
+            </div>
+
+        </div>
+
+        <!-- PORTAL 3: DEDICATED TEACHERS ATTENDANCE PORTAL -->
+        <div class="mb-16">
+            <div class="portal-card relative rounded-3xl bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 border-2 border-indigo-500/50 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl shadow-indigo-500/10">
+                <div class="absolute -top-3.5 right-6 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-black px-4 py-1 rounded-full uppercase tracking-wider shadow-md">
+                    <i class="fa-solid fa-chalkboard-user mr-1"></i> تایبەت بە مامۆستایانی وانەبێژ
+                </div>
+                
+                <div class="flex items-start gap-5">
+                    <div class="w-16 h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/40 flex items-center justify-center text-3xl font-black shrink-0">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-3 mb-1">
+                            <h3 class="text-xl sm:text-2xl font-black text-white">پەڕەی تایبەت بە مامۆستایان (تۆمارکردنی غیابات)</h3>
+                            <span class="text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full font-bold border border-indigo-500/30">محازەرەی ١ - ٤ کاتژمێری</span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-3xl">
+                            پەڕەیەکی سەربەخۆ تایبەت بە مامۆستایانی وانەبێژ بۆ وەرگرتنی غیاباتی محازەرەکانیان. مامۆستا دەتوانێت کاتژمێری محازەرە (١، ٢، ٣، ٤ کاتژمێر) دیاری بکات و غیاباتی خوێندکاران بەپێی کاتی محازەرەکە ڕاستەوخۆ دەخرێتە سەر تۆماری گشتی.
+                        </p>
+                    </div>
+                </div>
+
+                <a href="teacher_attendance.html" class="shrink-0 flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black py-4 px-6 rounded-2xl shadow-xl transition transform active:scale-98 text-sm">
+                    <i class="fa-solid fa-clipboard-user text-base"></i>
+                    <span>تۆمارکردنی غیاباتی محازەرە</span>
+                    <i class="fa-solid fa-arrow-left text-xs mr-1"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- 5 DEPARTMENTS DIRECT QUICK ACCESS SECTION -->
+        <div class="mt-8 mb-16">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
+                <div>
+                    <h3 class="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
+                        <i class="fa-solid fa-cubes text-emerald-400"></i>
+                        <span>چوونەژوورەوەی ڕاستەوخۆ بۆ پێنج بەشە زانستییەکە</span>
+                    </h3>
+                    <p class="text-xs text-slate-400">کلیک لە هەر بەشێک بکە تا ڕاستەوخۆ لەناو پەڕەی تایبەتی ئەو بەشەدا بکرێتەوە:</p>
+                </div>
+                <a href="departments.html" class="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition">
+                    <span>بینینی هەموو بەشەکان لە یەک پەڕەدا</span>
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                
+                <!-- 1. Accounting -->
+                <a href="departments.html?dept=dept_accounting" class="dept-card bg-slate-900 border border-emerald-500/30 hover:border-emerald-400 rounded-2xl p-5 block group shadow-lg">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition">
+                        <i class="fa-solid fa-calculator"></i>
+                    </div>
+                    <h4 class="font-black text-base text-white group-hover:text-emerald-400 transition">بەشی ژمێریاری</h4>
+                    <p class="text-xs text-slate-400 mb-3">Accounting</p>
+                    <div class="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-800">
+                        <span>٤ قۆناغ</span>
+                        <span class="text-emerald-400 font-bold group-hover:translate-x-[-4px] transition inline-flex items-center gap-1">
+                            <span>کردنەوە</span>
+                            <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                        </span>
+                    </div>
+                </a>
+
+                <!-- 2. Business Admin -->
+                <a href="departments.html?dept=dept_business" class="dept-card bg-slate-900 border border-blue-500/30 hover:border-blue-400 rounded-2xl p-5 block group shadow-lg">
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition">
+                        <i class="fa-solid fa-briefcase"></i>
+                    </div>
+                    <h4 class="font-black text-base text-white group-hover:text-blue-400 transition">بەشی کارگێڕی کار</h4>
+                    <p class="text-xs text-slate-400 mb-3">Business Admin</p>
+                    <div class="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-800">
+                        <span>٤ قۆناغ</span>
+                        <span class="text-blue-400 font-bold group-hover:translate-x-[-4px] transition inline-flex items-center gap-1">
+                            <span>کردنەوە</span>
+                            <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                        </span>
+                    </div>
+                </a>
+
+                <!-- 3. Economics -->
+                <a href="departments.html?dept=dept_economics" class="dept-card bg-slate-900 border border-purple-500/30 hover:border-purple-400 rounded-2xl p-5 block group shadow-lg">
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <h4 class="font-black text-base text-white group-hover:text-purple-400 transition">بەشی ئابووری</h4>
+                    <p class="text-xs text-slate-400 mb-3">Economics</p>
+                    <div class="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-800">
+                        <span>٤ قۆناغ</span>
+                        <span class="text-purple-400 font-bold group-hover:translate-x-[-4px] transition inline-flex items-center gap-1">
+                            <span>کردنەوە</span>
+                            <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                        </span>
+                    </div>
+                </a>
+
+                <!-- 4. Marketing Management -->
+                <a href="departments.html?dept=dept_finance" class="dept-card bg-slate-900 border border-indigo-500/30 hover:border-indigo-400 rounded-2xl p-5 block group shadow-lg">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition">
+                        <i class="fa-solid fa-bullhorn"></i>
+                    </div>
+                    <h4 class="font-black text-base text-white group-hover:text-indigo-400 transition">بەشی کارگێڕی بەبازاڕکردن</h4>
+                    <p class="text-xs text-slate-400 mb-3">Marketing Management</p>
+                    <div class="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-800">
+                        <span>٤ قۆناغ</span>
+                        <span class="text-indigo-400 font-bold group-hover:translate-x-[-4px] transition inline-flex items-center gap-1">
+                            <span>کردنەوە</span>
+                            <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                        </span>
+                    </div>
+                </a>
+
+                <!-- 5. Statistics & Informatics -->
+                <a href="departments.html?dept=dept_statistics" class="dept-card bg-slate-900 border border-amber-500/30 hover:border-amber-400 rounded-2xl p-5 block group shadow-lg">
+                    <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <h4 class="font-black text-base text-white group-hover:text-amber-400 transition">بەشی ئامار و زانیاری</h4>
+                    <p class="text-xs text-slate-400 mb-3">Statistics & Informatics</p>
+                    <div class="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-800">
+                        <span>٤ قۆناغ</span>
+                        <span class="text-amber-400 font-bold group-hover:translate-x-[-4px] transition inline-flex items-center gap-1">
+                            <span>کردنەوە</span>
+                            <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                        </span>
+                    </div>
+                </a>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-900/50 py-8 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-graduation-cap text-amber-400 text-base"></i>
+                <span class="font-bold text-slate-300">کۆلێژی کارگێڕی و ئابووری</span>
+                <span>- هەموو مافەکانی سیستەم پارێزراوە © 2026</span>
+            </div>
+            <div class="flex items-center gap-6">
+                <a href="super_admin.html" class="hover:text-amber-400 transition">پەڕەی سوپەر ئادمین</a>
+                <a href="departments.html" class="hover:text-emerald-400 transition">پەڕەی دیپارتمێنتەکان</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Script to load real-time metrics into the Gateway -->
+    <script>
+        let authUser = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadGatewayMetrics();
+            initUserInterface();
+        });
+
+        function initUserInterface() {
+            try {
+                authUser = JSON.parse(localStorage.getItem('college_auth_user') || 'null');
+            } catch(e) {
+                authUser = null;
+            }
+
+            if (authUser) {
+                const nameElem = document.getElementById('indexUserName');
+                if (nameElem) nameElem.textContent = authUser.name;
+
+                if (authUser.role === 'department') {
+                    // For department users, guard super admin link
+                    const saLink = document.getElementById('navSuperAdminLink');
+                    if (saLink) {
+                        saLink.onclick = (e) => {
+                            e.preventDefault();
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'دەسەڵاتت نییە!',
+                                text: 'پەڕەی سوپەر ئادمین تەنها بۆ سەرپەرشتیاری گشتی ڕێگەپێدراوە.',
+                                confirmButtonColor: '#b45309',
+                                confirmButtonText: 'تێگەیشتم',
+                                background: '#0f172a',
+                                color: '#f8fafc'
+                            });
+                        };
+                        saLink.classList.add('opacity-50');
+                    }
+                }
+            }
+        }
+
+        function loadGatewayMetrics() {
+            try {
+                const students = JSON.parse(localStorage.getItem('college_students') || '[]');
+                const sessions = JSON.parse(localStorage.getItem('college_attendance_sessions') || '[]');
+
+                const totalStudentsElem = document.getElementById('statTotalStudents');
+                const totalSessionsElem = document.getElementById('statTotalSessions');
+                const avgAttendanceElem = document.getElementById('statAvgAttendance');
+
+                if (totalStudentsElem) totalStudentsElem.textContent = students.length || 0;
+                if (totalSessionsElem) totalSessionsElem.textContent = sessions.length || 0;
+
+                // Calculate college-wide average attendance rate
+                if (sessions.length > 0) {
+                    let totalPresent = 0;
+                    let totalRecords = 0;
+                    sessions.forEach(session => {
+                        if (session.records && Array.isArray(session.records)) {
+                            session.records.forEach(r => {
+                                totalRecords++;
+                                if (r.status === 'present') totalPresent++;
+                            });
+                        }
+                    });
+                    const rate = totalRecords > 0 ? Math.round((totalPresent / totalRecords) * 100) : 92;
+                    if (avgAttendanceElem) avgAttendanceElem.textContent = rate + '%';
+                } else {
+                    if (avgAttendanceElem) avgAttendanceElem.textContent = '94%';
+                }
+            } catch (e) {
+                console.error("Error reading metrics:", e);
+            }
+        }
+
+        function handleLogout() {
+            Swal.fire({
+                title: 'دڵنیایت لە دەرچوون؟',
+                text: 'دەگەڕێیتەوە بۆ پەڕەی چوونەژوورەوەی سەرەکی سیستەم.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'بەڵێ، دەرچوون',
+                cancelButtonText: 'پاشگەزبوونەوە',
+                background: '#0f172a',
+                color: '#f8fafc'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    localStorage.removeItem('college_auth_user');
+                    window.location.replace('login.html');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

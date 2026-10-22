@@ -1,0 +1,2881 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پەڕەی دیپارتمێنتەکان - سیستەمی غیاباتی کۆلێژ</title>
+    
+    <!-- Google Fonts: Tajawal & Vazirmatn -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Vazirmatn:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        kurdish: ['Tajawal', 'Vazirmatn', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Font Awesome 6.5.1 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- SheetJS (Excel Export) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Firebase SDK (v10 compat) & Live Sync Engine -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="firebase-service.js"></script>
+
+    <style>
+        body {
+            font-family: 'Tajawal', 'Vazirmatn', sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .attendance-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .attendance-btn:hover {
+            transform: translateY(-1px);
+        }
+        .attendance-btn:active {
+            transform: translateY(1px);
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            body {
+                background: white !important;
+                color: black !important;
+                font-size: 11pt;
+            }
+        }
+    </style>
+    
+    <!-- Authentication Guard for Departments Page -->
+    <script>
+        (function() {
+            try {
+                const user = JSON.parse(localStorage.getItem('college_auth_user') || 'null');
+                if (!user) {
+                    window.location.replace('login.html?redirect=departments.html');
+                }
+            } catch (e) {
+                window.location.replace('login.html?redirect=departments.html');
+            }
+        })();
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- ========================================================================= -->
+    <!-- DEPARTMENTS STANDALONE TOP HEADER                                         -->
+    <!-- ========================================================================= -->
+    <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-50 no-print border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Branding -->
+                <div class="flex items-center space-x-3 space-x-reverse">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600 flex items-center justify-center text-slate-950 shadow-lg font-black text-xl">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div>
+                        <div class="font-extrabold text-base sm:text-lg tracking-tight flex items-center gap-2">
+                            <span>کۆلێژی کارگێڕی و ئابووری</span>
+                            <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-bold border border-emerald-500/30">
+                                پەڕەی دیپارتمێنتەکان
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400">تۆماری ڕۆژانەی غیابات و بەڕێوەبردنی خوێندکارانی ٥ بەشەکە</p>
+                    </div>
+                </div>
+
+                <!-- 5 Department Quick Switcher & Link to Super Admin -->
+                <div class="flex items-center gap-3">
+                    <!-- Dropdown for Switching Between 5 Departments -->
+                    <div class="relative">
+                        <button id="deptDropdownBtn" class="flex items-center gap-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold transition shadow-md">
+                            <i id="currentDeptHeaderIcon" class="fa-solid fa-calculator text-blue-400"></i>
+                            <span id="currentDeptHeaderName">بەشی ژمێریاری</span>
+                            <i class="fa-solid fa-chevron-down text-xs opacity-60"></i>
+                        </button>
+
+                        <div id="deptDropdownMenu" class="hidden absolute left-0 mt-2 w-72 bg-white rounded-3xl shadow-2xl border border-slate-100 py-3 z-50 text-slate-800 animate-in fade-in zoom-in duration-100">
+                            <div class="px-5 py-2 border-b border-slate-100">
+                                <span class="text-[11px] font-black text-slate-400 uppercase tracking-wider block">هەڵبژاردنی بەشی زانستی</span>
+                            </div>
+                            <div class="p-2 space-y-1">
+                                <button onclick="selectDepartment('dept_accounting')" class="w-full text-right p-2.5 rounded-xl hover:bg-blue-50 flex items-center gap-3 transition">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-sm">
+                                        <i class="fa-solid fa-calculator"></i>
+                                    </div>
+                                    <div>
+                                        <span class="font-bold text-xs text-slate-800 block">بەشی ژمێریاری</span>
+                                        <span class="text-[10px] text-slate-400">Accounting</span>
+                                    </div>
+                                </button>
+                                <button onclick="selectDepartment('dept_business')" class="w-full text-right p-2.5 rounded-xl hover:bg-purple-50 flex items-center gap-3 transition">
+                                    <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-sm">
+                                        <i class="fa-solid fa-briefcase"></i>
+                                    </div>
+                                    <div>
+                                        <span class="font-bold text-xs text-slate-800 block">بەشی کارگێڕی کار</span>
+                                        <span class="text-[10px] text-slate-400">Business</span>
+                                    </div>
+                                </button>
+                                <button onclick="selectDepartment('dept_economics')" class="w-full text-right p-2.5 rounded-xl hover:bg-emerald-50 flex items-center gap-3 transition">
+                                    <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm">
+                                        <i class="fa-solid fa-chart-line"></i>
+                                    </div>
+                                    <div>
+                                        <span class="font-bold text-xs text-slate-800 block">بەشی ئابووری</span>
+                                        <span class="text-[10px] text-slate-400">Economics</span>
+                                    </div>
+                                </button>
+                                <button onclick="selectDepartment('dept_finance')" class="w-full text-right p-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-3 transition">
+                                    <div class="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center text-sm">
+                                        <i class="fa-solid fa-bullhorn"></i>
+                                    </div>
+                                    <div>
+                                        <span class="font-bold text-xs text-slate-800 block">بەشی کارگێڕی بەبازاڕکردن</span>
+                                        <span class="text-[10px] text-slate-400">Marketing Management</span>
+                                    </div>
+                                </button>
+                                <button onclick="selectDepartment('dept_statistics')" class="w-full text-right p-2.5 rounded-xl hover:bg-amber-50 flex items-center gap-3 transition">
+                                    <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm">
+                                        <i class="fa-solid fa-chart-pie"></i>
+                                    </div>
+                                    <div>
+                                        <span class="font-bold text-xs text-slate-800 block">بەشی ئامار و زانیاری</span>
+                                        <span class="text-[10px] text-slate-400">Statistics</span>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    
+                    <a id="superAdminLinkBtn" href="super_admin.html" class="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black px-3.5 py-2 rounded-2xl text-xs sm:text-sm transition shadow-lg border border-amber-300">
+                        <i class="fa-solid fa-crown text-slate-950"></i>
+                        <span class="hidden md:inline">سوپەر ئادمین</span>
+                        <i class="fa-solid fa-arrow-left text-xs opacity-70 mr-1"></i>
+                    </a>
+
+                    <!-- User indicator -->
+                    <div id="authUserBadge" class="hidden lg:flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-2xl border border-slate-700 text-xs">
+                        <div id="authUserAvatar" class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-user-check text-[10px]"></i>
+                        </div>
+                        <span id="authUserName" class="font-bold text-slate-200">بەڕێوەبەری بەش</span>
+                    </div>
+
+                    <!-- Logout Button -->
+                    <button onclick="handleLogout()" class="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-600 text-rose-300 hover:text-white px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition border border-rose-500/30">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span>دەرچوون</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- PRINT HEADER -->
+    <div class="hidden print-only p-6 border-b-2 border-slate-900 text-center">
+        <div class="flex justify-between items-center mb-4">
+            <div class="text-right">
+                <h3 class="font-black text-lg">حکومەتی هەرێمی کوردستان</h3>
+                <h4 class="font-bold text-sm">وەزارەتی خوێندنی باڵا و توێژینەوەی زانستی</h4>
+                <h4 class="font-bold text-base text-slate-800">کۆلێژی کارگێڕی و ئابووری</h4>
+            </div>
+            <div class="w-16 h-16 border-2 border-slate-900 rounded-full flex items-center justify-center text-2xl font-black">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div class="text-left" dir="ltr">
+                <p id="printDate" class="text-sm font-bold"></p>
+                <p class="text-xs text-slate-500">Academic Year: 2025 - 2026</p>
+                <p class="text-xs font-bold text-slate-800">بەشی تۆمار و غیابات</p>
+            </div>
+        </div>
+        <h2 id="printReportTitle" class="text-xl font-black underline py-2">لیستی غیاباتی خوێندکاران</h2>
+    </div>
+
+    <!-- DEPARTMENT SUB-NAVIGATION -->
+    <nav class="bg-white border-b border-slate-200 no-print sticky top-16 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-14">
+                <div class="flex space-x-1 space-x-reverse overflow-x-auto py-1">
+                    <button id="deptTabBtnDashboard" onclick="switchDeptTab('dashboard')" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200 transition shadow-sm">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>داشبۆردی بەش</span>
+                    </button>
+                    <button id="deptTabBtnCourses" onclick="switchDeptTab('courses')" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 text-slate-600 hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                        <span>مامۆستایان و وانەکان</span>
+                    </button>
+                    <button id="deptTabBtnStudents" onclick="switchDeptTab('students')" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 text-slate-600 hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-users"></i>
+                        <span>خوێندکارانی بەش</span>
+                    </button>
+                    <button id="deptTabBtnReports" onclick="switchDeptTab('reports')" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 text-slate-600 hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-file-invoice"></i>
+                        <span>ئەرشیفی ڕاپۆرتەکان</span>
+                    </button>
+                </div>
+
+                <div class="hidden sm:flex items-center gap-2 text-xs bg-slate-100 text-slate-700 px-3.5 py-1.5 rounded-xl border border-slate-200 font-bold">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="deptCurrentTitleBadge">بەشی ژمێریاری</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN DEPARTMENT CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1">
+        
+        <!-- DEPARTMENT HERO BANNER -->
+        <div id="deptHeroBanner" class="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl transition-all duration-300 bg-gradient-to-l from-blue-900 via-slate-900 to-slate-950 border border-slate-700">
+            <div class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <div class="inline-flex items-center gap-2 bg-white/10 text-white text-xs px-3.5 py-1 rounded-full border border-white/20 font-bold mb-3">
+                        <i class="fa-solid fa-building-columns"></i>
+                        <span id="deptHeroBadge">پانێڵی تایبەتی بەشەکە</span>
+                    </div>
+                    <h1 id="deptHeroTitle" class="text-2xl sm:text-3xl font-black">بەشی ژمێریاری</h1>
+                    <p id="deptHeroDesc" class="text-slate-300 text-xs sm:text-sm mt-1 max-w-xl">
+                        سەرپەرشتیاری بەش: م. ئاراس کەریم | بەڕێوەبردنی خوێندکاران، ئامارەکان و ڕاپۆرتەکانی ئەم بەشە بە سەربەخۆیی.
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="switchDeptTab('courses'); openAddCourseModal();" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-plus-circle"></i>
+                        <span>دروستکردنی هەژماری وانە</span>
+                    </button>
+                    <button onclick="switchDeptTab('courses')" class="bg-white/10 hover:bg-white/20 text-white font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 border border-white/20">
+                        <i class="fa-solid fa-chalkboard-user text-indigo-300"></i>
+                        <span>وانە و مامۆستایان</span>
+                    </button>
+                    <button onclick="switchDeptTab('students')" class="bg-white text-slate-900 hover:bg-slate-100 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition shadow flex items-center gap-2">
+                        <i class="fa-solid fa-users text-emerald-600"></i>
+                        <span>خوێندکاران</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 1: DASHBOARD -->
+        <section id="deptTabDashboard" class="space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                    <p class="text-xs font-bold text-slate-400">کۆی خوێندکارانی بەش</p>
+                    <h3 id="deptStatTotalStudents" class="text-3xl font-black text-slate-800 mt-1">0</h3>
+                    <span class="text-xs text-slate-500 font-medium mt-1 inline-block">تەنها خوێندکارانی ئەم بەشە</span>
+                </div>
+
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                    <p class="text-xs font-bold text-slate-400">ڕێژەی ئامادەبوونی بەشەکە</p>
+                    <h3 id="deptStatAttendanceRate" class="text-3xl font-black text-emerald-600 mt-1">0%</h3>
+                    <span class="text-xs text-emerald-700 font-medium mt-1 inline-block">تێکڕای پابەندبوونی بەشەکە</span>
+                </div>
+
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                    <p class="text-xs font-bold text-slate-400">کۆی کاتژمێری غیابات</p>
+                    <h3 id="deptStatTotalAbsences" class="text-3xl font-black text-rose-600 mt-1">0</h3>
+                    <span class="text-xs text-rose-700 font-medium mt-1 inline-block">تەنها لەم بەشەدا</span>
+                </div>
+
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                    <p class="text-xs font-bold text-slate-400">خوێندکارانی مەترسیدار (> %10)</p>
+                    <h3 id="deptStatWarningStudents" class="text-3xl font-black text-amber-600 mt-1">0</h3>
+                    <span class="text-xs text-amber-700 font-medium mt-1 inline-block">پێویستیان بە ئاگادارکردنەوەیە</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+                    <h3 class="font-extrabold text-slate-800 text-base mb-1">دابەشبوونی غیابات بەپێی ٤ قۆناغەکەی بەشەکە</h3>
+                    <p class="text-xs text-slate-400 mb-4">ڕێژەی غیاباتی خوێندکاران لە قۆناغی یەکەم تا چوارەم</p>
+                    <div class="h-64">
+                        <canvas id="deptStagesChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-extrabold text-slate-800 text-base mb-1">دۆخی ئامادەبوونی خوێندکارانی ئەم بەشە</h3>
+                        <p class="text-xs text-slate-400 mb-4">کۆی دابەشبوونی دۆخەکان</p>
+                    </div>
+                    <div class="h-48 flex items-center justify-center">
+                        <canvas id="deptStatusDonutChart"></canvas>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs pt-3 border-t border-slate-100 font-bold">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> هاتوو</div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> نەهاتوو</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-slate-800">خوێندکارانی مەترسیداری ئەم بەشە</h3>
+                            <p class="text-xs text-slate-400">ئەو خوێندکارانەی غیاباتیان لە بەشەکە گەیشتووەتە سنووری دەرکردن</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead class="bg-slate-50 text-slate-500 text-xs font-bold uppercase border-y border-slate-200">
+                            <tr>
+                                <th class="py-3 px-4">کۆد</th>
+                                <th class="py-3 px-4">ناوی خوێندکار</th>
+                                <th class="py-3 px-4">قۆناغ</th>
+                                <th class="py-3 px-4 text-center">کاتژمێری غیابات</th>
+                                <th class="py-3 px-4 text-center">ڕێژەی غیابات</th>
+                                <th class="py-3 px-4 text-center">بارودۆخ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deptWarningTableBody" class="divide-y divide-slate-100">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: MANAGE COURSES & TEACHERS -->
+        <section id="deptTabCourses" class="hidden space-y-6">
+            <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl font-black border border-indigo-100 shadow-sm">
+                            <i class="fa-solid fa-chalkboard-user"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-black text-slate-900 text-lg sm:text-xl">بەڕێوەبردنی وانەکان و هەژماری مامۆستایان</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">سەرۆک بەش دەتوانێت وانەی نوێ، ناوی مامۆستا، یوزێرنەیم و پاسسوۆرد و تۆتاڵ هاوەری وانەکە (Total Contact Hours) دروست بکات</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openAddCourseModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-black px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-md shadow-indigo-600/20">
+                            <i class="fa-solid fa-plus-circle"></i>
+                            <span>دروستکردنی هەژماری وانەی نوێ</span>
+                        </button>
+                    </div>
+                </div>
+
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100">
+                    <div>
+                        <input type="text" id="deptCourseSearchInput" onkeyup="renderDeptCoursesTable()" placeholder="گەڕان بەپێی ناوی وانە، مامۆستا یان یوزێرنەیم..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <select id="deptCourseStageFilter" onchange="renderDeptCoursesTable()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2.5 focus:outline-none font-bold">
+                            <option value="all">هەموو قۆناغەکان</option>
+                            <option value="1">قۆناغی یەکەم</option>
+                            <option value="2">قۆناغی دووەم</option>
+                            <option value="3">قۆناغی سێیەم</option>
+                            <option value="4">قۆناغی چوارەم</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead class="bg-slate-100/80 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-4 w-12 text-center">#</th>
+                                <th class="py-3 px-4">ناوی بابەت / وانە</th>
+                                <th class="py-3 px-4">ناوی مامۆستای وانەبێژ</th>
+                                <th class="py-3 px-4 text-center">قۆناغ</th>
+                                <th class="py-3 px-4 font-mono">ناوی بەکارهێنەر (Username)</th>
+                                <th class="py-3 px-4 font-mono">وشەی نهێنی (Password)</th>
+                                <th class="py-3 px-4 text-center">تۆتاڵ هاوەری وانەکە</th>
+                                <th class="py-3 px-4 text-center">کردارەکان</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deptCoursesTableBody" class="divide-y divide-slate-100">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="deptCoursesEmptyState" class="hidden p-12 text-center">
+                    <div class="w-16 h-16 rounded-full bg-indigo-50 text-indigo-400 flex items-center justify-center mx-auto mb-3 text-2xl">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-700">هیچ وانەیەک بۆ ئەم بەشە دروست نەکراوە</h4>
+                    <p class="text-xs text-slate-400 mt-1">تکایە کلیک لەسەر (دروستکردنی هەژماری وانەی نوێ) بکە بۆ زیادکردنی مامۆستا و وانەکان.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB: MANAGE STUDENTS -->
+        <section id="deptTabStudents" class="hidden space-y-6">
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 class="font-black text-slate-800 text-lg">بەڕێوەبردنی خوێندکارانی ئەم بەشە</h2>
+                        <p class="text-xs text-slate-400">بینین، زیادکردن و دەستکاریکردنی تەنها خوێندکارانی ئەم بەشە</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <button type="button" onclick="openExcelImportModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-md shadow-indigo-600/20 border border-indigo-500">
+                            <i class="fa-solid fa-file-excel text-sm text-emerald-400"></i>
+                            <span>هاوردەکردنی خوێندکار بە ئەکسڵ (Excel Import)</span>
+                        </button>
+                        <button type="button" onclick="openAddStudentModalForDept()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>زیادکردنی خوێندکاری تاک</span>
+                        </button>
+                        <button type="button" onclick="exportDeptStudentsExcel()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 border border-slate-200">
+                            <i class="fa-solid fa-file-arrow-down text-emerald-600"></i>
+                            <span>داگرتنی لیستی ئەکسڵ</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100">
+                    <div>
+                        <input type="text" id="deptManageSearchInput" onkeyup="renderDeptStudentsTable()" placeholder="گەڕان بەپێی ناوی خوێندکار یان کۆد..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2.5 focus:outline-none">
+                    </div>
+                    <div>
+                        <select id="deptManageStageFilter" onchange="renderDeptStudentsTable()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2.5 focus:outline-none font-bold">
+                            <option value="all">هەموو قۆناغەکانی ئەم بەشە</option>
+                            <option value="1">قۆناغی یەکەم</option>
+                            <option value="2">قۆناغی دووەم</option>
+                            <option value="3">قۆناغی سێیەم</option>
+                            <option value="4">قۆناغی چوارەم</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead class="bg-slate-100/80 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-4 w-12 text-center">#</th>
+                                <th class="py-3 px-4">کۆدی زانکۆیی</th>
+                                <th class="py-3 px-4">ناوی تەواوی خوێندکار</th>
+                                <th class="py-3 px-4">قۆناغ</th>
+                                <th class="py-3 px-4">خوێندن / گرووپ</th>
+                                <th class="py-3 px-4 text-center">کۆی غیابات</th>
+                                <th class="py-3 px-4 text-center">ڕێژە</th>
+                                <th class="py-3 px-4 text-center">کردارەکان</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deptStudentsTableBody" class="divide-y divide-slate-100">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: REPORTS & ARCHIVE (SUPER ADMIN STAGED ABSENCE SYSTEM FOR DEPT) -->
+        <section id="deptTabReports" class="hidden space-y-6">
+            <!-- Header Card & Actions -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200/90">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center text-xl shadow-lg shadow-indigo-100">
+                            <i class="fa-solid fa-table-list"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="font-black text-slate-900 text-lg sm:text-xl">ڕاپۆرتی فەرمی غیاباتی ٤ قۆناغەکەی بەش</h2>
+                                <span id="deptReportsActiveDeptBadge" class="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-0.5 rounded-full font-bold border border-indigo-200">
+                                    تایبەت بە بەش
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">بەڕێوەبردن و وردبینی فەرمی غیاباتی چوار قۆناغەکە بەپێی وانەکان و ڕێژەی لەسەدی</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="reloadSampleAbsenceData()" title="نوێکردنەوەی داتای نموونەیی بۆ ٤ قۆناغەکە" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-2.5 rounded-xl text-xs sm:text-sm transition border border-indigo-200 flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                            <span>داتای نموونەیی</span>
+                        </button>
+                        <button onclick="exportDeptStagesAbsenceExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow flex items-center gap-2">
+                            <i class="fa-solid fa-file-excel"></i>
+                            <span>داگرتن بە ئەکسڵ</span>
+                        </button>
+                        <button onclick="printDeptStagesAbsenceReport()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow flex items-center gap-2">
+                            <i class="fa-solid fa-print"></i>
+                            <span>چاپکردن / PDF</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Controls for the 4 Stages -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">فلتەری قۆناغ</label>
+                        <select id="deptReportStageFilter" onchange="renderDeptReportsList()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2.5 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="all">سەرجەم ٤ قۆناغەکە</option>
+                            <option value="1">قۆناغی یەکەم</option>
+                            <option value="2">قۆناغی دووەم</option>
+                            <option value="3">قۆناغی سێیەم</option>
+                            <option value="4">قۆناغی چوارەم</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">جۆری خوێندن</label>
+                        <select id="deptReportStudyFilter" onchange="renderDeptReportsList()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2.5 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="all">سەرجەم خوێندنەکان</option>
+                            <option value="morning">بەیانیان</option>
+                            <option value="evening">ئێواران</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">ئاستی غیابات</label>
+                        <select id="deptReportAbsenceFilter" onchange="renderDeptReportsList()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2.5 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="all">سەرجەم ڕێژەکان</option>
+                            <option value="warning_5">ئاگاداری سەرەتایی (٥٪ و زیاتر)</option>
+                            <option value="warning_7">ئاگاداری مەترسیدار (٧٪ و زیاتر)</option>
+                            <option value="warning_10">سنووری فەسڵکردن (١٠٪ و زیاتر)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">گەڕان بەدوای خوێندکار یان وانە</label>
+                        <div class="relative">
+                            <input type="text" id="deptReportSearchInput" onkeyup="renderDeptReportsList()" placeholder="ناو، کۆد، یان وانە بنووسە..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl pr-9 pl-3 py-2.5 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <i class="fa-solid fa-magnifying-glass absolute right-3 top-3 text-slate-400 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI Summary Cards for Department Stages -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-100">
+                    <div class="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-3.5 text-center">
+                        <span class="text-[11px] text-indigo-700 font-bold block mb-0.5">خوێندکارانی خاوەن غیابات</span>
+                        <h4 id="deptReportTotalCount" class="text-xl sm:text-2xl font-black text-indigo-950 font-mono">0</h4>
+                        <span class="text-[10px] text-indigo-500 font-bold">لە چوار قۆناغەکەدا</span>
+                    </div>
+                    <div class="bg-rose-50/70 border border-rose-100 rounded-2xl p-3.5 text-center">
+                        <span class="text-[11px] text-rose-700 font-bold block mb-0.5">کۆی کاتژمێری نەهاتوو</span>
+                        <h4 id="deptReportTotalAbsHours" class="text-xl sm:text-2xl font-black text-rose-700 font-mono">0</h4>
+                        <span class="text-[10px] text-rose-500 font-bold">لە سەرجەم وانەکاندا</span>
+                    </div>
+                    <div class="bg-amber-50/70 border border-amber-100 rounded-2xl p-3.5 text-center">
+                        <span class="text-[11px] text-amber-700 font-bold block mb-0.5">تێکڕای ڕێژەی غیابات</span>
+                        <h4 id="deptReportAvgAbsRate" class="text-xl sm:text-2xl font-black text-amber-900 font-mono">%0.0</h4>
+                        <span class="text-[10px] text-amber-600 font-bold">بەپێی کاتژمێری وانەکان</span>
+                    </div>
+                    <div class="bg-purple-50/70 border border-purple-100 rounded-2xl p-3.5 text-center">
+                        <span class="text-[11px] text-purple-700 font-bold block mb-0.5">حاڵەتەکانی ئاگاداری (٥٪+)</span>
+                        <h4 id="deptReportWarningCount" class="text-xl sm:text-2xl font-black text-purple-900 font-mono">0</h4>
+                        <span class="text-[10px] text-purple-600 font-bold">پێویست بە بەدواداچوون</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stage Tables Container -->
+            <div id="deptReportsListContainer" class="space-y-6">
+                <!-- Injected by JS: 4 stage tables -->
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL: ADD / EDIT STUDENT -->
+    <div id="studentModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-150">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 id="modalStudentTitle" class="font-black text-slate-800 text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-emerald-600"></i>
+                    <span>زیادکردنی خوێندکاری نوێ</span>
+                </h3>
+                <button onclick="closeStudentModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="studentForm" onsubmit="handleSaveStudent(event)" class="mt-4 space-y-4">
+                <input type="hidden" id="modalStudentId">
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">کۆدی زانکۆیی (Student Code)</label>
+                    <input type="text" id="modalStudentCode" required placeholder="نموونە: ACC-2024-001" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3.5 py-2.5 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">ناوی تەواوی خوێندکار (سیانی بە کوردی)</label>
+                    <input type="text" id="modalStudentName" required placeholder="ناوی تەواوی بنووسە" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3.5 py-2.5 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">بەشی زانستی</label>
+                        <select id="modalStudentDept" disabled class="w-full bg-slate-100 border border-slate-200 text-slate-700 text-sm rounded-xl px-3.5 py-2.5 font-bold focus:outline-none">
+                            <option value="dept_accounting">بەشی ژمێریاری</option>
+                            <option value="dept_business">بەشی کارگێڕی کار</option>
+                            <option value="dept_economics">بەشی ئابووری</option>
+                            <option value="dept_finance">بەشی کارگێڕی بەبازاڕکردن</option>
+                            <option value="dept_statistics">بەشی ئامار و زانیاری</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">قۆناغ</label>
+                        <select id="modalStudentStage" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3.5 py-2.5 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            <option value="1">قۆناغی یەکەم</option>
+                            <option value="2">قۆناغی دووەم</option>
+                            <option value="3">قۆناغی سێیەم</option>
+                            <option value="4">قۆناغی چوارەم</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">جۆری خوێندن</label>
+                        <select id="modalStudentStudy" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3.5 py-2.5 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            <option value="morning">بەیانیان</option>
+                            <option value="evening">ئێواران</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">گرووپ</label>
+                        <select id="modalStudentGroup" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3.5 py-2.5 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            <option value="A">گرووپ A</option>
+                            <option value="B">گرووپ B</option>
+                            <option value="C">گرووپ C</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeStudentModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-sm transition">
+                        پاشگەزبوونەوە
+                    </button>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-5 py-2 rounded-xl text-sm transition shadow-md">
+                        پاشەکەوتکردن
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- COURSE / TEACHER MODAL -->
+    <div id="deptCourseModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full p-6">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold">
+                        <i class="fa-solid fa-book-open"></i>
+                    </div>
+                    <div>
+                        <h3 id="courseModalTitle" class="font-black text-slate-900 text-base">دروستکردنی هەژماری وانەی نوێ</h3>
+                        <p class="text-xs text-slate-400">زانیارییەکانی وانە و هەژماری مامۆستا تۆمار بکە</p>
+                    </div>
+                </div>
+                <button onclick="closeCourseModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form onsubmit="saveCourseModal(event)" class="mt-4 space-y-4">
+                <input type="hidden" id="courseModalId">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">ناوی وانە / بابەت <span class="text-rose-500">*</span></label>
+                        <input type="text" id="courseSubjectInput" required placeholder="بۆ نموونە: بنەماکانی ژمێریاری" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3 py-2 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">ناوی مامۆستای وانەبێژ <span class="text-rose-500">*</span></label>
+                        <input type="text" id="courseTeacherNameInput" required placeholder="بۆ نموونە: م. کاروان ئەحمەد" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3 py-2 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">قۆناغ <span class="text-rose-500">*</span></label>
+                        <select id="courseStageInput" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3 py-2 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="1">قۆناغی یەکەم</option>
+                            <option value="2">قۆناغی دووەم</option>
+                            <option value="3">قۆناغی سێیەم</option>
+                            <option value="4">قۆناغی چوارەم</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-indigo-900 mb-1 flex items-center justify-between">
+                            <span>تۆتاڵ هاوەری وانەکە <span class="text-rose-500">*</span></span>
+                            <span class="text-[10px] text-indigo-600 font-bold">Contact Hours</span>
+                        </label>
+                        <input type="number" id="courseTotalHoursInput" required min="10" max="250" value="60" placeholder="60" class="w-full bg-indigo-50 border-2 border-indigo-300 text-indigo-950 text-sm rounded-xl px-3 py-2 font-black focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">ناوی بەکارهێنەر (Username) <span class="text-rose-500">*</span></label>
+                        <input type="text" id="courseUsernameInput" required placeholder="بۆ نموونە: teacher_acc" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3 py-2 font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">وشەی نهێنی (Password) <span class="text-rose-500">*</span></label>
+                        <input type="text" id="coursePasswordInput" required placeholder="بۆ نموونە: pass123" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3 py-2 font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="text-[11px] text-slate-600 bg-indigo-50/70 p-3 rounded-xl border border-indigo-100 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-indigo-600 text-sm shrink-0"></i>
+                    <span>تۆتاڵ هاوەری وانەکە (All the contact hours during the semester) ڕاستەوخۆ دەبێتە بنەمای دابەشکردنی غیاباتی خوێندکار لە پەڕەی مامۆستا.</span>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeCourseModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-sm transition">
+                        پاشگەزبوونەوە
+                    </button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-5 py-2 rounded-xl text-sm transition shadow-md">
+                        پاشەکەوتکردنی هەژمار
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: EXCEL IMPORT STUDENTS -->
+    <div id="excelImportModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-150 max-h-[92vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-file-excel"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-slate-800 text-base">هاوردەکردنی خوێندکاران لە فایلی ئەکسڵ (Excel Import)</h3>
+                        <p class="text-xs text-slate-400">تایبەت بە <span id="excelImportDeptBadge" class="font-bold text-indigo-600">بەش</span></p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeExcelImportModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="mt-4 space-y-4 overflow-y-auto flex-1 pr-1 pl-1">
+                
+                <!-- File Upload Box -->
+                <div id="excelDropZone" onclick="document.getElementById('excelFileInput').click()" class="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/40 hover:bg-indigo-50/80 rounded-2xl p-6 text-center cursor-pointer transition">
+                    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" onchange="handleExcelFileSelect(event)" class="hidden">
+                    <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center mx-auto mb-2 text-xl shadow-md">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                    </div>
+                    <h4 class="font-black text-slate-800 text-sm">کلیک بکە بۆ هەڵبژاردنی فایلی ئەکسڵی بەشەکە (.xlsx / .xls)</h4>
+                    <p class="text-xs text-slate-500 mt-1">یان فایلی فۆڕمی غیابات ڕابکێشە بۆ ئێرە</p>
+                    <div id="excelFileInfo" class="hidden mt-3 inline-flex items-center gap-2 bg-white px-3.5 py-1.5 rounded-xl border border-indigo-200 text-xs font-bold text-indigo-900 shadow-sm">
+                        <i class="fa-solid fa-file-lines text-indigo-600"></i>
+                        <span id="excelFileNameText">فایل</span>
+                        <span id="excelFileSheetsText" class="text-slate-400 font-normal"></span>
+                    </div>
+                </div>
+
+                <!-- Sheet & Stage & Group Options (Visible when file is loaded) -->
+                <div id="excelOptionsSection" class="hidden bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <!-- Sheet Selection (if multi-sheet like 4A, 4B) -->
+                        <div id="excelSheetSelectWrapper">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">لاپەڕەی ئەکسڵ (Sheet / پەیج)</label>
+                            <select id="excelSheetSelect" onchange="onExcelSheetChange()" class="w-full bg-white border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+
+                        <!-- Stage -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">دیاریکردنی قۆناغ</label>
+                            <select id="excelStageSelect" onchange="refreshExcelPreview()" class="w-full bg-white border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="1">قۆناغی یەکەم</option>
+                                <option value="2">قۆناغی دووەم</option>
+                                <option value="3">قۆناغی سێیەم</option>
+                                <option value="4" selected>قۆناغی چوارەم</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <!-- Group -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">دیاریکردنی گرووپ</label>
+                            <select id="excelGroupSelect" onchange="refreshExcelPreview()" class="w-full bg-white border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="A" selected>گرووپ A</option>
+                                <option value="B">گرووپ B</option>
+                                <option value="C">گرووپ C</option>
+                                <option value="">بێ گرووپ</option>
+                            </select>
+                        </div>
+
+                        <!-- Study -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">جۆری خوێندن</label>
+                            <select id="excelStudySelect" onchange="refreshExcelPreview()" class="w-full bg-white border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="morning" selected>بەیانیان</option>
+                                <option value="evening">ئێواران</option>
+                            </select>
+                        </div>
+
+                        <!-- Code Format -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">شێوازی کۆدی ئۆتۆماتیکی</label>
+                            <select id="excelCodeFormatSelect" onchange="refreshExcelPreview()" class="w-full bg-white border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2 font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="stage_seq" selected>STA-401, STA-402 (بەپێی قۆناغ)</option>
+                                <option value="group_seq">STA-4A-01, STA-4A-02 (بەپێی گرووپ)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Table Card -->
+                <div id="excelPreviewSection" class="hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black text-slate-800">خوێندکارە دۆزراوەکان بۆ تۆمارکردن:</span>
+                            <span id="excelParsedCountBadge" class="text-xs bg-indigo-100 text-indigo-800 font-black px-2.5 py-0.5 rounded-full border border-indigo-200">
+                                0 خوێندکار
+                            </span>
+                        </div>
+                        <label class="flex items-center gap-1.5 text-xs text-slate-600 font-bold cursor-pointer">
+                            <input type="checkbox" id="excelSkipDuplicatesCheck" checked onchange="refreshExcelPreview()" class="rounded text-indigo-600">
+                            <span>پەڕاندنی ناوی دووبارە (ئەگەر پێشتر هەبێت)</span>
+                        </label>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden max-h-56 overflow-y-auto">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-100 text-slate-700 font-black border-b border-slate-200 sticky top-0">
+                                <tr>
+                                    <th class="py-2.5 px-3 text-center w-10">#</th>
+                                    <th class="py-2.5 px-3 w-28">کۆدی ئۆتۆماتیکی</th>
+                                    <th class="py-2.5 px-3">ناوی خوێندکار</th>
+                                    <th class="py-2.5 px-3 text-center">قۆناغ</th>
+                                    <th class="py-2.5 px-3 text-center">گرووپ</th>
+                                    <th class="py-2.5 px-3 text-center">دۆخ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="excelPreviewTableBody" class="divide-y divide-slate-100 font-medium">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0">
+                <button type="button" onclick="closeExcelImportModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition">
+                    پاشگەزبوونەوە
+                </button>
+                <button type="button" id="btnExecuteExcelImport" disabled onclick="executeExcelImport()" class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none text-white font-extrabold px-6 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg shadow-indigo-600/30 flex items-center gap-2">
+                    <i class="fa-solid fa-check-double"></i>
+                    <span id="btnExecuteExcelImportText">تۆمارکردنی سەرجەم خوێندکارەکان لە سیستەم</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12 no-print text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-2 font-bold text-slate-800">
+                <i class="fa-solid fa-graduation-cap text-emerald-600 text-base"></i>
+                <span>کۆلێژی کارگێڕی و ئابووری - سیستەمی ئەلیکترۆنی دیپارتمێنتەکان</span>
+            </div>
+            <div>
+                <span>پەڕەی سەربەخۆی دیپارتمێنتەکان (Department Workspace)</span>
+            </div>
+            <div class="text-slate-400 font-mono">
+                <span>Enterprise v3.0 Royal Edition</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT STATE & LOGIC -->
+    <script>
+        const DEPARTMENTS = {
+            'dept_accounting': {
+                id: 'dept_accounting',
+                name: 'بەشی ژمێریاری',
+                en: 'Accounting Department',
+                color: 'blue',
+                icon: 'fa-calculator',
+                adminName: 'م. ئاراس کەریم'
+            },
+            'dept_business': {
+                id: 'dept_business',
+                name: 'بەشی کارگێڕی کار',
+                en: 'Business Administration',
+                color: 'purple',
+                icon: 'fa-briefcase',
+                adminName: 'د. پشتیوان عوسمان'
+            },
+            'dept_economics': {
+                id: 'dept_economics',
+                name: 'بەشی ئابووری',
+                en: 'Economics Department',
+                color: 'emerald',
+                icon: 'fa-chart-line',
+                adminName: 'م. سەروەر ساڵح'
+            },
+            'dept_finance': {
+                id: 'dept_finance',
+                name: 'بەشی کارگێڕی بەبازاڕکردن',
+                en: 'Marketing Management',
+                color: 'teal',
+                icon: 'fa-bullhorn',
+                adminName: 'د. گۆران جەمال'
+            },
+            'dept_statistics': {
+                id: 'dept_statistics',
+                name: 'بەشی ئامار و زانیاری',
+                en: 'Statistics & Informatics',
+                color: 'amber',
+                icon: 'fa-chart-pie',
+                adminName: 'م. نەبەز عەلی'
+            }
+        };
+
+        const DEPT_PREFIX = {
+            'dept_accounting': 'ACC',
+            'dept_business': 'BUS',
+            'dept_economics': 'ECO',
+            'dept_finance': 'FIN',
+            'dept_statistics': 'STA'
+        };
+
+        const DEFAULT_STUDENTS = [
+            // بەشی ژمێریاری (Accounting)
+            { id: '1', code: 'ACC-101', name: 'ئاری ڕەحمان حەمەسەعید', dept: 'dept_accounting', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 4 },
+            { id: '2', code: 'ACC-102', name: 'شێنێ محمد ئەحمەد', dept: 'dept_accounting', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 0 },
+            { id: '3', code: 'ACC-103', name: 'ڕەوەند عوسمان ساڵح', dept: 'dept_accounting', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 6 },
+            { id: '4', code: 'ACC-104', name: 'لانە کامەران جەمیل', dept: 'dept_accounting', stage: '1', study: 'morning', group: 'B', totalHours: 40, absentHours: 2 },
+            { id: '5', code: 'ACC-201', name: 'هۆزان کاروان عەلی', dept: 'dept_accounting', stage: '2', study: 'morning', group: 'A', totalHours: 60, absentHours: 5 },
+            { id: '6', code: 'ACC-301', name: 'دیاری فەرهاد حوسێن', dept: 'dept_accounting', stage: '3', study: 'evening', group: 'A', totalHours: 60, absentHours: 4 },
+            { id: '7', code: 'ACC-401', name: 'دڵنیا مەحموود بابان', dept: 'dept_accounting', stage: '4', study: 'morning', group: 'B', totalHours: 60, absentHours: 4 },
+
+            // بەشی کارگێڕی کار (Business Administration)
+            { id: '8', code: 'BUS-101', name: 'سۆران کەریم قادر', dept: 'dept_business', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 4 },
+            { id: '9', code: 'BUS-102', name: 'بێریڤان ئەنوەر مستەفا', dept: 'dept_business', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 2 },
+            { id: '10', code: 'BUS-201', name: 'میران تەها حەسەن', dept: 'dept_business', stage: '2', study: 'morning', group: 'A', totalHours: 60, absentHours: 7 },
+            { id: '11', code: 'BUS-202', name: 'نیان عەبدوڵڵا خدر', dept: 'dept_business', stage: '2', study: 'evening', group: 'B', totalHours: 60, absentHours: 3 },
+            { id: '12', code: 'BUS-301', name: 'پێشەوا زانا ڕۆستەم', dept: 'dept_business', stage: '3', study: 'morning', group: 'A', totalHours: 60, absentHours: 4 },
+            { id: '13', code: 'BUS-401', name: 'سانا ئازاد نەجمەدین', dept: 'dept_business', stage: '4', study: 'morning', group: 'A', totalHours: 60, absentHours: 5 },
+
+            // بەشی ئابووری (Economics)
+            { id: '14', code: 'ECO-101', name: 'ژیا ئەبوبەکر ڕەشید', dept: 'dept_economics', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 3 },
+            { id: '15', code: 'ECO-102', name: 'ڕێباز عومەر فەتاح', dept: 'dept_economics', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 0 },
+            { id: '16', code: 'ECO-201', name: 'هێلین جەلال عەزیز', dept: 'dept_economics', stage: '2', study: 'morning', group: 'A', totalHours: 60, absentHours: 4 },
+            { id: '17', code: 'ECO-301', name: 'کارۆخ سەڵاح مەجید', dept: 'dept_economics', stage: '3', study: 'evening', group: 'A', totalHours: 60, absentHours: 7 },
+            { id: '18', code: 'ECO-401', name: 'ڕۆژین بەختیار تۆفیق', dept: 'dept_economics', stage: '4', study: 'morning', group: 'B', totalHours: 60, absentHours: 3 },
+
+            // بەشی کارگێڕی بەبازاڕکردن (Marketing Management)
+            { id: '19', code: 'FIN-101', name: 'دانەر هیدایەت ساڵح', dept: 'dept_finance', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 3 },
+            { id: '20', code: 'FIN-102', name: 'ئاڤان شێرزاد مەولود', dept: 'dept_finance', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 2 },
+            { id: '21', code: 'FIN-201', name: 'یاسین کەمال نەوزاد', dept: 'dept_finance', stage: '2', study: 'morning', group: 'A', totalHours: 60, absentHours: 5 },
+            { id: '22', code: 'FIN-301', name: 'سۆما فاروق ئەحمەد', dept: 'dept_finance', stage: '3', study: 'morning', group: 'B', totalHours: 60, absentHours: 4 },
+            { id: '23', code: 'FIN-401', name: 'لاوژە سابیر کەریم', dept: 'dept_finance', stage: '4', study: 'evening', group: 'A', totalHours: 60, absentHours: 6 },
+
+            // بەشی ئامار و زانیاری (Statistics & Informatics)
+            { id: '24', code: 'STA-101', name: 'ڕێبین بەهادین عەلی', dept: 'dept_statistics', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 4 },
+            { id: '25', code: 'STA-102', name: 'کەژان یاسین پیرۆت', dept: 'dept_statistics', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 0 },
+            { id: '26', code: 'STA-201', name: 'داهات هیوا برایم', dept: 'dept_statistics', stage: '2', study: 'morning', group: 'A', totalHours: 60, absentHours: 4 },
+            { id: '27', code: 'STA-301', name: 'شنۆ ڕزگار عارف', dept: 'dept_statistics', stage: '3', study: 'evening', group: 'A', totalHours: 60, absentHours: 3 },
+            { id: '28', code: 'STA-401', name: 'ئارام بورهان فایەق', dept: 'dept_statistics', stage: '4', study: 'morning', group: 'A', totalHours: 60, absentHours: 7 }
+        ];
+
+        const DEFAULT_COURSES = [
+            // بەشی ژمێریاری
+            { id: 'crs_1', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'بنەماکانی ژمێریاری', teacherName: 'م. کاروان ئەحمەد', stage: '1', totalHours: 60, username: 'teacher', password: 'teacher123' },
+            { id: 'crs_2', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'مافەکانی مرۆڤ', teacherName: 'م. شادان عوسمان', stage: '1', totalHours: 40, username: 'shadan_acc', password: 'shadan123' },
+            { id: 'crs_3', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'ژمێریاری نەوت و گاز', teacherName: 'د. هێمن عومەر', stage: '2', totalHours: 60, username: 'hemin_acc', password: 'hemin123' },
+            { id: 'crs_4', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'ژمێریاری تێچوون', teacherName: 'م. کامەران عەزیز', stage: '2', totalHours: 60, username: 'kamaran_acc', password: 'kamaran123' },
+            { id: 'crs_5', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'ژمێریاری پێشکەوتوو', teacherName: 'د. فەرهاد حەمە', stage: '3', totalHours: 60, username: 'farhad_acc', password: 'farhad123' },
+            { id: 'crs_6', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'وردبینی و پێداچوونەوە', teacherName: 'پ.د. سەردار عەلی', stage: '4', totalHours: 60, username: 'sardar_acc', password: 'sardar123' },
+
+            // بەشی کارگێڕی کار
+            { id: 'crs_7', deptId: 'dept_business', dept: 'dept_business', subject: 'پڕەنسیپەکانی کارگێڕی', teacherName: 'م. ڕێبوار کەمال', stage: '1', totalHours: 60, username: 'rebwar_bus', password: 'rebwar123' },
+            { id: 'crs_8', deptId: 'dept_business', dept: 'dept_business', subject: 'زانستی کۆمپیوتەر', teacherName: 'م. هێرش جەمال', stage: '1', totalHours: 40, username: 'hersh_bus', password: 'hersh123' },
+            { id: 'crs_9', deptId: 'dept_business', dept: 'dept_business', subject: 'بەڕێوەبردنی سەرچاوە مرۆییەکان', teacherName: 'د. نەوزاد ساڵح', stage: '2', totalHours: 60, username: 'nawzad_bus', password: 'nawzad123' },
+            { id: 'crs_10', deptId: 'dept_business', dept: 'dept_business', subject: 'کارگێڕی ستراتیژی', teacherName: 'د. ڕەوەند بەکر', stage: '3', totalHours: 60, username: 'rawand_bus', password: 'rawand123' },
+            { id: 'crs_11', deptId: 'dept_business', dept: 'dept_business', subject: 'کارگێڕی پرۆژەکان', teacherName: 'پ.د. ئاراس قادر', stage: '4', totalHours: 60, username: 'aras_bus', password: 'aras123' },
+
+            // بەشی ئابووری
+            { id: 'crs_12', deptId: 'dept_economics', dept: 'dept_economics', subject: 'مایکرۆ ئابووری', teacherName: 'د. شوان عەلی', stage: '1', totalHours: 60, username: 'shwan_econ', password: 'shwan123' },
+            { id: 'crs_13', deptId: 'dept_economics', dept: 'dept_economics', subject: 'بیرکاری بۆ ئابووریناسان', teacherName: 'م. ئامانج مەجید', stage: '1', totalHours: 40, username: 'amanj_econ', password: 'amanj123' },
+            { id: 'crs_14', deptId: 'dept_economics', dept: 'dept_economics', subject: 'ماکرۆ ئابووری', teacherName: 'د. سەرکەوت حوسێن', stage: '2', totalHours: 60, username: 'sarkawt_econ', password: 'sarkawt123' },
+            { id: 'crs_15', deptId: 'dept_economics', dept: 'dept_economics', subject: 'ئابووری نێودەوڵەتی', teacherName: 'م. بێستوون فوئاد', stage: '3', totalHours: 60, username: 'bestun_econ', password: 'bestun123' },
+            { id: 'crs_16', deptId: 'dept_economics', dept: 'dept_economics', subject: 'گەشەپێدانی ئابووری', teacherName: 'د. نەبەز عەبدوڵڵا', stage: '4', totalHours: 60, username: 'nabaz_econ', password: 'nabaz123' },
+
+            // بەشی کارگێڕی بەبازاڕکردن
+            { id: 'crs_17', deptId: 'dept_finance', dept: 'dept_finance', subject: 'بنەماکانی بەبازاڕکردن', teacherName: 'م. ئاری دارا', stage: '1', totalHours: 60, username: 'ari_fin', password: 'ari123' },
+            { id: 'crs_18', deptId: 'dept_finance', dept: 'dept_finance', subject: 'پەیوەندییە گشتییەکان', teacherName: 'م. جوانۆ تەها', stage: '1', totalHours: 40, username: 'jwano_fin', password: 'jwano123' },
+            { id: 'crs_19', deptId: 'dept_finance', dept: 'dept_finance', subject: 'ڕەفتاری بەکاربەر', teacherName: 'د. لاوان نەریمان', stage: '2', totalHours: 60, username: 'lawan_fin', password: 'lawan123' },
+            { id: 'crs_20', deptId: 'dept_finance', dept: 'dept_finance', subject: 'بەبازاڕکردنی دیجیتاڵی', teacherName: 'م. دیلان تاریق', stage: '3', totalHours: 60, username: 'dilan_fin', password: 'dilan123' },
+            { id: 'crs_21', deptId: 'dept_finance', dept: 'dept_finance', subject: 'ستراتیژی بەبازاڕکردن', teacherName: 'د. کاوە ئەحمەد', stage: '4', totalHours: 60, username: 'kawa_fin', password: 'kawa123' },
+
+            // بەشی ئامار و زانیاری
+            { id: 'crs_22', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'ئاماری سەرەتایی', teacherName: 'د. دانا جەمیل', stage: '1', totalHours: 60, username: 'dana_stat', password: 'dana123' },
+            { id: 'crs_23', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'بیرکاری سەرەتایی', teacherName: 'م. دڵشاد فەتاح', stage: '1', totalHours: 40, username: 'dilshad_stat', password: 'dilshad123' },
+            { id: 'crs_24', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'ئەگەرو گریمانە', teacherName: 'م. زانا حامید', stage: '2', totalHours: 60, username: 'zana_stat', password: 'zana123' },
+            { id: 'crs_25', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'شیکاری ئاماری پێشکەوتوو', teacherName: 'د. شێرکۆ کەریم', stage: '3', totalHours: 60, username: 'sherko_stat', password: 'sherko123' },
+            { id: 'crs_26', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'زنجیرەی کاتی', teacherName: 'پ.د. عەلی ڕەزا', stage: '4', totalHours: 60, username: 'ali_stat', password: 'ali123' }
+        ];
+
+        const DEFAULT_SESSIONS = [
+            // Accounting Sessions
+            { id: 'sess_acc_1', dept: 'dept_accounting', stage: '1', subject: 'بنەماکانی ژمێریاری', teacherName: 'م. کاروان ئەحمەد', date: '2026-10-14', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '1': { status: 'absent', note: 'غیاب لە وانە' }, '2': { status: 'present', note: '' }, '3': { status: 'absent', note: 'غیابی دووبارە' }, '4': { status: 'present', note: '' } } },
+            { id: 'sess_acc_2', dept: 'dept_accounting', stage: '1', subject: 'مافەکانی مرۆڤ', teacherName: 'م. شادان عوسمان', date: '2026-10-15', lectureHours: 2, totalCourseHours: 40, status: 'submitted', study: 'morning', records: { '1': { status: 'absent', note: 'غیاب' }, '2': { status: 'present', note: '' }, '3': { status: 'present', note: '' }, '4': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_acc_3', dept: 'dept_accounting', stage: '2', subject: 'ژمێریاری نەوت و گاز', teacherName: 'د. هێمن عومەر', date: '2026-10-13', lectureHours: 5, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '5': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_acc_4', dept: 'dept_accounting', stage: '3', subject: 'ژمێریاری پێشکەوتوو', teacherName: 'د. فەرهاد حەمە', date: '2026-10-12', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'evening', records: { '6': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_acc_5', dept: 'dept_accounting', stage: '4', subject: 'وردبینی و پێداچوونەوە', teacherName: 'پ.د. سەردار عەلی', date: '2026-10-11', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '7': { status: 'absent', note: 'غیاب' } } },
+
+            // Business Sessions
+            { id: 'sess_bus_1', dept: 'dept_business', stage: '1', subject: 'پڕەنسیپەکانی کارگێڕی', teacherName: 'م. ڕێبوار کەمال', date: '2026-10-14', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '8': { status: 'absent', note: 'غیاب' }, '9': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_bus_2', dept: 'dept_business', stage: '1', subject: 'زانستی کۆمپیوتەر', teacherName: 'م. هێرش جەمال', date: '2026-10-15', lectureHours: 2, totalCourseHours: 40, status: 'submitted', study: 'morning', records: { '8': { status: 'absent', note: 'غیاب دووەم' }, '9': { status: 'present', note: '' } } },
+            { id: 'sess_bus_3', dept: 'dept_business', stage: '2', subject: 'بەڕێوەبردنی سەرچاوە مرۆییەکان', teacherName: 'د. نەوزاد ساڵح', date: '2026-10-13', lectureHours: 7, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '10': { status: 'absent', note: 'غیاب' }, '11': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_bus_4', dept: 'dept_business', stage: '3', subject: 'کارگێڕی ستراتیژی', teacherName: 'د. ڕەوەند بەکر', date: '2026-10-12', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '12': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_bus_5', dept: 'dept_business', stage: '4', subject: 'کارگێڕی پرۆژەکان', teacherName: 'پ.د. ئاراس قادر', date: '2026-10-11', lectureHours: 5, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '13': { status: 'absent', note: 'غیاب' } } },
+
+            // Economics Sessions
+            { id: 'sess_eco_1', dept: 'dept_economics', stage: '1', subject: 'مایکرۆ ئابووری', teacherName: 'د. شوان عەلی', date: '2026-10-14', lectureHours: 3, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '14': { status: 'absent', note: 'غیاب' }, '15': { status: 'present', note: '' } } },
+            { id: 'sess_eco_2', dept: 'dept_economics', stage: '1', subject: 'بیرکاری بۆ ئابووریناسان', teacherName: 'م. ئامانج مەجید', date: '2026-10-15', lectureHours: 2, totalCourseHours: 40, status: 'submitted', study: 'morning', records: { '14': { status: 'absent', note: 'غیاب دووەم' }, '15': { status: 'present', note: '' } } },
+            { id: 'sess_eco_3', dept: 'dept_economics', stage: '2', subject: 'ماکرۆ ئابووری', teacherName: 'د. سەرکەوت حوسێن', date: '2026-10-13', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '16': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_eco_4', dept: 'dept_economics', stage: '3', subject: 'ئابووری نێودەوڵەتی', teacherName: 'م. بێستوون فوئاد', date: '2026-10-12', lectureHours: 7, totalCourseHours: 60, status: 'submitted', study: 'evening', records: { '17': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_eco_5', dept: 'dept_economics', stage: '4', subject: 'گەشەپێدانی ئابووری', teacherName: 'د. نەبەز عەبدوڵڵا', date: '2026-10-11', lectureHours: 3, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '18': { status: 'absent', note: 'غیاب' } } },
+
+            // Marketing Sessions
+            { id: 'sess_fin_1', dept: 'dept_finance', stage: '1', subject: 'بنەماکانی بەبازاڕکردن', teacherName: 'م. ئاری دارا', date: '2026-10-14', lectureHours: 3, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '19': { status: 'absent', note: 'غیاب' }, '20': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_fin_2', dept: 'dept_finance', stage: '1', subject: 'پەیوەندییە گشتییەکان', teacherName: 'م. جوانۆ تەها', date: '2026-10-15', lectureHours: 2, totalCourseHours: 40, status: 'submitted', study: 'morning', records: { '19': { status: 'absent', note: 'غیاب دووەم' }, '20': { status: 'present', note: '' } } },
+            { id: 'sess_fin_3', dept: 'dept_finance', stage: '2', subject: 'ڕەفتاری بەکاربەر', teacherName: 'د. لاوان نەریمان', date: '2026-10-13', lectureHours: 5, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '21': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_fin_4', dept: 'dept_finance', stage: '3', subject: 'بەبازاڕکردنی دیجیتاڵی', teacherName: 'م. دیلان تاریق', date: '2026-10-12', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '22': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_fin_5', dept: 'dept_finance', stage: '4', subject: 'ستراتیژی بەبازاڕکردن', teacherName: 'د. کاوە ئەحمەد', date: '2026-10-11', lectureHours: 6, totalCourseHours: 60, status: 'submitted', study: 'evening', records: { '23': { status: 'absent', note: 'غیاب' } } },
+
+            // Statistics Sessions
+            { id: 'sess_sta_1', dept: 'dept_statistics', stage: '1', subject: 'ئاماری سەرەتایی', teacherName: 'د. دانا جەمیل', date: '2026-10-14', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '24': { status: 'absent', note: 'غیاب' }, '25': { status: 'present', note: '' } } },
+            { id: 'sess_sta_2', dept: 'dept_statistics', stage: '1', subject: 'بیرکاری سەرەتایی', teacherName: 'م. دڵشاد فەتاح', date: '2026-10-15', lectureHours: 2, totalCourseHours: 40, status: 'submitted', study: 'morning', records: { '24': { status: 'absent', note: 'غیاب دووەم' }, '25': { status: 'present', note: '' } } },
+            { id: 'sess_sta_3', dept: 'dept_statistics', stage: '2', subject: 'ئەگەرو گریمانە', teacherName: 'م. زانا حامید', date: '2026-10-13', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '26': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_sta_4', dept: 'dept_statistics', stage: '3', subject: 'شیکاری ئاماری پێشکەوتوو', teacherName: 'د. شێرکۆ کەریم', date: '2026-10-12', lectureHours: 3, totalCourseHours: 60, status: 'submitted', study: 'evening', records: { '27': { status: 'absent', note: 'غیاب' } } },
+            { id: 'sess_sta_5', dept: 'dept_statistics', stage: '4', subject: 'زنجیرەی کاتی', teacherName: 'پ.د. عەلی ڕەزا', date: '2026-10-11', lectureHours: 7, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '28': { status: 'absent', note: 'غیاب' } } }
+        ];
+
+        let currentActiveDept = 'dept_accounting';
+        let currentDeptTab = 'dashboard';
+        let students = [];
+        let courses = [];
+        let attendanceSessions = [];
+        let deptStagesChartInstance = null;
+        let deptStatusDonutChartInstance = null;
+
+        let authUser = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initStorage();
+            
+            // Check Authenticated User
+            try {
+                authUser = JSON.parse(localStorage.getItem('college_auth_user') || 'null');
+            } catch (e) {
+                authUser = null;
+            }
+
+            if (authUser) {
+                // Update header user indicator
+                const userNameElem = document.getElementById('authUserName');
+                if (userNameElem) userNameElem.textContent = authUser.name;
+
+                if (authUser.role === 'department') {
+                    // Force the active department to their assigned department
+                    currentActiveDept = authUser.deptId;
+                    
+                    // Hide super admin link button
+                    const saLink = document.getElementById('superAdminLinkBtn');
+                    if (saLink) saLink.classList.add('hidden');
+
+                    // Lock the department dropdown button
+                    const deptBtn = document.getElementById('deptDropdownBtn');
+                    if (deptBtn) {
+                        deptBtn.onclick = null;
+                        deptBtn.classList.remove('hover:bg-slate-700');
+                        deptBtn.classList.add('cursor-default');
+                        const icon = deptBtn.querySelector('.fa-chevron-down');
+                        if (icon) {
+                            icon.className = 'fa-solid fa-lock text-xs text-amber-400 mr-2';
+                            icon.title = 'تەنها دەسەڵاتی ئەم بەشەت پێدراوە';
+                        }
+                    }
+                    const menu = document.getElementById('deptDropdownMenu');
+                    if (menu) menu.remove();
+                } else {
+                    // Super Admin accessing departments page
+                    setupDropdownClickOutside();
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const deptParam = urlParams.get('dept');
+                    if (deptParam && DEPARTMENTS[deptParam]) {
+                        currentActiveDept = deptParam;
+                    } else {
+                        currentActiveDept = localStorage.getItem('college_active_dept') || 'dept_accounting';
+                    }
+                }
+            } else {
+                setupDropdownClickOutside();
+                currentActiveDept = 'dept_accounting';
+            }
+
+            initDateInputs();
+            renderDepartmentView();
+        });
+
+        function initStorage() {
+            const DATA_VERSION = 'v3_rich_stages_absence';
+            if (localStorage.getItem('college_data_version') !== DATA_VERSION) {
+                localStorage.setItem('college_students', JSON.stringify(DEFAULT_STUDENTS));
+                localStorage.setItem('college_courses', JSON.stringify(DEFAULT_COURSES));
+                localStorage.setItem('college_attendance_sessions', JSON.stringify(DEFAULT_SESSIONS));
+                localStorage.setItem('college_data_version', DATA_VERSION);
+            }
+
+            const savedStudents = localStorage.getItem('college_students');
+            if (savedStudents) {
+                students = JSON.parse(savedStudents);
+            } else {
+                students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS));
+                localStorage.setItem('college_students', JSON.stringify(students));
+            }
+
+            const savedCourses = localStorage.getItem('college_courses');
+            if (savedCourses) {
+                try {
+                    courses = JSON.parse(savedCourses);
+                } catch(e) { courses = JSON.parse(JSON.stringify(DEFAULT_COURSES)); }
+            } else {
+                courses = JSON.parse(JSON.stringify(DEFAULT_COURSES));
+                localStorage.setItem('college_courses', JSON.stringify(courses));
+            }
+            syncAllCoursesToAuthUsers();
+
+            const savedSessions = localStorage.getItem('college_attendance_sessions');
+            if (savedSessions) {
+                attendanceSessions = JSON.parse(savedSessions);
+            } else {
+                attendanceSessions = JSON.parse(JSON.stringify(DEFAULT_SESSIONS));
+                localStorage.setItem('college_attendance_sessions', JSON.stringify(attendanceSessions));
+            }
+        }
+
+        function reloadSampleAbsenceData() {
+            localStorage.setItem('college_students', JSON.stringify(DEFAULT_STUDENTS));
+            localStorage.setItem('college_courses', JSON.stringify(DEFAULT_COURSES));
+            localStorage.setItem('college_attendance_sessions', JSON.stringify(DEFAULT_SESSIONS));
+            localStorage.setItem('college_data_version', 'v3_rich_stages_absence');
+            initStorage();
+            renderDepartmentView();
+            Swal.fire({
+                title: 'داتاکان نوێکرانەوە',
+                text: 'داتای نموونەیی غیابات بۆ ٤ قۆناغی سەرجەم بەشەکان بە سەرکەوتوویی بارکرایەوە.',
+                icon: 'success',
+                timer: 2000
+            });
+        }
+
+        function setupDropdownClickOutside() {
+            const btn = document.getElementById('deptDropdownBtn');
+            const menu = document.getElementById('deptDropdownMenu');
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.classList.toggle('hidden');
+            });
+            document.addEventListener('click', (e) => {
+                if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                    menu.classList.add('hidden');
+                }
+            });
+        }
+
+        function initDateInputs() {
+            const today = new Date().toISOString().split('T')[0];
+            const printD = document.getElementById('printDate');
+            if (printD) printD.textContent = 'بەروار: ' + today;
+        }
+
+        function selectDepartment(deptKey) {
+            if (authUser && authUser.role === 'department' && authUser.deptId !== deptKey) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'دەسەڵاتت نییە!',
+                    text: 'تۆ وەک بەڕێوەبەری ئەم بەشە تەنها دەسەڵاتی بەشەکەی خۆتت هەیە.',
+                    confirmButtonText: 'تێگەیشتم',
+                    confirmButtonColor: '#059669',
+                    background: '#0f172a',
+                    color: '#f8fafc'
+                });
+                return;
+            }
+
+            currentActiveDept = deptKey;
+            localStorage.setItem('college_active_dept', deptKey);
+            const menu = document.getElementById('deptDropdownMenu');
+            if (menu) menu.classList.add('hidden');
+
+            const dept = DEPARTMENTS[deptKey];
+            Swal.fire({
+                toast: true,
+                position: 'top-start',
+                icon: 'success',
+                title: `بەشی چالاک گۆڕدرا بۆ: ${dept.name}`,
+                showConfirmButton: false,
+                timer: 1800
+            });
+
+            renderDepartmentView();
+        }
+
+        function switchDeptTab(tabKey) {
+            currentDeptTab = tabKey;
+            const tabs = ['dashboard', 'courses', 'students', 'reports'];
+            tabs.forEach(t => {
+                let secId = 'deptTabDashboard';
+                let btnId = 'deptTabBtnDashboard';
+                if (t === 'courses') { secId = 'deptTabCourses'; btnId = 'deptTabBtnCourses'; }
+                else if (t === 'students') { secId = 'deptTabStudents'; btnId = 'deptTabBtnStudents'; }
+                else if (t === 'reports') { secId = 'deptTabReports'; btnId = 'deptTabBtnReports'; }
+
+                const sec = document.getElementById(secId);
+                const btn = document.getElementById(btnId);
+
+                if (sec && btn) {
+                    if (t === tabKey) {
+                        sec.classList.remove('hidden');
+                        btn.className = 'px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 bg-indigo-50 text-indigo-900 border border-indigo-200 transition shadow-sm';
+                    } else {
+                        sec.classList.add('hidden');
+                        btn.className = 'px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 text-slate-600 hover:bg-slate-100 transition';
+                    }
+                }
+            });
+
+            if (tabKey === 'dashboard') renderDeptDashboard();
+            else if (tabKey === 'courses') renderDeptCoursesTable();
+            else if (tabKey === 'students') renderDeptStudentsTable();
+            else if (tabKey === 'reports') renderDeptReportsList();
+        }
+
+        function renderDepartmentView() {
+            const dept = DEPARTMENTS[currentActiveDept];
+            if (!dept) return;
+
+            // Header info
+            document.getElementById('currentDeptHeaderName').textContent = dept.name;
+            document.getElementById('currentDeptHeaderIcon').className = `fa-solid ${dept.icon} text-${dept.color}-400`;
+            document.getElementById('deptCurrentTitleBadge').textContent = dept.name;
+
+            // Banner Info
+            document.getElementById('deptHeroTitle').textContent = dept.name;
+            document.getElementById('deptHeroDesc').textContent = `سەرپەرشتیاری بەش: ${dept.adminName} | بەڕێوەبردنی خوێندکاران، ئامارەکان و ڕاپۆرتەکانی ئەم بەشە بە سەربەخۆیی.`;
+            document.getElementById('deptHeroBadge').textContent = `پانێڵی تایبەتی: ${dept.name}`;
+
+            const banner = document.getElementById('deptHeroBanner');
+            banner.className = `relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl transition-all duration-300 bg-gradient-to-l from-${dept.color}-900 via-slate-900 to-slate-950 border border-slate-700`;
+
+            switchDeptTab(currentDeptTab);
+        }
+
+        function renderDeptDashboard() {
+            const deptStus = students.filter(s => s.dept === currentActiveDept);
+            const count = deptStus.length;
+            const absHours = deptStus.reduce((acc, s) => acc + (s.absentHours || 0), 0);
+            const avgAbs = count > 0 ? ((absHours / (count * 40)) * 100).toFixed(1) : 0;
+            const attRate = (100 - avgAbs).toFixed(1);
+            const warningCount = deptStus.filter(s => (s.absentHours / 40) >= 0.10).length;
+
+            document.getElementById('deptStatTotalStudents').textContent = count;
+            document.getElementById('deptStatAttendanceRate').textContent = `${attRate}%`;
+            document.getElementById('deptStatTotalAbsences').textContent = `${absHours} کاتژمێر`;
+            document.getElementById('deptStatWarningStudents').textContent = warningCount;
+
+            renderDeptStagesChart(deptStus);
+            renderDeptWarningTable(deptStus.filter(s => (s.absentHours / 40) >= 0.10));
+        }
+
+        function renderDeptStagesChart(deptStus) {
+            const stages = ['1', '2', '3', '4'];
+            const stageAbsences = stages.map(st => {
+                const stus = deptStus.filter(s => String(s.stage) === st);
+                return stus.reduce((acc, s) => acc + (s.absentHours || 0), 0);
+            });
+
+            const ctxStages = document.getElementById('deptStagesChart').getContext('2d');
+            if (deptStagesChartInstance) deptStagesChartInstance.destroy();
+            deptStagesChartInstance = new Chart(ctxStages, {
+                type: 'bar',
+                data: {
+                    labels: ['قۆناغی یەکەم', 'قۆناغی دووەم', 'قۆناغی سێیەم', 'قۆناغی چوارەم'],
+                    datasets: [{
+                        label: 'کۆی کاتژمێری غیابات',
+                        data: stageAbsences,
+                        backgroundColor: '#059669',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { callback: v => v + ' کاتژمێر' } }
+                    }
+                }
+            });
+
+            const totalAbs = deptStus.reduce((a, b) => a + (b.absentHours || 0), 0);
+            const totalPres = Math.max(0, (deptStus.length * 40) - totalAbs);
+
+            const ctxDonut = document.getElementById('deptStatusDonutChart').getContext('2d');
+            if (deptStatusDonutChartInstance) deptStatusDonutChartInstance.destroy();
+            deptStatusDonutChartInstance = new Chart(ctxDonut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['ئامادەبوون', 'غیابات'],
+                    datasets: [{
+                        data: [totalPres || 90, totalAbs || 10],
+                        backgroundColor: ['#10b981', '#f43f5e'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function renderDeptWarningTable(warningStudents) {
+            const tbody = document.getElementById('deptWarningTableBody');
+            tbody.innerHTML = '';
+
+            if (warningStudents.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-6 text-center text-slate-400 text-xs font-bold">
+                            <i class="fa-solid fa-circle-check text-emerald-500 text-base mb-1 block"></i>
+                            هیچ خوێندکارێکی ئەم بەشە لە سنووری مەترسیداردا نییە.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            warningStudents.forEach(s => {
+                const percentage = Math.round(((s.absentHours || 0) / (s.totalHours || 40)) * 100);
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-bold text-xs text-slate-600">${s.code}</td>
+                    <td class="py-3 px-4 font-bold text-slate-800">${s.name}</td>
+                    <td class="py-3 px-4 text-xs font-semibold">قۆناغی ${getStageArabic(s.stage)}</td>
+                    <td class="py-3 px-4 text-center font-bold text-rose-600 font-mono">${s.absentHours} کاتژمێر</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-block bg-rose-100 text-rose-800 text-xs px-2.5 py-0.5 rounded-full font-black">
+                            %${percentage}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="text-xs font-bold text-rose-600 flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-triangle-exclamation"></i> ئاگاداری
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- MANAGE COURSES & TEACHERS ---
+        function syncAllCoursesToAuthUsers() {
+            try {
+                let authUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+                courses.forEach(c => {
+                    const idx = authUsers.findIndex(u => u.username && u.username.toLowerCase() === c.username.toLowerCase());
+                    const userObj = {
+                        username: c.username.toLowerCase().trim(),
+                        password: c.password,
+                        name: c.teacherName,
+                        role: 'teacher',
+                        deptId: c.dept,
+                        deptName: DEPARTMENTS[c.dept]?.name || '',
+                        subject: c.subject,
+                        stage: c.stage,
+                        totalHours: parseInt(c.totalHours) || 60,
+                        avatarColor: 'indigo'
+                    };
+                    if (idx >= 0) {
+                        authUsers[idx] = Object.assign(authUsers[idx], userObj);
+                    } else {
+                        authUsers.push(userObj);
+                    }
+                });
+                localStorage.setItem('college_auth_users', JSON.stringify(authUsers));
+            } catch(e) {
+                console.error("Error syncing courses to auth users:", e);
+            }
+        }
+
+        function renderDeptCoursesTable() {
+            const search = (document.getElementById('deptCourseSearchInput')?.value || '').trim().toLowerCase();
+            const stageFilter = document.getElementById('deptCourseStageFilter')?.value || 'all';
+
+            const tbody = document.getElementById('deptCoursesTableBody');
+            const emptyState = document.getElementById('deptCoursesEmptyState');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            let filtered = courses.filter(c => c.dept === currentActiveDept);
+
+            if (stageFilter !== 'all') {
+                filtered = filtered.filter(c => String(c.stage) === String(stageFilter));
+            }
+            if (search) {
+                filtered = filtered.filter(c => 
+                    (c.subject && c.subject.toLowerCase().includes(search)) || 
+                    (c.teacherName && c.teacherName.toLowerCase().includes(search)) || 
+                    (c.username && c.username.toLowerCase().includes(search))
+                );
+            }
+
+            if (filtered.length === 0) {
+                if (emptyState) emptyState.classList.remove('hidden');
+                return;
+            }
+            if (emptyState) emptyState.classList.add('hidden');
+
+            filtered.forEach((course, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-center font-bold text-xs text-slate-400">${idx + 1}</td>
+                    <td class="py-3 px-4 font-bold text-slate-900">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-book-bookmark text-indigo-500 text-sm"></i>
+                            <span class="text-sm font-black">${course.subject}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 font-bold text-slate-800">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-chalkboard-user text-slate-400 text-xs"></i>
+                            <span>${course.teacherName}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-block bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-lg font-bold">
+                            قۆناغی ${getStageArabic(course.stage)}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="font-mono text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-md">
+                            ${course.username}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="font-mono text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md">
+                            ${course.password}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-flex items-center gap-1 font-mono text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-xl">
+                            <i class="fa-solid fa-clock text-[10px] text-emerald-600"></i>
+                            ${course.totalHours || 60} کاتژمێر
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="quickLaunchTeacher('${course.id}')" title="چوونە پەڕەی ئەم مامۆستایە" class="p-2 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition shadow-sm text-xs font-bold flex items-center gap-1">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                <span class="hidden xl:inline">تۆمارکردن</span>
+                            </button>
+                            <button onclick="editCourse('${course.id}')" title="دەستکاریکردن" class="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition text-xs">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="deleteCourse('${course.id}')" title="سڕینەوە" class="p-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition text-xs">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openAddCourseModal() {
+            document.getElementById('courseModalId').value = '';
+            document.getElementById('courseModalTitle').textContent = 'دروستکردنی هەژماری وانەی نوێ';
+            document.getElementById('courseSubjectInput').value = '';
+            document.getElementById('courseTeacherNameInput').value = '';
+            document.getElementById('courseStageInput').value = '1';
+            document.getElementById('courseTotalHoursInput').value = '60';
+            document.getElementById('courseUsernameInput').value = '';
+            document.getElementById('coursePasswordInput').value = '';
+
+            document.getElementById('deptCourseModal').classList.remove('hidden');
+        }
+
+        function closeCourseModal() {
+            document.getElementById('deptCourseModal').classList.add('hidden');
+        }
+
+        function editCourse(courseId) {
+            const course = courses.find(c => c.id === courseId);
+            if (!course) return;
+
+            document.getElementById('courseModalId').value = course.id;
+            document.getElementById('courseModalTitle').textContent = 'دەستکاریکردنی هەژماری وانە';
+            document.getElementById('courseSubjectInput').value = course.subject;
+            document.getElementById('courseTeacherNameInput').value = course.teacherName;
+            document.getElementById('courseStageInput').value = course.stage;
+            document.getElementById('courseTotalHoursInput').value = course.totalHours || 60;
+            document.getElementById('courseUsernameInput').value = course.username;
+            document.getElementById('coursePasswordInput').value = course.password;
+
+            document.getElementById('deptCourseModal').classList.remove('hidden');
+        }
+
+        function saveCourseModal(e) {
+            e.preventDefault();
+            const id = document.getElementById('courseModalId').value;
+            const subject = document.getElementById('courseSubjectInput').value.trim();
+            const teacherName = document.getElementById('courseTeacherNameInput').value.trim();
+            const stage = document.getElementById('courseStageInput').value;
+            const totalHours = parseInt(document.getElementById('courseTotalHoursInput').value) || 60;
+            const username = document.getElementById('courseUsernameInput').value.trim().toLowerCase();
+            const password = document.getElementById('coursePasswordInput').value.trim();
+
+            if (!subject || !teacherName || !username || !password) {
+                Swal.fire('هەڵە', 'تکایە هەموو خانەکان بە دروستی پڕبکەرەوە', 'error');
+                return;
+            }
+
+            // Check if username taken by another course
+            const existingCourse = courses.find(c => c.username.toLowerCase() === username && c.id !== id);
+            if (existingCourse) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ناوی بەکارهێنەر بەکارهاتووە!',
+                    text: 'ئەم ناوی بەکارهێنەرە (یوزێرنەیم) پێشتر بۆ مامۆستایەکی تر بەکارهاتووە. تکایە یوزێرنەیمێکی تر دیاریبکە.',
+                    confirmButtonText: 'باشە',
+                    confirmButtonColor: '#4f46e5'
+                });
+                return;
+            }
+
+            if (id) {
+                // Update
+                const index = courses.findIndex(c => c.id === id);
+                if (index !== -1) {
+                    courses[index].subject = subject;
+                    courses[index].teacherName = teacherName;
+                    courses[index].stage = stage;
+                    courses[index].totalHours = totalHours;
+                    courses[index].username = username;
+                    courses[index].password = password;
+                }
+            } else {
+                // Create
+                courses.push({
+                    id: 'crs_' + Date.now(),
+                    dept: currentActiveDept,
+                    subject,
+                    teacherName,
+                    stage,
+                    totalHours,
+                    username,
+                    password
+                });
+            }
+
+            localStorage.setItem('college_courses', JSON.stringify(courses));
+            syncAllCoursesToAuthUsers();
+            closeCourseModal();
+            renderDeptCoursesTable();
+
+            Swal.fire({
+                toast: true,
+                position: 'top-start',
+                icon: 'success',
+                title: id ? 'زانیاری هەژماری وانە نوێکرایەوە' : 'هەژماری وانەی نوێ بە سەرکەوتوویی دروستکرا',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        }
+
+        function deleteCourse(courseId) {
+            const course = courses.find(c => c.id === courseId);
+            if (!course) return;
+
+            Swal.fire({
+                title: `سڕینەوەی هەژماری وانەی (${course.subject})؟`,
+                text: `ئەم هەژمارە و ناوی بەکارهێنەری (${course.username}) دەسڕدرێتەوە!`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'بەڵێ، بسڕەوە',
+                cancelButtonText: 'پاشگەزبوونەوە'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    courses = courses.filter(c => c.id !== courseId);
+                    localStorage.setItem('college_courses', JSON.stringify(courses));
+
+                    // Remove from auth users
+                    try {
+                        let authUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+                        authUsers = authUsers.filter(u => u.username.toLowerCase() !== course.username.toLowerCase());
+                        localStorage.setItem('college_auth_users', JSON.stringify(authUsers));
+                    } catch(e) {}
+
+                    renderDeptCoursesTable();
+                    Swal.fire('سڕایەوە!', 'هەژماری وانەکە بە سەرکەوتوویی لادرا', 'success');
+                }
+            });
+        }
+
+        function quickLaunchTeacher(courseId) {
+            const course = courses.find(c => c.id === courseId);
+            if (!course) return;
+
+            // Set teacher session
+            const teacherSession = {
+                username: course.username,
+                name: course.teacherName,
+                role: 'teacher',
+                deptId: course.dept,
+                deptName: DEPARTMENTS[course.dept]?.name || '',
+                subject: course.subject,
+                stage: course.stage,
+                totalHours: course.totalHours || 60,
+                loginTime: new Date().toISOString()
+            };
+            localStorage.setItem('college_auth_user', JSON.stringify(teacherSession));
+            window.location.href = 'teacher_attendance.html';
+        }
+
+        // --- MANAGE STUDENTS ---
+        function renderDeptStudentsTable() {
+            const search = document.getElementById('deptManageSearchInput').value.trim().toLowerCase();
+            const stageFilter = document.getElementById('deptManageStageFilter').value;
+
+            const tbody = document.getElementById('deptStudentsTableBody');
+            tbody.innerHTML = '';
+
+            let filtered = students.filter(s => s.dept === currentActiveDept);
+
+            if (stageFilter !== 'all') {
+                filtered = filtered.filter(s => String(s.stage) === String(stageFilter));
+            }
+            if (search) {
+                filtered = filtered.filter(s => s.name.toLowerCase().includes(search) || s.code.toLowerCase().includes(search));
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="py-8 text-center text-slate-400 text-xs">
+                            هیچ خوێندکارێک لەم بەشەدا بەپێی ئەم فلتەرە نەدۆزرایەوە.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            filtered.forEach((student, index) => {
+                const percentage = Math.round(((student.absentHours || 0) / (student.totalHours || 40)) * 100);
+                const badgeColor = percentage >= 10 ? 'bg-rose-100 text-rose-800' : (percentage >= 5 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800');
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-center font-bold text-slate-400 text-xs">${index + 1}</td>
+                    <td class="py-3 px-4 font-mono font-bold text-slate-700 text-xs">${student.code}</td>
+                    <td class="py-3 px-4 font-bold text-slate-800">${student.name}</td>
+                    <td class="py-3 px-4 text-xs font-semibold">قۆناغی ${getStageArabic(student.stage)}</td>
+                    <td class="py-3 px-4 text-xs text-slate-500">${student.study === 'evening' ? 'ئێواران' : 'بەیانیان'} (${student.group || 'A'})</td>
+                    <td class="py-3 px-4 text-center font-bold text-slate-800 font-mono">${student.absentHours || 0} کاتژمێر</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="text-xs px-2.5 py-0.5 rounded-full font-black ${badgeColor}">
+                            %${percentage}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="editStudent('${student.id}')" title="دەستکاریکردن" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center text-xs transition">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button onclick="deleteStudent('${student.id}')" title="سڕینەوە" class="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center text-xs transition">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openAddStudentModalForDept() {
+            document.getElementById('modalStudentTitle').innerHTML = `<i class="fa-solid fa-user-plus text-emerald-600"></i><span>زیادکردنی خوێندکاری نوێ بۆ ${DEPARTMENTS[currentActiveDept]?.name}</span>`;
+            document.getElementById('modalStudentId').value = '';
+            document.getElementById('studentForm').reset();
+            document.getElementById('modalStudentDept').value = currentActiveDept;
+            document.getElementById('studentModal').classList.remove('hidden');
+        }
+
+        function closeStudentModal() {
+            document.getElementById('studentModal').classList.add('hidden');
+        }
+
+        function editStudent(id) {
+            const stu = students.find(s => s.id === id);
+            if (!stu) return;
+
+            document.getElementById('modalStudentTitle').innerHTML = '<i class="fa-solid fa-user-pen text-blue-600"></i><span>دەستکاریکردنی خوێندکار</span>';
+            document.getElementById('modalStudentId').value = stu.id;
+            document.getElementById('modalStudentCode').value = stu.code;
+            document.getElementById('modalStudentName').value = stu.name;
+            document.getElementById('modalStudentDept').value = stu.dept;
+            document.getElementById('modalStudentStage').value = stu.stage;
+            document.getElementById('modalStudentStudy').value = stu.study;
+            document.getElementById('modalStudentGroup').value = stu.group || 'A';
+
+            document.getElementById('studentModal').classList.remove('hidden');
+        }
+
+        function handleSaveStudent(e) {
+            e.preventDefault();
+            const id = document.getElementById('modalStudentId').value;
+            const code = document.getElementById('modalStudentCode').value.trim();
+            const name = document.getElementById('modalStudentName').value.trim();
+            const dept = currentActiveDept;
+            const stage = document.getElementById('modalStudentStage').value;
+            const study = document.getElementById('modalStudentStudy').value;
+            const group = document.getElementById('modalStudentGroup').value;
+
+            if (id) {
+                const idx = students.findIndex(s => s.id === id);
+                if (idx !== -1) {
+                    students[idx] = { ...students[idx], code, name, dept, stage, study, group };
+                }
+            } else {
+                students.push({
+                    id: String(Date.now()),
+                    code,
+                    name,
+                    dept,
+                    stage,
+                    study,
+                    group,
+                    totalHours: 40,
+                    absentHours: 0
+                });
+            }
+
+            localStorage.setItem('college_students', JSON.stringify(students));
+            closeStudentModal();
+            renderDeptStudentsTable();
+            renderDeptDashboard();
+
+            Swal.fire({
+                toast: true,
+                position: 'top-start',
+                icon: 'success',
+                title: id ? 'زانیاری خوێندکار نوێکرایەوە' : 'خوێندکاری نوێ زیادکرا',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        }
+
+        function deleteStudent(id) {
+            Swal.fire({
+                title: 'سڕینەوەی ئەم خوێندکارە؟',
+                text: 'ئەم خوێندکارە لە بەشەکە لادەبرێت!',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'بەڵێ، بسڕەوە',
+                cancelButtonText: 'پاشگەزبوونەوە'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    students = students.filter(s => s.id !== id);
+                    localStorage.setItem('college_students', JSON.stringify(students));
+                    renderDeptStudentsTable();
+                    renderDeptDashboard();
+                    Swal.fire('سڕایەوە!', 'خوێندکارەکە بە سەرکەوتوویی لادرا', 'success');
+                }
+            });
+        }
+
+        function exportDeptStudentsExcel() {
+            const deptName = DEPARTMENTS[currentActiveDept]?.name;
+            const dataToExport = students.filter(s => s.dept === currentActiveDept).map((s, idx) => ({
+                'ژمارە': idx + 1,
+                'کۆدی زانکۆیی': s.code,
+                'ناوی تەواو': s.name,
+                'بەش': deptName,
+                'قۆناغ': `قۆناغی ${getStageArabic(s.stage)}`,
+                'خوێندن': s.study === 'evening' ? 'ئێواران' : 'بەیانیان',
+                'گرووپ': s.group || 'A',
+                'کۆی غیابات': s.absentHours || 0,
+                'ڕێژەی غیابات': `${Math.round(((s.absentHours || 0)/40)*100)}%`
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'خوێندکاران');
+            XLSX.writeFile(wb, `${deptName}_Students_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        // --- REPORTS (SUPER ADMIN STYLE STAGED ABSENCE REPORT FOR DEPT) ---
+        function renderDeptReportsList() {
+            // Update active department badge
+            const deptInfo = DEPARTMENTS[currentActiveDept] || { name: 'بەش' };
+            const badgeEl = document.getElementById('deptReportsActiveDeptBadge');
+            if (badgeEl) {
+                badgeEl.textContent = `تایبەت بە ${deptInfo.name}`;
+            }
+
+            const stageFilter = document.getElementById('deptReportStageFilter')?.value || 'all';
+            const studyFilter = document.getElementById('deptReportStudyFilter')?.value || 'all';
+            const absFilter = document.getElementById('deptReportAbsenceFilter')?.value || 'all';
+            const searchVal = (document.getElementById('deptReportSearchInput')?.value || '').trim().toLowerCase();
+
+            // Load courses
+            let allCourses = [];
+            try {
+                allCourses = JSON.parse(localStorage.getItem('college_courses') || '[]');
+            } catch(e) { allCourses = []; }
+
+            if (!allCourses || allCourses.length === 0) {
+                allCourses = courses || [];
+            }
+
+            // Map absences per student per subject: studentId -> { [subject]: { subject, absentHours, totalHours } }
+            // STRICT CONDITION: Only for students and sessions of currentActiveDept
+            const studentCourseMap = {};
+
+            // 1) Extract absences from attendanceSessions for this department
+            if (attendanceSessions && attendanceSessions.length > 0) {
+                attendanceSessions.forEach(sess => {
+                    if (sess.dept !== currentActiveDept || sess.status === 'draft') return;
+                    const subName = sess.subject || 'محازەرە';
+                    const lecHours = Number(sess.lectureHours) || 1;
+                    const totalHrs = Number(sess.totalCourseHours) || 60;
+
+                    if (sess.records) {
+                        Object.keys(sess.records).forEach(stId => {
+                            const rec = sess.records[stId];
+                            if (rec && rec.status === 'absent') {
+                                if (!studentCourseMap[stId]) studentCourseMap[stId] = {};
+                                if (!studentCourseMap[stId][subName]) {
+                                    studentCourseMap[stId][subName] = {
+                                        subject: subName,
+                                        absentHours: 0,
+                                        totalHours: totalHrs
+                                    };
+                                }
+                                studentCourseMap[stId][subName].absentHours += lecHours;
+                            }
+                        });
+                    }
+                });
+            }
+
+            // 2) Also check if students have absentHours > 0 on student record (mock / imported data)
+            const deptStudents = students.filter(s => s.dept === currentActiveDept);
+            deptStudents.forEach(s => {
+                const sAbs = Number(s.absentHours) || 0;
+                if (sAbs > 0) {
+                    if (!studentCourseMap[s.id] || Object.keys(studentCourseMap[s.id]).length === 0) {
+                        let subName = s.subject || 'وانەی سەرەکی';
+                        let totHrs = s.totalHours || 60;
+                        const matched = allCourses.find(c => (c.deptId === s.dept || c.dept === s.dept) && String(c.stage) === String(s.stage));
+                        if (matched) {
+                            subName = matched.subject;
+                            totHrs = matched.totalHours || totHrs;
+                        }
+                        studentCourseMap[s.id] = {
+                            [subName]: {
+                                subject: subName,
+                                absentHours: sAbs,
+                                totalHours: totHrs
+                            }
+                        };
+                    }
+                }
+            });
+
+            // Build flattened list of (Student, Subject) absence records - ONLY where absentHours > 0
+            const absenceList = [];
+            deptStudents.forEach(s => {
+                const coursesForStudent = studentCourseMap[s.id];
+                if (coursesForStudent) {
+                    Object.values(coursesForStudent).forEach(item => {
+                        if (item.absentHours > 0) {
+                            const totalHours = item.totalHours || s.totalHours || 60;
+                            const pct = totalHours > 0 ? ((item.absentHours / totalHours) * 100) : 0;
+                            absenceList.push({
+                                studentId: s.id,
+                                studentCode: s.code,
+                                studentName: s.name,
+                                dept: s.dept,
+                                stage: String(s.stage),
+                                study: s.study,
+                                group: s.group,
+                                subject: item.subject,
+                                absentHours: item.absentHours,
+                                totalHours: totalHours,
+                                percentage: pct
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Apply Filters (Stage, Study, Absence Threshold, Search)
+            let filtered = absenceList.filter(item => {
+                if (stageFilter !== 'all' && item.stage !== stageFilter) return false;
+                if (studyFilter !== 'all' && item.study !== studyFilter) return false;
+                if (searchVal) {
+                    const matchName = (item.studentName || '').toLowerCase().includes(searchVal);
+                    const matchCode = (item.studentCode || '').toLowerCase().includes(searchVal);
+                    const matchSub = (item.subject || '').toLowerCase().includes(searchVal);
+                    if (!matchName && !matchCode && !matchSub) return false;
+                }
+                const rate = item.percentage / 100;
+                if (absFilter === 'warning_5' && rate < 0.05) return false;
+                if (absFilter === 'warning_7' && rate < 0.07) return false;
+                if (absFilter === 'warning_10' && rate < 0.10) return false;
+                return true;
+            });
+
+            // Update KPI Summary Bar
+            const uniqueStudentsCount = new Set(filtered.map(i => i.studentId)).size;
+            const totalAbsHrs = filtered.reduce((acc, i) => acc + i.absentHours, 0);
+            const totalPossHrs = filtered.reduce((acc, i) => acc + i.totalHours, 0);
+            const avgRate = totalPossHrs > 0 ? ((totalAbsHrs / totalPossHrs) * 100).toFixed(1) : '0.0';
+            const warningCount = filtered.filter(i => (i.percentage / 100) >= 0.05).length;
+
+            const countEl = document.getElementById('deptReportTotalCount');
+            const absHrsEl = document.getElementById('deptReportTotalAbsHours');
+            const avgRateEl = document.getElementById('deptReportAvgAbsRate');
+            const warnEl = document.getElementById('deptReportWarningCount');
+
+            if (countEl) countEl.textContent = `${uniqueStudentsCount} خوێندکار`;
+            if (absHrsEl) absHrsEl.textContent = `${totalAbsHrs} کاتژمێر`;
+            if (avgRateEl) avgRateEl.textContent = `%${avgRate}`;
+            if (warnEl) warnEl.textContent = `${warningCount} حاڵەت`;
+
+            const container = document.getElementById('deptReportsListContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-3xl p-10 border border-slate-200 text-center shadow-sm">
+                        <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl mx-auto mb-3">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <h4 class="text-base font-black text-slate-800">هیچ غیاباتێک بەم فلتەرە نەدۆزرایەوە</h4>
+                        <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto leading-relaxed">
+                            تەنها ناوی ئەو خوێندکارانە نیشان دەدرێت کە غیاباتیان هەیە. لە ٤ قۆناغەکەی ${deptInfo.name} هیچ خوێندکارێکی خاوەن غیابات بەپێی ئەم فلتەرە نەدۆزرایەوە.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            const stagesList = [
+                { id: '1', name: 'قۆناغی یەکەم', en: 'First Stage', bg: 'bg-blue-50/70', border: 'border-blue-200', text: 'text-blue-900', badge: 'bg-blue-600' },
+                { id: '2', name: 'قۆناغی دووەم', en: 'Second Stage', bg: 'bg-purple-50/70', border: 'border-purple-200', text: 'text-purple-900', badge: 'bg-purple-600' },
+                { id: '3', name: 'قۆناغی سێیەم', en: 'Third Stage', bg: 'bg-emerald-50/70', border: 'border-emerald-200', text: 'text-emerald-900', badge: 'bg-emerald-600' },
+                { id: '4', name: 'قۆناغی چوارەم', en: 'Fourth Stage', bg: 'bg-amber-50/70', border: 'border-amber-200', text: 'text-amber-900', badge: 'bg-amber-600' }
+            ];
+
+            stagesList.forEach(stg => {
+                if (stageFilter !== 'all' && stageFilter !== stg.id) return;
+
+                const stageItems = filtered.filter(i => i.stage === stg.id);
+                if (stageItems.length === 0) return;
+
+                const stgUniqueStudents = new Set(stageItems.map(i => i.studentId)).size;
+                const stgTotalAbs = stageItems.reduce((a, i) => a + i.absentHours, 0);
+                const stgTotalPoss = stageItems.reduce((a, i) => a + i.totalHours, 0);
+                const stgAvgRate = stgTotalPoss > 0 ? ((stgTotalAbs / stgTotalPoss) * 100).toFixed(1) : '0.0';
+
+                const tableWrapper = document.createElement('div');
+                tableWrapper.className = `bg-white rounded-3xl border ${stg.border} shadow-sm overflow-hidden`;
+
+                let rowsHtml = '';
+                stageItems.forEach((item, idx) => {
+                    const pctFormatted = item.percentage % 1 === 0 ? item.percentage.toFixed(0) : item.percentage.toFixed(1);
+
+                    let pctBadge = '';
+                    if (item.percentage >= 10) {
+                        pctBadge = `<span class="inline-flex items-center gap-1 bg-rose-600 text-white text-xs px-2.5 py-0.5 rounded-full font-black shadow-sm">%${pctFormatted}</span>`;
+                    } else if (item.percentage >= 7) {
+                        pctBadge = `<span class="inline-flex items-center gap-1 bg-amber-500 text-slate-950 text-xs px-2.5 py-0.5 rounded-full font-black shadow-sm">%${pctFormatted}</span>`;
+                    } else if (item.percentage >= 5) {
+                        pctBadge = `<span class="inline-flex items-center gap-1 bg-yellow-400 text-slate-900 text-xs px-2.5 py-0.5 rounded-full font-bold shadow-sm">%${pctFormatted}</span>`;
+                    } else {
+                        pctBadge = `<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs px-2.5 py-0.5 rounded-full font-bold border border-emerald-200">%${pctFormatted}</span>`;
+                    }
+
+                    const studyKurdish = item.study === 'evening' ? 'ئێواران' : 'بەیانیان';
+                    const groupText = item.group ? `گرووپ ${item.group}` : '';
+
+                    rowsHtml += `
+                        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                            <td class="py-3 px-3 text-center text-slate-400 font-bold">${idx + 1}</td>
+                            <td class="py-3 px-3 font-mono font-bold text-slate-700">${item.studentCode}</td>
+                            <td class="py-3 px-3 font-extrabold text-slate-900 text-sm">${item.studentName}</td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center gap-1.5 font-extrabold text-indigo-900 bg-indigo-50/90 px-2.5 py-1 rounded-xl border border-indigo-200/80 text-xs shadow-xs">
+                                    <i class="fa-solid fa-book-bookmark text-indigo-500 text-[11px]"></i>
+                                    <span>${item.subject}</span>
+                                </span>
+                            </td>
+                            <td class="py-3 px-3 text-xs text-slate-600">${studyKurdish} - ${groupText}</td>
+                            <td class="py-3 px-3 text-center font-black text-rose-600 font-mono text-xs">${item.absentHours} کاتژمێر</td>
+                            <td class="py-3 px-3 text-center">${pctBadge}</td>
+                        </tr>
+                    `;
+                });
+
+                tableWrapper.innerHTML = `
+                    <div class="${stg.bg} p-4 border-b ${stg.border} flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-2xl ${stg.badge} text-white flex items-center justify-center font-black text-lg shadow-md">
+                                <i class="fa-solid fa-graduation-cap"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-black text-base sm:text-lg ${stg.text} flex items-center gap-2">
+                                    <span>خشتەی غیاباتی ${stg.name}</span>
+                                    <span class="text-xs text-slate-500 font-normal">(${stg.en})</span>
+                                </h4>
+                                <p class="text-[11px] text-slate-500">لیستی خوێندکارانی غائیب لە ٤ قۆناغەکەی ${deptInfo.name} بەپێی وانەکان</p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="bg-white/90 text-slate-700 text-xs px-3 py-1 rounded-xl font-bold border border-slate-200 shadow-sm">
+                                خوێندکارانی غائیب: <strong class="text-slate-900">${stgUniqueStudents}</strong>
+                            </span>
+                            <span class="bg-white/90 text-rose-700 text-xs px-3 py-1 rounded-xl font-bold border border-rose-200 shadow-sm">
+                                کۆی کاتژمێری نەهاتوو: <strong class="text-rose-800">${stgTotalAbs} کاتژمێر</strong>
+                            </span>
+                            <span class="bg-white/90 text-amber-700 text-xs px-3 py-1 rounded-xl font-bold border border-amber-200 shadow-sm">
+                                تێکڕای ڕێژە: <strong class="text-amber-800">%${stgAvgRate}</strong>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-100/90 text-slate-700 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="py-2.5 px-3 w-12 text-center">#</th>
+                                    <th class="py-2.5 px-3">کۆدی خوێندکار</th>
+                                    <th class="py-2.5 px-3">ناوی تەواوی خوێندکار</th>
+                                    <th class="py-2.5 px-3">ناوی وانە</th>
+                                    <th class="py-2.5 px-3">خوێندن / گرووپ</th>
+                                    <th class="py-2.5 px-3 text-center">کاتژمێری نەهاتوو</th>
+                                    <th class="py-2.5 px-3 text-center">ڕێژەی غیابات %</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 bg-white">
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                container.appendChild(tableWrapper);
+            });
+        }
+
+        function exportDeptStagesAbsenceExcel() {
+            const deptInfo = DEPARTMENTS[currentActiveDept] || { name: 'بەش', adminName: 'سەرۆکی بەش' };
+            const stageFilter = document.getElementById('deptReportStageFilter')?.value || 'all';
+            const studyFilter = document.getElementById('deptReportStudyFilter')?.value || 'all';
+            const absFilter = document.getElementById('deptReportAbsenceFilter')?.value || 'all';
+            const searchVal = (document.getElementById('deptReportSearchInput')?.value || '').trim().toLowerCase();
+
+            // Load courses
+            let allCourses = [];
+            try {
+                allCourses = JSON.parse(localStorage.getItem('college_courses') || '[]');
+            } catch(e) { allCourses = []; }
+
+            const studentCourseMap = {};
+            if (attendanceSessions && attendanceSessions.length > 0) {
+                attendanceSessions.forEach(sess => {
+                    if (sess.dept !== currentActiveDept || sess.status === 'draft') return;
+                    const subName = sess.subject || 'محازەرە';
+                    const lecHours = Number(sess.lectureHours) || 1;
+                    const totalHrs = Number(sess.totalCourseHours) || 60;
+
+                    if (sess.records) {
+                        Object.keys(sess.records).forEach(stId => {
+                            const rec = sess.records[stId];
+                            if (rec && rec.status === 'absent') {
+                                if (!studentCourseMap[stId]) studentCourseMap[stId] = {};
+                                if (!studentCourseMap[stId][subName]) {
+                                    studentCourseMap[stId][subName] = {
+                                        subject: subName,
+                                        absentHours: 0,
+                                        totalHours: totalHrs
+                                    };
+                                }
+                                studentCourseMap[stId][subName].absentHours += lecHours;
+                            }
+                        });
+                    }
+                });
+            }
+
+            const deptStudents = students.filter(s => s.dept === currentActiveDept);
+            deptStudents.forEach(s => {
+                const sAbs = Number(s.absentHours) || 0;
+                if (sAbs > 0) {
+                    if (!studentCourseMap[s.id] || Object.keys(studentCourseMap[s.id]).length === 0) {
+                        let subName = s.subject || 'وانەی سەرەکی';
+                        let totHrs = s.totalHours || 60;
+                        const matched = allCourses.find(c => (c.deptId === s.dept || c.dept === s.dept) && String(c.stage) === String(s.stage));
+                        if (matched) {
+                            subName = matched.subject;
+                            totHrs = matched.totalHours || totHrs;
+                        }
+                        studentCourseMap[s.id] = {
+                            [subName]: {
+                                subject: subName,
+                                absentHours: sAbs,
+                                totalHours: totHrs
+                            }
+                        };
+                    }
+                }
+            });
+
+            const absenceList = [];
+            deptStudents.forEach(s => {
+                const coursesForStudent = studentCourseMap[s.id];
+                if (coursesForStudent) {
+                    Object.values(coursesForStudent).forEach(item => {
+                        if (item.absentHours > 0) {
+                            const totalHours = item.totalHours || s.totalHours || 60;
+                            const pct = totalHours > 0 ? ((item.absentHours / totalHours) * 100) : 0;
+                            absenceList.push({
+                                studentId: s.id,
+                                studentCode: s.code,
+                                studentName: s.name,
+                                dept: s.dept,
+                                stage: String(s.stage),
+                                study: s.study,
+                                group: s.group,
+                                subject: item.subject,
+                                absentHours: item.absentHours,
+                                totalHours: totalHours,
+                                percentage: pct
+                            });
+                        }
+                    });
+                }
+            });
+
+            let filtered = absenceList.filter(item => {
+                if (stageFilter !== 'all' && item.stage !== stageFilter) return false;
+                if (studyFilter !== 'all' && item.study !== studyFilter) return false;
+                if (searchVal) {
+                    const matchName = (item.studentName || '').toLowerCase().includes(searchVal);
+                    const matchCode = (item.studentCode || '').toLowerCase().includes(searchVal);
+                    const matchSub = (item.subject || '').toLowerCase().includes(searchVal);
+                    if (!matchName && !matchCode && !matchSub) return false;
+                }
+                const rate = item.percentage / 100;
+                if (absFilter === 'warning_5' && rate < 0.05) return false;
+                if (absFilter === 'warning_7' && rate < 0.07) return false;
+                if (absFilter === 'warning_10' && rate < 0.10) return false;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                Swal.fire('ئاگاداری', 'هیچ داتایەکی غیابات نییە بۆ داگرتن بەپێی ئەم فلتەرانە.', 'warning');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+
+            // Summary Sheet
+            const summaryData = [
+                { 'بڕگە': 'ناوی بەش', 'ژمارە / ڕێژە': deptInfo.name },
+                { 'بڕگە': 'سەرۆکی بەش', 'ژمارە / ڕێژە': deptInfo.adminName },
+                { 'بڕگە': 'کۆی خوێندکارانی غائیب', 'ژمارە / ڕێژە': new Set(filtered.map(i => i.studentId)).size },
+                { 'بڕگە': 'کۆی تۆمارەکانی غیابات بەپێی وانە', 'ژمارە / ڕێژە': filtered.length },
+                { 'بڕگە': 'کۆی کاتژمێری نەهاتوو', 'ژمارە / ڕێژە': filtered.reduce((a, i) => a + i.absentHours, 0) },
+                { 'بڕگە': 'بەرواری دەرکردنی ڕاپۆرت', 'ژمارە / ڕێژە': new Date().toISOString().split('T')[0] }
+            ];
+            const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+            XLSX.utils.book_append_sheet(wb, wsSummary, 'پوختەی_ئامار');
+
+            // Individual Stage Sheets
+            ['1', '2', '3', '4'].forEach(stg => {
+                if (stageFilter !== 'all' && stageFilter !== stg) return;
+                const stageItems = filtered.filter(i => i.stage === stg);
+                if (stageItems.length > 0) {
+                    const stageExportData = stageItems.map((item, idx) => {
+                        const pctFormatted = item.percentage % 1 === 0 ? item.percentage.toFixed(0) : item.percentage.toFixed(1);
+                        return {
+                            'ڕیزبەندی': idx + 1,
+                            'قۆناغ': `قۆناغی ${getStageArabic(item.stage)}`,
+                            'کۆدی خوێندکار': item.studentCode,
+                            'ناوی چواری خوێندکار': item.studentName,
+                            'ناوی وانە': item.subject,
+                            'جۆری خوێندن': item.study === 'evening' ? 'ئێواران' : 'بەیانیان',
+                            'گرووپ': item.group || 'A',
+                            'کاتژمێری نەهاتوو': item.absentHours,
+                            'ڕێژەی غیابات': `${pctFormatted}%`
+                        };
+                    });
+                    const wsStage = XLSX.utils.json_to_sheet(stageExportData);
+                    XLSX.utils.book_append_sheet(wb, wsStage, `قۆناغی_${getStageArabic(stg)}`);
+                }
+            });
+
+            const deptSlug = (deptInfo.name || 'بەش').replace(/\s+/g, '_');
+            const fileName = `ڕاپۆرتی_غیاباتی_${deptSlug}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            Swal.fire({
+                title: 'داگرتن سەرکەوتوو بوو',
+                text: `فایلی ئەکسڵ بە سەرکەوتوویی بۆ ٤ قۆناغەکەی ${deptInfo.name} داگیرا.`,
+                icon: 'success',
+                timer: 2000
+            });
+        }
+
+        function printDeptStagesAbsenceReport() {
+            const container = document.getElementById('deptReportsListContainer');
+            if (!container || !container.innerHTML.trim()) {
+                Swal.fire('ئاگاداری', 'هیچ داتایەکی غیابات نییە بۆ چاپکردن.', 'warning');
+                return;
+            }
+
+            const deptInfo = DEPARTMENTS[currentActiveDept] || { name: 'بەش', adminName: 'سەرۆکی بەش' };
+            const dateStr = new Date().toLocaleDateString('en-GB');
+
+            const printWin = window.open('', '_blank', 'width=1100,height=850');
+            if (printWin) {
+                printWin.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="ku" dir="rtl">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>ڕاپۆرتی فەرمی غیاباتی ٤ قۆناغی ${deptInfo.name}</title>
+                        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
+                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+                        <script src="https://cdn.tailwindcss.com"><\/script>
+                        <style>
+                            body { font-family: 'Tajawal', 'Vazirmatn', Arial, sans-serif; margin: 15px; color: #0f172a; }
+                            @media print {
+                                body { margin: 10px; }
+                                .no-print { display: none !important; }
+                                table { page-break-inside: auto; }
+                                tr { page-break-inside: avoid; page-break-after: auto; }
+                                thead { display: table-header-group; }
+                            }
+                        </style>
+                    </head>
+                    <body class="bg-white">
+                        <div class="border-b-2 border-slate-900 pb-4 mb-6 text-center">
+                            <div class="flex justify-between items-center mb-3">
+                                <div class="text-right">
+                                    <h3 class="font-black text-lg">حکومەتی هەرێمی کوردستان</h3>
+                                    <h4 class="font-bold text-sm text-slate-700">وەزارەتی خوێندنی باڵا و توێژینەوەی زانستی</h4>
+                                    <h4 class="font-bold text-base text-slate-900">کۆلێژی کارگێڕی و ئابووری</h4>
+                                    <h4 class="font-black text-base text-indigo-900">${deptInfo.name}</h4>
+                                </div>
+                                <div class="w-16 h-16 border-2 border-slate-900 rounded-full flex items-center justify-center text-2xl font-black">
+                                    <i class="fa-solid fa-graduation-cap"></i>
+                                </div>
+                                <div class="text-left" dir="ltr">
+                                    <p class="text-sm font-bold">Date: ${dateStr}</p>
+                                    <p class="text-xs text-slate-500">Academic Year: 2025 - 2026</p>
+                                    <p class="text-xs font-bold text-slate-800">سەرۆکایەتی بەش / تۆماری غیابات</p>
+                                </div>
+                            </div>
+                            <h2 class="text-xl font-black underline py-1 text-slate-900">
+                                ڕاپۆرتی فەرمی غیاباتی چوار قۆناغەکە بەپێی وانەکان - ${deptInfo.name}
+                            </h2>
+                        </div>
+
+                        <div class="space-y-6">
+                            ${container.innerHTML}
+                        </div>
+
+                        <div class="mt-12 pt-6 border-t border-slate-400 grid grid-cols-3 gap-6 text-center text-xs font-bold">
+                            <div>
+                                <p class="text-slate-600 mb-8">سەرۆکی بەشی زانستی</p>
+                                <p class="font-bold text-slate-800 mb-1">${deptInfo.adminName}</p>
+                                <p class="border-t border-dashed border-slate-400 pt-1 inline-block px-8">واژۆ و مۆر</p>
+                            </div>
+                            <div>
+                                <p class="text-slate-600 mb-8">بڕیاردەری بەش</p>
+                                <p class="font-bold text-slate-800 mb-1">تۆماری بەش</p>
+                                <p class="border-t border-dashed border-slate-400 pt-1 inline-block px-8">واژۆ و مۆر</p>
+                            </div>
+                            <div>
+                                <p class="text-slate-600 mb-8">لیژنەی غیاباتی کۆلێژ</p>
+                                <p class="font-bold text-slate-800 mb-1">پەسەندکراوی کۆلێژ</p>
+                                <p class="border-t border-dashed border-slate-400 pt-1 inline-block px-8">واژۆ و مۆر</p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `);
+                printWin.document.close();
+                printWin.focus();
+                setTimeout(() => {
+                    printWin.print();
+                }, 600);
+            }
+        }
+
+        function viewSessionDetails(sessId) {
+            const sess = attendanceSessions.find(s => s.id === sessId);
+            if (!sess) return;
+
+            let htmlContent = `
+                <div class="text-right text-sm">
+                    <p class="mb-1"><strong>بەش:</strong> ${DEPARTMENTS[sess.dept]?.name}</p>
+                    <p class="mb-3"><strong>وانە:</strong> ${sess.subject} | <strong>قۆناغ:</strong> ${getStageArabic(sess.stage)} | <strong>بەروار:</strong> ${sess.date}</p>
+                    <div class="max-h-60 overflow-y-auto border border-slate-200 rounded-2xl">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-100 font-bold">
+                                <tr>
+                                    <th class="p-2">خوێندکار</th>
+                                    <th class="p-2 text-center">دۆخ</th>
+                                    <th class="p-2">تێبینی</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+            `;
+
+            Object.keys(sess.records || {}).forEach(stId => {
+                const stu = students.find(s => s.id === stId);
+                const rec = sess.records[stId];
+                const statusKurdish = rec.status === 'present' ? '<span class="text-emerald-600 font-bold">هاتوو</span>'
+                    : (rec.status === 'absent' ? '<span class="text-rose-600 font-bold">نەهاتوو</span>'
+                    : (rec.status === 'late' ? '<span class="text-amber-600 font-bold">دواکەوتوو</span>' : '<span class="text-blue-600 font-bold">مۆڵەت</span>'));
+
+                htmlContent += `
+                    <tr>
+                        <td class="p-2">${stu ? stu.name : 'خوێندکار'}</td>
+                        <td class="p-2 text-center">${statusKurdish}</td>
+                        <td class="p-2 text-slate-500">${rec.note || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            htmlContent += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            Swal.fire({
+                title: 'وردەکاری تۆماری غیابات',
+                html: htmlContent,
+                width: 600,
+                confirmButtonColor: '#10b981',
+                confirmButtonText: 'داخستن'
+            });
+        }
+
+        function getStageArabic(st) {
+            switch(String(st)) {
+                case '1': return 'یەکەم';
+                case '2': return 'دووەم';
+                case '3': return 'سێیەم';
+                case '4': return 'چوارەم';
+                default: return st;
+            }
+        }
+
+        // ==========================================
+        // EXCEL IMPORT STUDENTS LOGIC
+        // ==========================================
+        let currentExcelWorkbook = null;
+        let extractedNamesForImport = [];
+        let preparedImportStudents = [];
+
+        function openExcelImportModal() {
+            const deptObj = DEPARTMENTS[currentActiveDept] || { name: 'بەشی زانستی' };
+            const badge = document.getElementById('excelImportDeptBadge');
+            if (badge) badge.textContent = deptObj.name;
+
+            // Reset UI
+            document.getElementById('excelFileInput').value = '';
+            document.getElementById('excelFileInfo').classList.add('hidden');
+            document.getElementById('excelOptionsSection').classList.add('hidden');
+            document.getElementById('excelPreviewSection').classList.add('hidden');
+            document.getElementById('btnExecuteExcelImport').disabled = true;
+            document.getElementById('excelPreviewTableBody').innerHTML = '';
+            currentExcelWorkbook = null;
+            extractedNamesForImport = [];
+            preparedImportStudents = [];
+
+            // Setup Drag & Drop if not already setup
+            setupExcelDropZone();
+
+            document.getElementById('excelImportModal').classList.remove('hidden');
+        }
+
+        function closeExcelImportModal() {
+            document.getElementById('excelImportModal').classList.add('hidden');
+            currentExcelWorkbook = null;
+            extractedNamesForImport = [];
+            preparedImportStudents = [];
+        }
+
+        function setupExcelDropZone() {
+            const dropZone = document.getElementById('excelDropZone');
+            if (!dropZone || dropZone.dataset.setupDone) return;
+            dropZone.dataset.setupDone = 'true';
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('border-indigo-600', 'bg-indigo-100/60');
+            });
+
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('border-indigo-600', 'bg-indigo-100/60');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('border-indigo-600', 'bg-indigo-100/60');
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    const file = e.dataTransfer.files[0];
+                    processExcelFile(file);
+                }
+            });
+        }
+
+        function handleExcelFileSelect(e) {
+            if (e.target.files && e.target.files.length > 0) {
+                processExcelFile(e.target.files[0]);
+            }
+        }
+
+        function processExcelFile(file) {
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    currentExcelWorkbook = XLSX.read(data, { type: 'array' });
+
+                    if (!currentExcelWorkbook || !currentExcelWorkbook.SheetNames || currentExcelWorkbook.SheetNames.length === 0) {
+                        Swal.fire('هەڵە لە خوێندنەوەی فایل!', 'هیچ شیتێک لە ناو فایلی ئەکسڵەکەدا نەدۆزرایەوە.', 'error');
+                        return;
+                    }
+
+                    // Display file info
+                    document.getElementById('excelFileNameText').textContent = file.name;
+                    document.getElementById('excelFileSheetsText').textContent = `(${currentExcelWorkbook.SheetNames.length} شیت)`;
+                    document.getElementById('excelFileInfo').classList.remove('hidden');
+
+                    // Populate Sheet Dropdown
+                    const sheetSelect = document.getElementById('excelSheetSelect');
+                    sheetSelect.innerHTML = '';
+                    currentExcelWorkbook.SheetNames.forEach((sheetName) => {
+                        const opt = document.createElement('option');
+                        opt.value = sheetName;
+                        opt.textContent = sheetName;
+                        sheetSelect.appendChild(opt);
+                    });
+
+                    document.getElementById('excelOptionsSection').classList.remove('hidden');
+
+                    // Process first sheet
+                    processSelectedExcelSheet();
+                } catch(err) {
+                    console.error("Excel read error:", err);
+                    Swal.fire('هەڵە لە فایلی ئەکسڵ!', 'فایلەکە ناتوانرێت بخوێندرێتەوە یان تێکچووە.', 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function onExcelSheetChange() {
+            processSelectedExcelSheet();
+        }
+
+        function detectStageFromText(text) {
+            if (!text) return null;
+            const str = String(text).trim();
+            if (/چوارەم|4|fourth/i.test(str)) return '4';
+            if (/سێیەم|3|third/i.test(str)) return '3';
+            if (/دووەم|2|second/i.test(str)) return '2';
+            if (/یەکەم|1|first/i.test(str)) return '1';
+            return null;
+        }
+
+        function detectGroupFromText(text) {
+            if (!text) return null;
+            const str = String(text).trim();
+            if (/[1-4]\s*A\b|گروپ\s*[:\-]?\s*A|گرووپ\s*[:\-]?\s*A|\bA\b/i.test(str)) return 'A';
+            if (/[1-4]\s*B\b|گروپ\s*[:\-]?\s*B|گرووپ\s*[:\-]?\s*B|\bB\b/i.test(str)) return 'B';
+            if (/[1-4]\s*C\b|گروپ\s*[:\-]?\s*C|گرووپ\s*[:\-]?\s*C|\bC\b/i.test(str)) return 'C';
+            return null;
+        }
+
+        function isExcelNoise(text) {
+            if (!text) return true;
+            const str = String(text).trim();
+            if (str.length < 3) return true;
+            if (/^\d+$/.test(str)) return true; // pure digits
+            if (/وەزارەت|زانکۆ|کۆلێج|کۆلێژ|بەشی|ساڵی\s*خوێندن|بابەت|کاتژمێر|قۆناغ|گرووپ|گروپ|ناوی\s*خوێندکار|ناوی\s*قوتابی|ناوی\s*سیانی|تێبینی|دواخستنی\s*خوێندن|تحمیل|Page/i.test(str)) {
+                return true;
+            }
+            return false;
+        }
+
+        function processSelectedExcelSheet() {
+            if (!currentExcelWorkbook) return;
+            const sheetName = document.getElementById('excelSheetSelect').value;
+            const sheet = currentExcelWorkbook.Sheets[sheetName];
+            if (!sheet) return;
+
+            // Try detecting stage and group from sheet name (e.g., 'قۆناغی 4A', '4A', '1B')
+            const detectedStageFromTitle = detectStageFromText(sheetName);
+            const detectedGroupFromTitle = detectGroupFromText(sheetName);
+
+            if (detectedStageFromTitle) {
+                document.getElementById('excelStageSelect').value = detectedStageFromTitle;
+            }
+            if (detectedGroupFromTitle) {
+                document.getElementById('excelGroupSelect').value = detectedGroupFromTitle;
+            }
+
+            // Convert to 2D array of rows
+            const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            if (!sheetData || sheetData.length === 0) {
+                Swal.fire('شیتی بەتاڵ!', 'ئەم شیتە هیچ زانیارییەکی تێدا نییە.', 'warning');
+                return;
+            }
+
+            // Check header cells for stage and group if not yet detected
+            for (let r = 0; r < Math.min(sheetData.length, 6); r++) {
+                const row = sheetData[r];
+                for (let c = 0; c < row.length; c++) {
+                    const cell = String(row[c]).trim();
+                    if (!detectedStageFromTitle) {
+                        const st = detectStageFromText(cell);
+                        if (st) document.getElementById('excelStageSelect').value = st;
+                    }
+                    if (!detectedGroupFromTitle) {
+                        const gr = detectGroupFromText(cell);
+                        if (gr) document.getElementById('excelGroupSelect').value = gr;
+                    }
+                }
+            }
+
+            // Find Name column header
+            let headerRowIndex = -1;
+            let nameColIndex = 1; // Default to Column B
+
+            for (let r = 0; r < Math.min(sheetData.length, 12); r++) {
+                const row = sheetData[r];
+                for (let c = 0; c < row.length; c++) {
+                    const cell = String(row[c]).trim();
+                    if (/ناوی\s*خوێندکار|ناوی\s*قوتابی|ناوی\s*سیانی|الاسم|Student\s*Name/i.test(cell)) {
+                        headerRowIndex = r;
+                        nameColIndex = c;
+                        break;
+                    }
+                }
+                if (headerRowIndex !== -1) break;
+            }
+
+            const startRow = headerRowIndex !== -1 ? headerRowIndex + 1 : 0;
+            extractedNamesForImport = [];
+
+            for (let r = startRow; r < sheetData.length; r++) {
+                const row = sheetData[r];
+                if (!row || row.length === 0) continue;
+
+                let candidate = String(row[nameColIndex] || '').trim();
+
+                // If column B is empty, scan columns for Kurdish/Arabic multi-word name
+                if (!candidate || candidate.length < 3 || isExcelNoise(candidate)) {
+                    for (let c = 0; c < Math.min(row.length, 5); c++) {
+                        const val = String(row[c] || '').trim();
+                        if (val && !isExcelNoise(val) && val.split(/\s+/).filter(Boolean).length >= 2) {
+                            candidate = val;
+                            break;
+                        }
+                    }
+                }
+
+                if (candidate && !isExcelNoise(candidate)) {
+                    const clean = candidate.replace(/\s+/g, ' ').trim();
+                    // Must have at least 2 words and not pure numbers
+                    if (clean.split(/\s+/).length >= 2 && !/^\d+$/.test(clean)) {
+                        if (!extractedNamesForImport.includes(clean)) {
+                            extractedNamesForImport.push(clean);
+                        }
+                    }
+                }
+            }
+
+            refreshExcelPreview();
+        }
+
+        function refreshExcelPreview() {
+            const stage = document.getElementById('excelStageSelect').value;
+            const group = document.getElementById('excelGroupSelect').value;
+            const study = document.getElementById('excelStudySelect').value;
+            const codeFormat = document.getElementById('excelCodeFormatSelect').value;
+            const skipDuplicates = document.getElementById('excelSkipDuplicatesCheck').checked;
+
+            const tbody = document.getElementById('excelPreviewTableBody');
+            const previewSection = document.getElementById('excelPreviewSection');
+            const countBadge = document.getElementById('excelParsedCountBadge');
+            const submitBtn = document.getElementById('btnExecuteExcelImport');
+            tbody.innerHTML = '';
+
+            if (extractedNamesForImport.length === 0) {
+                previewSection.classList.remove('hidden');
+                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400 font-bold">هیچ ناوی خوێندکارێک لەم شیتەدا نەدۆزرایەوە</td></tr>`;
+                countBadge.textContent = '0 خوێندکار';
+                submitBtn.disabled = true;
+                preparedImportStudents = [];
+                return;
+            }
+
+            previewSection.classList.remove('hidden');
+
+            const prefix = DEPT_PREFIX[currentActiveDept] || 'STU';
+            const grpStr = group ? group : '';
+
+            // Calculate starting sequence number to prevent collisions
+            let maxSeq = 0;
+            students.forEach(s => {
+                if (s.dept === currentActiveDept && String(s.stage) === String(stage)) {
+                    if (codeFormat === 'group_seq') {
+                        const m = String(s.code).match(new RegExp(`^${prefix}-${stage}${grpStr}-(\\d{2,3})$`, 'i'));
+                        if (m) {
+                            const val = parseInt(m[1], 10);
+                            if (val > maxSeq) maxSeq = val;
+                        }
+                    } else {
+                        const m = String(s.code).match(new RegExp(`^${prefix}-${stage}(\\d{2,3})$`, 'i'));
+                        if (m) {
+                            const val = parseInt(m[1], 10);
+                            if (val > maxSeq) maxSeq = val;
+                        }
+                    }
+                }
+            });
+
+            let curSeq = maxSeq > 0 ? maxSeq + 1 : 1;
+            preparedImportStudents = [];
+            let validCount = 0;
+
+            extractedNamesForImport.forEach((name, idx) => {
+                // Generate collision-free code
+                let code = '';
+                if (codeFormat === 'group_seq') {
+                    code = `${prefix}-${stage}${grpStr ? grpStr + '-' : '-'}${String(curSeq).padStart(2, '0')}`;
+                } else {
+                    code = `${prefix}-${stage}${String(curSeq).padStart(2, '0')}`;
+                }
+
+                // Ensure unique code
+                while (students.some(s => s.code.toLowerCase() === code.toLowerCase()) || preparedImportStudents.some(p => p.code.toLowerCase() === code.toLowerCase())) {
+                    curSeq++;
+                    if (codeFormat === 'group_seq') {
+                        code = `${prefix}-${stage}${grpStr ? grpStr + '-' : '-'}${String(curSeq).padStart(2, '0')}`;
+                    } else {
+                        code = `${prefix}-${stage}${String(curSeq).padStart(2, '0')}`;
+                    }
+                }
+                curSeq++;
+
+                // Check if student with same name already exists in this department
+                const isDupe = students.some(s => s.dept === currentActiveDept && s.name.trim().toLowerCase() === name.trim().toLowerCase());
+
+                const studentObj = {
+                    code: code,
+                    name: name,
+                    stage: stage,
+                    group: group,
+                    study: study,
+                    isDuplicate: isDupe
+                };
+                preparedImportStudents.push(studentObj);
+
+                if (!isDupe || !skipDuplicates) {
+                    validCount++;
+                }
+
+                // Render row
+                const tr = document.createElement('tr');
+                tr.className = isDupe ? 'bg-rose-50/50 text-slate-400' : 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="py-2 px-3 text-center font-bold ${isDupe ? 'text-slate-400' : 'text-slate-600'}">${idx + 1}</td>
+                    <td class="py-2 px-3 font-mono font-bold ${isDupe ? 'text-slate-400' : 'text-indigo-600'}">${code}</td>
+                    <td class="py-2 px-3 font-bold ${isDupe ? 'line-through text-slate-400' : 'text-slate-800'}">${name}</td>
+                    <td class="py-2 px-3 text-center text-slate-600 font-bold">قۆناغی ${getStageArabic(stage)}</td>
+                    <td class="py-2 px-3 text-center text-slate-600 font-bold">${group ? 'گرووپ ' + group : '—'}</td>
+                    <td class="py-2 px-3 text-center">
+                        ${isDupe 
+                            ? '<span class="text-[10px] bg-rose-100 text-rose-700 font-black px-2 py-0.5 rounded-full">دووبارەیە</span>' 
+                            : '<span class="text-[10px] bg-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded-full">ئامادەیە</span>'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            countBadge.textContent = `${validCount} خوێندکار ئامادەیە`;
+            submitBtn.disabled = validCount === 0;
+            document.getElementById('btnExecuteExcelImportText').textContent = `تۆمارکردنی (${validCount}) خوێندکار لە سیستەم`;
+        }
+
+        function executeExcelImport() {
+            if (preparedImportStudents.length === 0) return;
+
+            const skipDuplicates = document.getElementById('excelSkipDuplicatesCheck').checked;
+            const toAdd = skipDuplicates ? preparedImportStudents.filter(s => !s.isDuplicate) : preparedImportStudents;
+
+            if (toAdd.length === 0) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'هیچ خوێندکارێکی نوێ نییە!',
+                    text: 'سەرجەم ناوەکانی ناو فایلی ئەکسڵەکە پێشتر لە بەشەکە تۆمارکراون.',
+                    confirmButtonText: 'باشە'
+                });
+                return;
+            }
+
+            toAdd.forEach(stu => {
+                students.push({
+                    id: 'stu_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                    code: stu.code,
+                    name: stu.name,
+                    dept: currentActiveDept,
+                    stage: String(stu.stage),
+                    study: stu.study,
+                    group: stu.group || 'A',
+                    totalHours: 40,
+                    absentHours: 0
+                });
+            });
+
+            localStorage.setItem('college_students', JSON.stringify(students));
+
+            logAuditAction(`هاوردەکردنی (${toAdd.length}) خوێندکار لە ڕێگەی ئەکسڵەوە بۆ قۆناغی ${getStageArabic(toAdd[0].stage)} - گرووپ ${toAdd[0].group || 'A'}`, authUser?.name);
+
+            closeExcelImportModal();
+            renderDeptStudentsTable();
+            renderDeptDashboard();
+
+            Swal.fire({
+                icon: 'success',
+                title: 'خوێندکارەکان بە سەرکەوتوویی هاوردەکران!',
+                html: `
+                    <div class="text-right text-xs space-y-2 mt-3 p-3 bg-slate-900 rounded-xl border border-slate-700 text-slate-300">
+                        <div class="flex justify-between"><span>ژمارەی خوێندکارانی زیادکراو:</span><strong class="text-emerald-400 font-bold">${toAdd.length} خوێندکار</strong></div>
+                        <div class="flex justify-between"><span>قۆناغ:</span><strong class="text-white">قۆناغی ${getStageArabic(toAdd[0].stage)}</strong></div>
+                        <div class="flex justify-between"><span>گرووپ:</span><strong class="text-indigo-400 font-bold">گرووپ ${toAdd[0].group || 'A'}</strong></div>
+                        <div class="flex justify-between"><span>جۆری خوێندن:</span><strong class="text-slate-200">${toAdd[0].study === 'evening' ? 'ئێواران' : 'بەیانیان'}</strong></div>
+                        <div class="flex justify-between"><span>کۆدی ئۆتۆماتیکی:</span><strong class="text-amber-400 font-mono font-bold">${toAdd[0].code} تا ${toAdd[toAdd.length - 1].code}</strong></div>
+                    </div>
+                `,
+                confirmButtonText: 'تەواوە',
+                confirmButtonColor: '#4f46e5'
+            });
+        }
+
+        // Handle Logout
+        function handleLogout() {
+            Swal.fire({
+                title: 'دڵنیایت لە دەرچوون؟',
+                text: 'دەگەڕێیتەوە بۆ پەڕەی چوونەژوورەوەی سەرەکی سیستەم.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'بەڵێ، دەرچوون',
+                cancelButtonText: 'پاشگەزبوونەوە',
+                background: '#0f172a',
+                color: '#f8fafc'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    localStorage.removeItem('college_auth_user');
+                    window.location.replace('login.html');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

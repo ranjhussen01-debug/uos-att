@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تۆمارکردنی غیابات | پەڕەی مامۆستایان</title>
+    
+    <!-- Google Fonts: Tajawal & Vazirmatn -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Vazirmatn:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        kurdish: ['Tajawal', 'Vazirmatn', 'sans-serif'],
+                    },
+                    colors: {
+                        royal: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            gold: '#f59e0b',
+                        },
+                        teach: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Font Awesome 6.5.1 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- SheetJS (Excel Export) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Firebase SDK (v10 compat) & Live Sync Engine -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="firebase-service.js"></script>
+
+    <!-- Auth Guard for Teacher Attendance Page -->
+    <script>
+        (function() {
+            try {
+                const user = JSON.parse(localStorage.getItem('college_auth_user') || 'null');
+                if (!user) {
+                    window.location.replace('login.html?redirect=teacher_attendance.html');
+                }
+            } catch (e) {
+                window.location.replace('login.html?redirect=teacher_attendance.html');
+            }
+        })();
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Tajawal', 'Vazirmatn', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            direction: rtl;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; color: black !important; font-size: 11pt; }
+        }
+        .status-btn.active-present {
+            background-color: #10b981 !important;
+            color: white !important;
+            border-color: #059669 !important;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+        }
+        .status-btn.active-absent {
+            background-color: #ef4444 !important;
+            color: white !important;
+            border-color: #dc2626 !important;
+            box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+        }
+        .status-btn.active-late {
+            background-color: #f59e0b !important;
+            color: white !important;
+            border-color: #d97706 !important;
+            box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.3);
+        }
+        .status-btn.active-excused {
+            background-color: #3b82f6 !important;
+            color: white !important;
+            border-color: #2563eb !important;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- TOP HEADER -->
+    <header class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950/90 text-white shadow-2xl sticky top-0 z-50 no-print border-b border-indigo-500/20 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between py-3.5 gap-4">
+                <!-- Branding (Right side in RTL) -->
+                <div class="flex items-center gap-3.5">
+                    <div class="relative group shrink-0">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 font-black text-xl border border-white/20 transition-transform duration-300 group-hover:scale-105">
+                            <i class="fa-solid fa-chalkboard-user"></i>
+                        </div>
+                        <div class="absolute -bottom-1 -left-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
+                            <div class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-black text-base sm:text-lg tracking-tight text-white drop-shadow-sm">کۆلێژی کارگێڕی و ئابووری</span>
+                            <span class="inline-flex items-center gap-1.5 bg-gradient-to-r from-indigo-500/25 to-purple-500/25 text-indigo-300 text-[11px] sm:text-xs px-3 py-0.5 rounded-full font-black border border-indigo-400/30 shadow-sm">
+                                <i class="fa-solid fa-chalkboard text-[10px] text-indigo-400"></i>
+                                پەڕەی تایبەت بە مامۆستایان
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mt-0.5">
+                            <i class="fa-solid fa-circle-check text-emerald-400 text-[10px]"></i>
+                            <span>تۆمارکردنی غیابات بەپێی کاتژمێری محازەرە و بەشەکان</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- User Session & Logout (Left side in RTL) -->
+                <div class="flex items-center gap-3 shrink-0">
+                    <!-- User Profile Pill -->
+                    <div class="flex items-center gap-2.5 bg-white/5 hover:bg-white/10 px-3.5 py-1.5 rounded-2xl border border-indigo-400/30 backdrop-blur-md shadow-md transition duration-200">
+                        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white flex items-center justify-center font-bold text-xs shadow-inner">
+                            <i class="fa-solid fa-user-tie"></i>
+                        </div>
+                        <div class="text-right">
+                            <span class="block text-[10px] text-indigo-300 font-semibold leading-tight">هەژماری مامۆستا</span>
+                            <span id="teacherHeaderName" class="block font-black text-xs sm:text-sm text-white leading-tight">مامۆستای وانە</span>
+                        </div>
+                    </div>
+
+                    <!-- Logout Button -->
+                    <button onclick="handleLogout()" class="group flex items-center gap-2 bg-gradient-to-r from-rose-500/15 to-rose-600/25 hover:from-rose-600 hover:to-rose-700 text-rose-300 hover:text-white px-4 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all duration-300 border border-rose-500/30 hover:border-rose-600 shadow-md hover:shadow-rose-600/30 hover:scale-[1.02] active:scale-95">
+                        <i class="fa-solid fa-right-from-bracket transition-transform duration-300 group-hover:-translate-x-0.5"></i>
+                        <span>دەرچوون</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- PRINT HEADER -->
+    <div class="hidden print-only p-6 border-b-2 border-slate-900 text-center">
+        <div class="flex justify-between items-center mb-4">
+            <div class="text-right">
+                <h3 class="font-black text-lg">حکومەتی هەرێمی کوردستان</h3>
+                <h4 class="font-bold text-sm">وەزارەتی خوێندنی باڵا و توێژینەوەی زانستی</h4>
+                <h4 class="font-bold text-base text-slate-800">کۆلێژی کارگێڕی و ئابووری</h4>
+            </div>
+            <div class="w-16 h-16 border-2 border-slate-900 rounded-full flex items-center justify-center text-2xl font-black">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div class="text-left" dir="ltr">
+                <p id="printDate" class="text-sm font-bold"></p>
+                <p class="text-xs text-slate-500">Academic Year: 2025 - 2026</p>
+                <p class="text-xs font-bold text-slate-800">فۆڕمی فەرمی تۆماری غیاباتی محازەرە</p>
+            </div>
+        </div>
+        <h2 id="printReportTitle" class="text-xl font-black underline py-2">لیستی غیاباتی محازەرەی خوێندکاران</h2>
+    </div>
+
+    <!-- MAIN BODY -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1 w-full">
+
+        <!-- COURSE PROFILE & OFFICIAL FORMULA BANNER -->
+        <div class="bg-gradient-to-l from-indigo-950 via-slate-900 to-slate-950 rounded-3xl p-6 text-white shadow-xl border border-indigo-500/20">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                <!-- Course Details -->
+                <div class="space-y-2.5">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="bg-indigo-500/30 text-indigo-300 text-xs px-3 py-1 rounded-full font-bold border border-indigo-500/40">
+                            <i class="fa-solid fa-graduation-cap ml-1"></i>
+                            <span id="bannerDeptName">بەشی ژمێریاری</span>
+                        </span>
+                        <span class="bg-emerald-500/20 text-emerald-300 text-xs px-3 py-1 rounded-full font-bold border border-emerald-500/30">
+                            <i class="fa-solid fa-layer-group ml-1"></i>
+                            <span id="bannerStageName">قۆناغی یەکەم</span>
+                        </span>
+                        <span class="bg-amber-500/20 text-amber-300 text-xs px-3 py-1 rounded-full font-black border border-amber-500/30">
+                            <i class="fa-solid fa-clock ml-1"></i>
+                            <span>تۆتاڵ هاوەری وانە: <strong id="bannerCourseTotalHours">60</strong> کاتژمێر</span>
+                        </span>
+                    </div>
+
+                    <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+                        <i class="fa-solid fa-book-bookmark text-indigo-400"></i>
+                        <span id="bannerSubjectName">بنەماکانی ژمێریاری</span>
+                    </h1>
+                </div>
+
+                <!-- Teacher Card (Left Side) -->
+                <div class="w-full sm:w-auto bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-md px-5 py-3 rounded-2xl border border-indigo-400/30 shadow-lg flex items-center gap-3.5 shrink-0 hover:border-indigo-400/50 transition">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center text-xl shadow-md border border-indigo-300/30 shrink-0">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                    <div class="space-y-0.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] font-bold text-indigo-300">مامۆستای وانە</span>
+                            <span class="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/25">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                وانەبێژ
+                            </span>
+                        </div>
+                        <div class="text-base sm:text-lg font-black text-white tracking-wide">
+                            <span id="bannerTeacherName">م. کاروان ئەحمەد</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden placeholders for JS compatibility -->
+            <select id="teacherCourseSelect" class="hidden"></select>
+            <span id="badgeContactHoursNotice" class="hidden"></span>
+        </div>
+
+        <!-- 3 CONTROLS GRID: 1) SELECT GROUP  |  2) SET LECTURE HOURS  |  3) DATE -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <!-- CONTROL 1: هەڵبژاردنی گروپ -->
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/90 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2.5 mb-2">
+                        <div class="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-sm">
+                            <i class="fa-solid fa-users-rectangle"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-slate-800 text-sm">١. هەڵبژاردنی گروپ (Select Group)</h3>
+                            <p class="text-[11px] text-slate-400">گرووپی خوێندنی وانەکە دیاری بکە</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <select id="teacherStudyGroupSelect" onchange="renderAttendanceSheet()" class="w-full bg-purple-50/50 border-2 border-purple-200 text-purple-950 text-sm rounded-xl px-3 py-2.5 font-black focus:ring-2 focus:ring-purple-500 focus:outline-none transition">
+                            <option value="all">هەموو گرووپەکان (A + B + ئێواران)</option>
+                            <option value="morning_a">بەیانیان - گرووپ A</option>
+                            <option value="morning_b">بەیانیان - گرووپ B</option>
+                            <option value="evening">ئێواران (Evening)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Group quick pill filters -->
+                <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-slate-100 text-xs">
+                    <button type="button" onclick="setGroupQuick('all')" class="group-pill px-2.5 py-1 rounded-lg font-bold bg-purple-600 text-white" id="gpill_all">هەمووان</button>
+                    <button type="button" onclick="setGroupQuick('morning_a')" class="group-pill px-2.5 py-1 rounded-lg font-bold bg-slate-100 text-slate-700 hover:bg-purple-100" id="gpill_morning_a">گرووپ A</button>
+                    <button type="button" onclick="setGroupQuick('morning_b')" class="group-pill px-2.5 py-1 rounded-lg font-bold bg-slate-100 text-slate-700 hover:bg-purple-100" id="gpill_morning_b">گرووپ B</button>
+                    <button type="button" onclick="setGroupQuick('evening')" class="group-pill px-2.5 py-1 rounded-lg font-bold bg-slate-100 text-slate-700 hover:bg-purple-100" id="gpill_evening">ئێواران</button>
+                </div>
+            </div>
+
+            <!-- CONTROL 2: دیاریکردنی کاتژمێری وانە -->
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/90 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2.5 mb-2">
+                        <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                            <i class="fa-solid fa-stopwatch"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-slate-800 text-sm">٢. دیاریکردنی کاتژمێری وانە (Lecture Duration)</h3>
+                            <p class="text-[11px] text-slate-400">بۆ غیاباتی خوێندکار هەژمار دەکرێت</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <select id="teacherLectureHoursSelect" onchange="onLectureHoursChange()" class="w-full bg-indigo-50/70 border-2 border-indigo-400/70 text-indigo-950 text-sm rounded-xl px-3 py-2.5 font-black focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+                            <option value="1">١ کاتژمێر (وانەی تاک)</option>
+                            <option value="2" selected>٢ کاتژمێر (محازەرەی ستاندارد)</option>
+                            <option value="3">٣ کاتژمێر (وانەی درێژخایەن)</option>
+                            <option value="4">٤ کاتژمێر (وانەی تاقیگە / پڕاکتیکی)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Hours Pills -->
+                <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-slate-100 text-xs">
+                    <button type="button" onclick="setLectureHoursQuick(1)" class="hours-pill px-2.5 py-1 rounded-lg border font-bold text-slate-700 hover:bg-indigo-50" id="pill_1">١ کاتژمێر</button>
+                    <button type="button" onclick="setLectureHoursQuick(2)" class="hours-pill px-2.5 py-1 rounded-lg border font-black bg-indigo-600 text-white border-indigo-600 shadow-sm" id="pill_2">٢ کاتژمێر</button>
+                    <button type="button" onclick="setLectureHoursQuick(3)" class="hours-pill px-2.5 py-1 rounded-lg border font-bold text-slate-700 hover:bg-indigo-50" id="pill_3">٣ کاتژمێر</button>
+                    <button type="button" onclick="setLectureHoursQuick(4)" class="hours-pill px-2.5 py-1 rounded-lg border font-bold text-slate-700 hover:bg-indigo-50" id="pill_4">٤ کاتژمێر</button>
+                </div>
+            </div>
+
+            <!-- CONTROL 3: بەروار و زانیاری ڕێکخستن -->
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/90 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2.5 mb-2">
+                        <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                            <i class="fa-solid fa-calendar-day"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-slate-800 text-sm">٣. بەرواری محازەرە و بەشی چالاک</h3>
+                            <p class="text-[11px] text-slate-400">بەرواری ئەمڕۆ و بەشەکە</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <input type="date" id="teacherDateInput" class="w-full bg-slate-50 border-2 border-slate-200 text-slate-800 text-sm rounded-xl px-3 py-2.5 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none transition">
+                    </div>
+                </div>
+
+                <div class="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
+                    <span class="flex items-center gap-1 font-bold text-slate-600">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                        غائیب: <strong id="noteHoursText" class="text-rose-600 font-black">٢</strong> کاتژمێر
+                    </span>
+                    <span class="font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                        <i class="fa-solid fa-stopwatch ml-1"></i><span id="badgeCurrentLectureHours">٢ کاتژمێر</span>
+                    </span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Hidden inputs kept for compatibility -->
+        <input type="hidden" id="teacherDeptSelect" value="dept_accounting">
+        <input type="hidden" id="teacherStageSelect" value="1">
+        <input type="hidden" id="teacherSubjectInput" value="بنەماکانی ژمێریاری">
+        <input type="hidden" id="teacherLecturerNameInput" value="م. کاروان ئەحمەد">
+
+        <!-- ATTENDANCE ACTIONS & STATS BAR -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/90">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                
+                <!-- Quick Bulk Actions -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="setAllAttendance('present')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-check-double"></i>
+                        <span>هەموو ئامادە (All Present)</span>
+                    </button>
+                    <button onclick="setAllAttendance('absent')" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-black px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-xmark"></i>
+                        <span>هەموو غائیب (All Absent)</span>
+                    </button>
+                    <button onclick="resetCurrentAttendance()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-xl transition flex items-center gap-1.5 border border-slate-200">
+                        <i class="fa-solid fa-arrow-rotate-left"></i>
+                        <span>سڕینەوەی دیاریکردن</span>
+                    </button>
+                </div>
+
+                <!-- Live Metrics Summary -->
+                <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+                    <span class="text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">کۆی خوێندکاران: <strong id="sheetTotalCount" class="text-slate-900 text-sm">0</strong></span>
+                    <span class="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">ئامادە: <strong id="sheetPresentCount">0</strong></span>
+                    <span class="text-rose-700 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200">غائیب: <strong id="sheetAbsentCount">0</strong></span>
+                    <span class="text-amber-700 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">دواکەوتوو: <strong id="sheetLateCount">0</strong></span>
+                    <span class="text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">مۆڵەت: <strong id="sheetExcusedCount">0</strong></span>
+                </div>
+
+                <!-- Search -->
+                <div class="relative w-full sm:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute right-3.5 top-3 text-slate-400 text-xs"></i>
+                    <input type="text" id="sheetSearchInput" onkeyup="filterAttendanceTable()" placeholder="گەڕان بەپێی ناو..." class="w-full pr-9 pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+        </div>
+
+        <!-- ATTENDANCE SHEET TABLE CARD -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200/90 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-right text-sm">
+                    <thead class="bg-slate-100/90 text-slate-700 text-xs font-black uppercase border-b border-slate-200">
+                        <tr>
+                            <th class="py-3.5 px-4 w-12 text-center">#</th>
+                            <th class="py-3.5 px-4 w-28">کۆدی خوێندکار</th>
+                            <th class="py-3.5 px-4">ناوی سیانی خوێندکار</th>
+                            <th class="py-3.5 px-4 text-center">غیاباتی پێشوو</th>
+                            <th class="py-3.5 px-4 text-center w-96">تۆمارکردنی دۆخی محازەرە</th>
+                            <th class="py-3.5 px-4">تێبینی مامۆستا</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTableBody" class="divide-y divide-slate-100">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="attendanceEmptyState" class="hidden p-12 text-center">
+                <div class="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3 text-2xl">
+                    <i class="fa-solid fa-user-slash"></i>
+                </div>
+                <h4 class="font-bold text-slate-700">هیچ خوێندکارێک لەم بەش و قۆناغە نەدۆزرایەوە</h4>
+                <p class="text-xs text-slate-400 mt-1">تکایە بەش یان قۆناغێکی تر هەڵبژێرە، یان خوێندکار تۆمار بکە.</p>
+            </div>
+
+            <!-- Footer Save and Print Bar -->
+            <!-- Footer Save, Draft and Print Bar -->
+            <div class="p-5 bg-slate-50/80 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="text-xs text-slate-500 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-indigo-600 text-sm"></i>
+                    <span>دەتوانیت وانەکە وەک درافت (ڕەشنووس) پاشەکەوت بکەیت بۆ هەفتەکە، یان دەستبەجێ ڕەوانەی ئەدمینی بکەیت.</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button type="button" onclick="printAttendanceSheet()" class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-print"></i>
+                        <span>چاپکردن (Print)</span>
+                    </button>
+                    <!-- SAVE AS DRAFT BUTTON -->
+                    <button type="button" onclick="saveAttendanceSession(true)" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-md shadow-amber-500/20 flex items-center gap-2 border border-amber-400">
+                        <i class="fa-solid fa-file-pen"></i>
+                        <span>پاشەکەوتکردن وەک درافت (Draft)</span>
+                    </button>
+                    <!-- DIRECT SUBMIT TO ADMIN BUTTON -->
+                    <button type="button" onclick="saveAttendanceSession(false)" class="bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 hover:from-indigo-500 hover:to-indigo-600 text-white font-black px-5 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg shadow-indigo-600/30 flex items-center gap-2 border border-indigo-400/30">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span>ناردنی یەکسەر بۆ ئەدمین (Submit)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RECENT SESSIONS & DRAFTS SECTION (ONLY FOR THIS COURSE) -->
+        <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200/90">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-lg">
+                        <i class="fa-solid fa-folder-closed"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-extrabold text-slate-800 text-base">ئەرشیف و درافتەکانی ئەم وانەیە</h3>
+                            <span id="currentCourseArchiveBadge" class="text-xs bg-indigo-100 text-indigo-800 font-black px-2.5 py-0.5 rounded-full border border-indigo-200">
+                                بنەماکانی ژمێریاری
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400">تەنها محازەرە و درافتەکانی ئەم وانەیە نیشان دەدرێت و بەشەکانی تر لادراون</p>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-2">
+                    <span id="sessionsDraftsBadge" class="text-xs bg-amber-50 text-amber-800 font-bold px-3 py-1 rounded-full border border-amber-200">
+                        ٠ درافت
+                    </span>
+                    <span id="sessionsCountBadge" class="text-xs bg-emerald-50 text-emerald-800 font-bold px-3 py-1 rounded-full border border-emerald-200">
+                        ٠ نێردراو
+                    </span>
+                    <!-- SUBMIT ALL WEEKLY DRAFTS BUTTON -->
+                    <button type="button" onclick="submitAllWeeklyDraftsToAdmin()" id="btnSubmitAllDrafts" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-4 py-2 rounded-xl text-xs transition shadow-md shadow-indigo-600/20 flex items-center gap-1.5">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span>ناردنی سەرجەم درافتەکان بۆ ئەدمین (کۆتایی هەفتە)</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-right text-sm">
+                    <thead class="bg-slate-50 text-slate-600 text-xs font-bold uppercase border-y border-slate-200">
+                        <tr>
+                            <th class="py-3 px-4">بەرواری محازەرە</th>
+                            <th class="py-3 px-4">گرووپ / خوێندن</th>
+                            <th class="py-3 px-4 text-center">کاتژمێری وانە</th>
+                            <th class="py-3 px-4 text-center">ئامادەبوون</th>
+                            <th class="py-3 px-4 text-center">دۆخی ناردن</th>
+                            <th class="py-3 px-4 text-center">کردارەکان</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsHistoryTableBody" class="divide-y divide-slate-100">
+                        <!-- Populated dynamically with ONLY this course's drafts and sessions -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12 no-print text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-2 font-bold text-slate-800">
+                <i class="fa-solid fa-graduation-cap text-indigo-600 text-base"></i>
+                <span>کۆلێژی کارگێڕی و ئابووری - سیستەمی ئەکادیمی تۆمارکردنی غیابات</span>
+            </div>
+            <div>
+                <span>پەڕەی تایبەت بە مامۆستایانی وانەبێژ (Teachers Portal)</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT STATE & LOGIC -->
+    <script>
+        const DEPARTMENTS = {
+            'dept_accounting': { id: 'dept_accounting', name: 'بەشی ژمێریاری', color: 'blue', icon: 'fa-calculator' },
+            'dept_business': { id: 'dept_business', name: 'بەشی کارگێڕی کار', color: 'purple', icon: 'fa-briefcase' },
+            'dept_economics': { id: 'dept_economics', name: 'بەشی ئابووری', color: 'emerald', icon: 'fa-chart-line' },
+            'dept_finance': { id: 'dept_finance', name: 'بەشی کارگێڕی بەبازاڕکردن', color: 'teal', icon: 'fa-bullhorn' },
+            'dept_statistics': { id: 'dept_statistics', name: 'بەشی ئامار و زانیاری', color: 'amber', icon: 'fa-chart-pie' }
+        };
+
+        const DEFAULT_COURSES = [
+            { id: 'crs_acc_1', deptId: 'dept_accounting', subject: 'بنەماکانی ژمێریاری', teacherName: 'م. کاروان ئەحمەد', username: 'karwan.acc', password: '123', totalHours: 60, stage: 1 },
+            { id: 'crs_acc_2', deptId: 'dept_accounting', subject: 'ژمێریاری تێچوون', teacherName: 'د. پشتیوان عوسمان', username: 'pishtiwan.acc', password: '123', totalHours: 90, stage: 2 },
+            { id: 'crs_acc_3', deptId: 'dept_accounting', subject: 'ژمێریاری پێشکەوتوو', teacherName: 'م. نەبەز جەلال', username: 'nabaz.acc', password: '123', totalHours: 60, stage: 3 },
+            { id: 'crs_acc_4', deptId: 'dept_accounting', subject: 'وردبینی و کۆنتڕۆڵی دارایی', teacherName: 'پ.ی.د. سەروەر کەریم', username: 'sarwar.acc', password: '123', totalHours: 45, stage: 4 },
+            { id: 'crs_bus_1', deptId: 'dept_business', subject: 'بنەماکانی بەڕێوەبردن', teacherName: 'م. هێمن عەلی', username: 'hemin.bus', password: '123', totalHours: 60, stage: 1 },
+            { id: 'crs_eco_1', deptId: 'dept_economics', subject: 'ئابووری وورد', teacherName: 'د. شاخەوان جەمال', username: 'shakhawan.eco', password: '123', totalHours: 60, stage: 1 },
+            { id: 'crs_fin_1', deptId: 'dept_finance', subject: 'بنەماکانی دارایی', teacherName: 'م. ڕەوەند نادر', username: 'rawand.fin', password: '123', totalHours: 60, stage: 1 },
+            { id: 'crs_stat_1', deptId: 'dept_statistics', subject: 'ئاماری سەرەتایی', teacherName: 'د. دارا سەعید', username: 'dara.stat', password: '123', totalHours: 45, stage: 1 }
+        ];
+
+        let students = [];
+        let attendanceSessions = [];
+        let courses = [];
+        let currentCourse = null;
+        let currentCourseTotalHours = 60; // Total contact hours during the semester (from image formula)
+        let currentSheetStates = {};
+        let currentLectureHours = 2;
+        let authUser = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initStorage();
+            initAuthAndUser();
+            initDate();
+            renderAttendanceSheet();
+            renderSessionsHistory();
+        });
+
+        function initStorage() {
+            try {
+                const savedStudents = localStorage.getItem('college_students');
+                if (savedStudents) {
+                    students = JSON.parse(savedStudents);
+                }
+                const savedSessions = localStorage.getItem('college_attendance_sessions');
+                if (savedSessions) {
+                    attendanceSessions = JSON.parse(savedSessions);
+                }
+                const savedCourses = localStorage.getItem('college_courses');
+                if (savedCourses) {
+                    courses = JSON.parse(savedCourses);
+                } else {
+                    courses = [...DEFAULT_COURSES];
+                    localStorage.setItem('college_courses', JSON.stringify(courses));
+                }
+            } catch(e) {
+                console.error("Storage load error:", e);
+                courses = [...DEFAULT_COURSES];
+            }
+        }
+
+        function initAuthAndUser() {
+            try {
+                authUser = JSON.parse(localStorage.getItem('college_auth_user') || 'null');
+            } catch(e) { authUser = null; }
+
+            populateCourseSelect();
+
+            if (authUser) {
+                const headerName = document.getElementById('teacherHeaderName');
+                if (headerName) headerName.textContent = authUser.name;
+
+                // If user is a logged-in teacher with course info
+                if (authUser.role === 'teacher') {
+                    let matchedCourse = courses.find(c => c.username === authUser.username) ||
+                                       courses.find(c => c.teacherName === authUser.name) ||
+                                       courses.find(c => c.subject === authUser.subject);
+                    if (matchedCourse) {
+                        applyCourse(matchedCourse);
+                    } else if (courses.length > 0) {
+                        applyCourse(courses[0]);
+                    }
+                } else if (authUser.role === 'department' && authUser.deptId) {
+                    const deptCourses = courses.filter(c => c.deptId === authUser.deptId);
+                    if (deptCourses.length > 0) {
+                        applyCourse(deptCourses[0]);
+                    } else if (courses.length > 0) {
+                        applyCourse(courses[0]);
+                    }
+                } else {
+                    if (courses.length > 0) applyCourse(courses[0]);
+                }
+            } else {
+                if (courses.length > 0) applyCourse(courses[0]);
+            }
+        }
+
+        function populateCourseSelect() {
+            const select = document.getElementById('teacherCourseSelect');
+            if (!select) return;
+            select.innerHTML = '';
+            
+            let list = courses;
+            if (authUser && authUser.role === 'department' && authUser.deptId) {
+                list = courses.filter(c => c.deptId === authUser.deptId);
+            }
+
+            list.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                const deptName = DEPARTMENTS[c.deptId] ? DEPARTMENTS[c.deptId].name : c.deptId;
+                opt.textContent = `${c.subject} - ${c.teacherName} (${c.totalHours} کاتژمێر) - ${deptName}`;
+                select.appendChild(opt);
+            });
+        }
+
+        function onCourseSelectedChange() {
+            const courseId = document.getElementById('teacherCourseSelect').value;
+            const course = courses.find(c => c.id === courseId);
+            if (course) {
+                applyCourse(course);
+                renderAttendanceSheet();
+                renderSessionsHistory();
+            }
+        }
+
+        function applyCourse(course) {
+            currentCourse = course;
+            currentCourseTotalHours = course.totalHours || 60;
+
+            const select = document.getElementById('teacherCourseSelect');
+            if (select) select.value = course.id;
+
+            // Update banner elements
+            const deptObj = DEPARTMENTS[course.deptId] || { name: course.deptId };
+            const bannerDept = document.getElementById('bannerDeptName');
+            if (bannerDept) bannerDept.textContent = deptObj.name;
+
+            const bannerStage = document.getElementById('bannerStageName');
+            if (bannerStage) bannerStage.textContent = `قۆناغی ${getStageKurdish(course.stage)}`;
+
+            const bannerTotal = document.getElementById('bannerCourseTotalHours');
+            if (bannerTotal) bannerTotal.textContent = course.totalHours;
+
+            const bannerSub = document.getElementById('bannerSubjectName');
+            if (bannerSub) bannerSub.textContent = course.subject;
+
+            const bannerTeach = document.getElementById('bannerTeacherName');
+            if (bannerTeach) bannerTeach.textContent = course.teacherName;
+
+            const notice = document.getElementById('badgeContactHoursNotice');
+            if (notice) notice.textContent = `تۆتاڵ هاوەری ئەم وانەیە: ${course.totalHours} کاتژمێر`;
+
+            // Update hidden inputs for session storage compatibility
+            const hidDept = document.getElementById('teacherDeptSelect');
+            if (hidDept) hidDept.value = course.deptId;
+
+            const hidStage = document.getElementById('teacherStageSelect');
+            if (hidStage) hidStage.value = course.stage;
+
+            const hidSub = document.getElementById('teacherSubjectInput');
+            if (hidSub) hidSub.value = course.subject;
+
+            const hidTeach = document.getElementById('teacherLecturerNameInput');
+            if (hidTeach) hidTeach.value = course.teacherName;
+        }
+
+        function setGroupQuick(group) {
+            const select = document.getElementById('teacherStudyGroupSelect');
+            if (select) {
+                select.value = group;
+                // Highlight pills
+                ['all', 'morning_a', 'morning_b', 'evening'].forEach(g => {
+                    const pill = document.getElementById(`gpill_${g}`);
+                    if (pill) {
+                        if (g === group) {
+                            pill.className = 'group-pill px-2.5 py-1 rounded-lg font-bold bg-purple-600 text-white transition';
+                        } else {
+                            pill.className = 'group-pill px-2.5 py-1 rounded-lg font-bold bg-slate-100 text-slate-700 hover:bg-purple-100 transition';
+                        }
+                    }
+                });
+                renderAttendanceSheet();
+            }
+        }
+
+        function initDate() {
+            const today = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('teacherDateInput');
+            if (dateInput) dateInput.value = today;
+
+            const printD = document.getElementById('printDate');
+            if (printD) printD.textContent = 'بەروار: ' + today;
+        }
+
+        function onTeacherDeptChange() {
+            renderAttendanceSheet();
+        }
+
+        function onLectureHoursChange() {
+            const hoursVal = parseInt(document.getElementById('teacherLectureHoursSelect').value) || 2;
+            updateLectureHours(hoursVal);
+        }
+
+        function setLectureHoursQuick(hours) {
+            document.getElementById('teacherLectureHoursSelect').value = hours;
+            updateLectureHours(hours);
+        }
+
+        function updateLectureHours(hours) {
+            currentLectureHours = hours;
+            document.getElementById('badgeCurrentLectureHours').textContent = `${hours} کاتژمێر`;
+            document.getElementById('noteHoursText').textContent = hours;
+
+            // Highlight pills
+            for (let i = 1; i <= 4; i++) {
+                const pill = document.getElementById(`pill_${i}`);
+                if (pill) {
+                    if (i === hours) {
+                        pill.className = 'hours-pill px-3 py-1 rounded-lg border font-black bg-indigo-600 text-white border-indigo-600 shadow-sm transition';
+                    } else {
+                        pill.className = 'hours-pill px-3 py-1 rounded-lg border font-bold text-slate-700 hover:bg-indigo-50 transition';
+                    }
+                }
+            }
+
+            // Update absent badges on current sheet
+            document.querySelectorAll('.absent-badge-hours').forEach(el => {
+                el.textContent = `+${hours} کاتژمێر`;
+            });
+        }
+
+        function getFilteredStudents() {
+            const dept = document.getElementById('teacherDeptSelect').value;
+            const stage = document.getElementById('teacherStageSelect').value;
+            const studyGroup = document.getElementById('teacherStudyGroupSelect').value;
+
+            return students.filter(s => {
+                if (s.dept !== dept) return false;
+                if (String(s.stage) !== String(stage)) return false;
+
+                if (studyGroup !== 'all') {
+                    if (studyGroup === 'morning_a' && (s.study !== 'morning' || (s.group && s.group !== 'A'))) return false;
+                    if (studyGroup === 'morning_b' && (s.study !== 'morning' || s.group !== 'B')) return false;
+                    if (studyGroup === 'evening' && s.study !== 'evening') return false;
+                }
+                return true;
+            });
+        }
+
+        function renderAttendanceSheet() {
+            const filtered = getFilteredStudents();
+            const tbody = document.getElementById('attendanceTableBody');
+            const emptyState = document.getElementById('attendanceEmptyState');
+            tbody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                updateCounters();
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            filtered.forEach((student, index) => {
+                if (!currentSheetStates[student.id]) {
+                    currentSheetStates[student.id] = { status: 'present', note: '' };
+                }
+                const currentState = currentSheetStates[student.id];
+
+                // Exact academic absence formula from uploaded photo:
+                // Student Absence % = (The hours absent per week / All the contact hours during the semester) * 100
+                const totalH = currentCourseTotalHours || 60;
+                const absH = student.absentHours || 0;
+                const absRateNum = (absH / totalH) * 100;
+                const absRate = absRateNum.toFixed(1);
+
+                let badgeClass = 'bg-slate-100 text-slate-700 border-slate-200';
+                let statusLabel = 'ئاسایی';
+                if (absRateNum >= 10) {
+                    badgeClass = 'bg-rose-100 text-rose-700 border-rose-300 font-black';
+                    statusLabel = 'مەترسی فەسل (≥10%)';
+                } else if (absRateNum >= 7) {
+                    badgeClass = 'bg-orange-100 text-orange-700 border-orange-300 font-bold';
+                    statusLabel = 'ئاگاداری دووەم (≥7%)';
+                } else if (absRateNum >= 5) {
+                    badgeClass = 'bg-amber-100 text-amber-700 border-amber-300 font-bold';
+                    statusLabel = 'ئاگاداری یەکەم (≥5%)';
+                }
+
+                const tr = document.createElement('tr');
+                tr.id = `row_${student.id}`;
+                tr.className = 'hover:bg-slate-50/80 transition';
+                tr.innerHTML = `
+                    <td class="py-3.5 px-4 text-center font-bold text-xs text-slate-400">${index + 1}</td>
+                    <td class="py-3.5 px-4 font-mono font-bold text-xs text-slate-700">${student.code || 'N/A'}</td>
+                    <td class="py-3.5 px-4 font-bold text-slate-900">
+                        <div class="flex items-center gap-2">
+                            <span>${student.name}</span>
+                            <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono font-bold">${student.group || 'A'}</span>
+                            <span class="text-[10px] ${student.study === 'evening' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} px-1.5 py-0.5 rounded font-bold">${student.study === 'evening' ? 'ئێواران' : 'بەیانیان'}</span>
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4 text-center">
+                        <div class="flex flex-col items-center gap-1 font-mono">
+                            <div class="flex items-center gap-1.5 text-xs">
+                                <span class="font-black ${absRateNum >= 7 ? 'text-rose-600' : 'text-slate-800'}">${absH} ک</span>
+                                <span class="text-[11px] px-2 py-0.5 rounded-full border ${badgeClass}">%${absRate}</span>
+                            </div>
+                            <span class="text-[10px] font-bold text-slate-400">${absH} لە ${totalH} کاتژمێر</span>
+                            <span class="text-[9px] font-bold ${absRateNum >= 10 ? 'text-rose-600' : absRateNum >= 7 ? 'text-orange-600' : absRateNum >= 5 ? 'text-amber-600' : 'text-slate-400'}">${statusLabel}</span>
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button type="button" onclick="setStudentStatus('${student.id}', 'present')" id="btn_pres_${student.id}" class="status-btn ${currentState.status === 'present' ? 'active-present' : ''} px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-200 hover:border-emerald-400 transition flex items-center gap-1">
+                                <i class="fa-solid fa-check"></i>
+                                <span>هاتوو</span>
+                            </button>
+                            <button type="button" onclick="setStudentStatus('${student.id}', 'absent')" id="btn_abs_${student.id}" class="status-btn ${currentState.status === 'absent' ? 'active-absent' : ''} px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-200 hover:border-rose-400 transition flex items-center gap-1">
+                                <i class="fa-solid fa-xmark"></i>
+                                <span>نەهاتوو</span>
+                                <span class="absent-badge-hours text-[10px] bg-rose-900/30 px-1 rounded font-mono">+${currentLectureHours}ک</span>
+                            </button>
+                            <button type="button" onclick="setStudentStatus('${student.id}', 'late')" id="btn_late_${student.id}" class="status-btn ${currentState.status === 'late' ? 'active-late' : ''} px-2 py-1.5 rounded-xl text-xs font-bold border border-slate-200 hover:border-amber-400 transition flex items-center gap-1">
+                                <i class="fa-solid fa-clock"></i>
+                                <span>دواکەوتوو</span>
+                            </button>
+                            <button type="button" onclick="setStudentStatus('${student.id}', 'excused')" id="btn_exc_${student.id}" class="status-btn ${currentState.status === 'excused' ? 'active-excused' : ''} px-2 py-1.5 rounded-xl text-xs font-bold border border-slate-200 hover:border-blue-400 transition flex items-center gap-1">
+                                <i class="fa-solid fa-envelope-open-text"></i>
+                                <span>مۆڵەت</span>
+                            </button>
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <input type="text" oninput="setStudentNote('${student.id}', this.value)" value="${currentState.note || ''}" placeholder="تێبینی..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition">
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateCounters();
+        }
+
+        function setStudentStatus(studentId, status) {
+            if (!currentSheetStates[studentId]) {
+                currentSheetStates[studentId] = { status: 'present', note: '' };
+            }
+            currentSheetStates[studentId].status = status;
+
+            // Update UI classes
+            const row = document.getElementById(`row_${studentId}`);
+            if (row) {
+                const buttons = row.querySelectorAll('.status-btn');
+                buttons.forEach(b => {
+                    b.classList.remove('active-present', 'active-absent', 'active-late', 'active-excused');
+                });
+
+                if (status === 'present') document.getElementById(`btn_pres_${studentId}`).classList.add('active-present');
+                if (status === 'absent') document.getElementById(`btn_abs_${studentId}`).classList.add('active-absent');
+                if (status === 'late') document.getElementById(`btn_late_${studentId}`).classList.add('active-late');
+                if (status === 'excused') document.getElementById(`btn_exc_${studentId}`).classList.add('active-excused');
+            }
+
+            updateCounters();
+        }
+
+        function setStudentNote(studentId, note) {
+            if (!currentSheetStates[studentId]) {
+                currentSheetStates[studentId] = { status: 'present', note: '' };
+            }
+            currentSheetStates[studentId].note = note;
+        }
+
+        function setAllAttendance(status) {
+            const filtered = getFilteredStudents();
+            filtered.forEach(s => {
+                if (!currentSheetStates[s.id]) currentSheetStates[s.id] = { status: 'present', note: '' };
+                currentSheetStates[s.id].status = status;
+            });
+            renderAttendanceSheet();
+        }
+
+        function resetCurrentAttendance() {
+            const filtered = getFilteredStudents();
+            filtered.forEach(s => {
+                currentSheetStates[s.id] = { status: 'present', note: '' };
+            });
+            renderAttendanceSheet();
+        }
+
+        function updateCounters() {
+            const filtered = getFilteredStudents();
+            let present = 0, absent = 0, late = 0, excused = 0;
+
+            filtered.forEach(s => {
+                const st = currentSheetStates[s.id] ? currentSheetStates[s.id].status : 'present';
+                if (st === 'present') present++;
+                else if (st === 'absent') absent++;
+                else if (st === 'late') late++;
+                else if (st === 'excused') excused++;
+            });
+
+            document.getElementById('sheetTotalCount').textContent = filtered.length;
+            document.getElementById('sheetPresentCount').textContent = present;
+            document.getElementById('sheetAbsentCount').textContent = absent;
+            document.getElementById('sheetLateCount').textContent = late;
+            document.getElementById('sheetExcusedCount').textContent = excused;
+        }
+
+        function filterAttendanceTable() {
+            const q = document.getElementById('sheetSearchInput').value.toLowerCase().trim();
+            const rows = document.getElementById('attendanceTableBody').querySelectorAll('tr');
+            rows.forEach(r => {
+                const text = r.textContent.toLowerCase();
+                r.style.display = text.includes(q) ? '' : 'none';
+            });
+        }
+
+        // SAVE ATTENDANCE SESSION AS DRAFT OR DIRECT SUBMIT
+        function saveAttendanceSession(isDraft = false) {
+            const filtered = getFilteredStudents();
+            if (filtered.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'هیچ خوێندکارێک نییە!',
+                    text: 'تکایە سەرەتا بەش و قۆناغێک هەڵبژێرە کە خوێندکاری تێدا بێت.',
+                    confirmButtonText: 'باشە',
+                    background: '#0f172a',
+                    color: '#f8fafc'
+                });
+                return;
+            }
+
+            const dept = document.getElementById('teacherDeptSelect').value;
+            const stage = document.getElementById('teacherStageSelect').value;
+            const studyGroup = document.getElementById('teacherStudyGroupSelect').value;
+            const subject = document.getElementById('teacherSubjectInput').value.trim() || 'محازەرە';
+            const teacherName = document.getElementById('teacherLecturerNameInput').value.trim() || 'مامۆستای وانە';
+            const date = document.getElementById('teacherDateInput').value;
+            const lectureHours = currentLectureHours;
+
+            let absentCount = 0;
+            const sessionRecords = {};
+
+            filtered.forEach(s => {
+                const state = currentSheetStates[s.id] || { status: 'present', note: '' };
+                sessionRecords[s.id] = { status: state.status, note: state.note };
+
+                if (state.status === 'absent') {
+                    absentCount++;
+                    // Only add to official student absent hours if directly submitting to admin
+                    if (!isDraft) {
+                        s.absentHours = (s.absentHours || 0) + lectureHours;
+                    }
+                }
+            });
+
+            // Create new attendance session
+            const newSession = {
+                id: 'sess_' + Date.now(),
+                dept: dept,
+                stage: stage,
+                subject: subject,
+                teacherName: teacherName,
+                totalCourseHours: currentCourseTotalHours,
+                lectureHours: lectureHours,
+                date: date,
+                study: studyGroup,
+                status: isDraft ? 'draft' : 'submitted',
+                submittedAt: isDraft ? null : new Date().toISOString(),
+                records: sessionRecords,
+                createdAt: new Date().toISOString()
+            };
+
+            attendanceSessions.unshift(newSession);
+
+            // Save to shared localStorage
+            localStorage.setItem('college_attendance_sessions', JSON.stringify(attendanceSessions));
+            if (!isDraft) {
+                localStorage.setItem('college_students', JSON.stringify(students));
+            }
+
+            // Log action in audit logs
+            if (isDraft) {
+                logAuditAction(`پاشەکەوتکردنی درافتی محازەرەی ${subject} (${lectureHours} کاتژمێر)`, teacherName);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'ڕەشنووسی وانە بە سەرکەوتوویی وەک درافت پاشەکەوتکرا!',
+                    html: `
+                        <div class="text-right text-xs space-y-2 mt-3 p-3 bg-slate-900 rounded-xl border border-slate-700 text-slate-300">
+                            <div class="flex justify-between"><span>بابەت:</span><strong class="text-white">${subject}</strong></div>
+                            <div class="flex justify-between"><span>دۆخ:</span><strong class="text-amber-400">ڕەشنووس (درافت)</strong></div>
+                            <div class="flex justify-between"><span>کاتژمێری محازەرە:</span><strong class="text-indigo-400">${lectureHours} کاتژمێر</strong></div>
+                            <div class="flex justify-between"><span>خوێندکارانی غائیب:</span><strong class="text-rose-400">${absentCount} خوێندکار</strong></div>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-2.5">ئەم وانەیە لە ئەرشیفی خوارەوە تۆمارکرا. دەتوانیت غیاباتی تەواوی هەفتەکە کۆبکەیتەوە و لە کۆتایی هەفتەدا بە یەک کلیک بینێریت بۆ ئەدمین.</p>
+                    `,
+                    confirmButtonText: 'تەواوە',
+                    confirmButtonColor: '#f59e0b',
+                    background: '#0f172a',
+                    color: '#f8fafc'
+                });
+            } else {
+                logAuditAction(`ناردنی دەستبەجێی غیاباتی محازەرەی ${subject} بۆ دەپارتمێنت ئەدمین`, teacherName);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'غیاباتی محازەرە ڕاستەوخۆ نێردرا بۆ دەپارتمێنت ئەدمین!',
+                    html: `
+                        <div class="text-right text-xs space-y-2 mt-3 p-3 bg-slate-900 rounded-xl border border-slate-700 text-slate-300">
+                            <div class="flex justify-between"><span>بابەت:</span><strong class="text-white">${subject}</strong></div>
+                            <div class="flex justify-between"><span>مامۆستا:</span><strong class="text-indigo-400">${teacherName}</strong></div>
+                            <div class="flex justify-between"><span>کاتژمێری محازەرە:</span><strong class="text-amber-400">${lectureHours} کاتژمێر</strong></div>
+                            <div class="flex justify-between"><span>خوێندکارانی غائیب:</span><strong class="text-rose-400">${absentCount} خوێندکار (+${absentCount * lectureHours} کاتژمێر تۆمارکرا)</strong></div>
+                        </div>
+                    `,
+                    confirmButtonText: 'تەواوە',
+                    confirmButtonColor: '#10b981',
+                    background: '#0f172a',
+                    color: '#f8fafc'
+                });
+            }
+
+            renderAttendanceSheet();
+            renderSessionsHistory();
+        }
+
+        // SUBMIT A SINGLE DRAFT TO ADMIN
+        function submitSingleDraft(sessionId) {
+            const session = attendanceSessions.find(s => s.id === sessionId);
+            if (!session) return;
+
+            Swal.fire({
+                title: 'ناردنی ئەم درافتە بۆ ئەدمین؟',
+                text: `ئەم محازەرەیە (${session.date} - ${session.subject}) دەچێتە سەر تۆماری فەرمی غیاباتی خوێندکاران و داشبۆردی بەش.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'بەڵێ، بنێرە بۆ ئەدمین',
+                cancelButtonText: 'پاشگەزبوونەوە',
+                background: '#0f172a',
+                color: '#f8fafc'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const hours = session.lectureHours || 2;
+                    let absentCount = 0;
+
+                    // Apply absent hours to students
+                    Object.keys(session.records || {}).forEach(stuId => {
+                        const rec = session.records[stuId];
+                        if (rec.status === 'absent') {
+                            const stu = students.find(s => String(s.id) === String(stuId));
+                            if (stu) {
+                                stu.absentHours = (stu.absentHours || 0) + hours;
+                                absentCount++;
+                            }
+                        }
+                    });
+
+                    session.status = 'submitted';
+                    session.submittedAt = new Date().toISOString();
+
+                    localStorage.setItem('college_attendance_sessions', JSON.stringify(attendanceSessions));
+                    localStorage.setItem('college_students', JSON.stringify(students));
+
+                    logAuditAction(`ناردنی درافتی محازەرەی ${session.subject} بۆ دەپارتمێنت ئەدمین`, session.teacherName);
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'درافتەکە بە سەرکەوتوویی نێردرا!',
+                        text: `غیاباتی خوێندکاران (+${absentCount * hours} کاتژمێر) خرایە سەر تۆماری گشتی.`,
+                        confirmButtonText: 'تەواوە',
+                        confirmButtonColor: '#10b981',
+                        background: '#0f172a',
+                        color: '#f8fafc'
+                    });
+
+                    renderAttendanceSheet();
+                    renderSessionsHistory();
+                }
+            });
+        }
+
+        // SUBMIT ALL WEEKLY DRAFTS FOR THIS COURSE TO ADMIN
+        function submitAllWeeklyDraftsToAdmin() {
+            const activeDept = currentCourse ? currentCourse.deptId : document.getElementById('teacherDeptSelect').value;
+            const activeSubject = currentCourse ? currentCourse.subject : document.getElementById('teacherSubjectInput').value;
+
+            const drafts = attendanceSessions.filter(s => s.dept === activeDept && s.subject === activeSubject && s.status === 'draft');
+
+            if (drafts.length === 0) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'هیچ درافتێکی نوێ نییە!',
+                    text: `سەرجەم محازەرەکانی وانەی (${activeSubject}) پێشتر ڕەوانەی دەپارتمێنت ئەدمین کراون.`,
+                    confirmButtonText: 'باشە',
+                    background: '#0f172a',
+                    color: '#f8fafc'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: `ناردنی (${drafts.length}) درافتی محازەرەی ئەم هەفتەیە بۆ ئەدمین؟`,
+                html: `
+                    <div class="text-right text-xs space-y-2 mt-2 p-3 bg-slate-900 rounded-xl border border-slate-700 text-slate-300">
+                        <div>وانە: <strong class="text-white">${activeSubject}</strong></div>
+                        <div>ژمارەی درافتە نەنێردراوەکان: <strong class="text-amber-400">${drafts.length} محازەرە</strong></div>
+                        <div class="text-[11px] text-slate-400 mt-1">بە ناردنیان، کاتژمێری غیاباتی سەرجەم خوێندکاران بۆ ئەم هەفتەیە دەخرێتە سەر تۆماری سەرەکی بەشەکە.</div>
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#4f46e5',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'بەڵێ، هەموویان بنێرە بۆ ئەدمین',
+                cancelButtonText: 'پاشگەزبوونەوە',
+                background: '#0f172a',
+                color: '#f8fafc'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    let totalAbsentHoursAdded = 0;
+
+                    drafts.forEach(draft => {
+                        const hours = draft.lectureHours || 2;
+                        Object.keys(draft.records || {}).forEach(stuId => {
+                            const rec = draft.records[stuId];
+                            if (rec.status === 'absent') {
+                                const stu = students.find(s => String(s.id) === String(stuId));
+                                if (stu) {
+                                    stu.absentHours = (stu.absentHours || 0) + hours;
+                                    totalAbsentHoursAdded += hours;
+                                }
+                            }
+                        });
+                        draft.status = 'submitted';
+                        draft.submittedAt = new Date().toISOString();
+                    });
+
+                    localStorage.setItem('college_attendance_sessions', JSON.stringify(attendanceSessions));
+                    localStorage.setItem('college_students', JSON.stringify(students));
+
+                    logAuditAction(`ناردنی سەرجەم (${drafts.length}) درافتی هەفتانەی وانەی ${activeSubject} بۆ دەپارتمێنت ئەدمین`, authUser?.name);
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'سەرجەم درافتەکانی هەفتەکە بە سەرکەوتوویی ڕەوانە کران!',
+                        text: `(${drafts.length}) محازەرە نێردرا و کۆی (${totalAbsentHoursAdded}) کاتژمێری غیابات لە سیستەمدا تۆمارکرا.`,
+                        confirmButtonText: 'تەواوە',
+                        confirmButtonColor: '#4f46e5',
+                        background: '#0f172a',
+                        color: '#f8fafc'
+                    });
+
+                    renderAttendanceSheet();
+                    renderSessionsHistory();
+                }
+            });
+        }
+
+        // DELETE DRAFT SESSION
+        function deleteDraftSession(sessionId) {
+            const session = attendanceSessions.find(s => s.id === sessionId);
+            if (!session) return;
+
+            Swal.fire({
+                title: 'سڕینەوەی ئەم درافتە؟',
+                text: `دڵنیایت لە سڕینەوەی درافتی محازەرەی (${session.date} - ${session.subject})؟`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'بەڵێ، بسڕەوە',
+                cancelButtonText: 'پاشگەزبوونەوە',
+                background: '#0f172a',
+                color: '#f8fafc'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    attendanceSessions = attendanceSessions.filter(s => s.id !== sessionId);
+                    localStorage.setItem('college_attendance_sessions', JSON.stringify(attendanceSessions));
+
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-start',
+                        icon: 'success',
+                        title: 'درافتەکە سڕایەوە',
+                        showConfirmButton: false,
+                        timer: 2000,
+                        background: '#0f172a',
+                        color: '#f8fafc'
+                    });
+
+                    renderSessionsHistory();
+                }
+            });
+        }
+
+        // RENDER SESSIONS & DRAFTS ARCHIVE STRICTLY FOR THIS COURSE ONLY
+        function renderSessionsHistory() {
+            const tbody = document.getElementById('sessionsHistoryTableBody');
+            const draftsBadge = document.getElementById('sessionsDraftsBadge');
+            const countBadge = document.getElementById('sessionsCountBadge');
+            const courseBadge = document.getElementById('currentCourseArchiveBadge');
+            tbody.innerHTML = '';
+
+            const activeDept = currentCourse ? currentCourse.deptId : document.getElementById('teacherDeptSelect').value;
+            const activeSubject = currentCourse ? currentCourse.subject : document.getElementById('teacherSubjectInput').value;
+
+            if (courseBadge) courseBadge.textContent = activeSubject;
+
+            // STRICT FILTER: Only show sessions belonging to THIS course and department!
+            // All other departments are strictly hidden!
+            const courseSessions = attendanceSessions.filter(s => s.dept === activeDept && s.subject === activeSubject);
+
+            const draftCount = courseSessions.filter(s => s.status === 'draft').length;
+            const submittedCount = courseSessions.filter(s => s.status !== 'draft').length;
+
+            if (draftsBadge) draftsBadge.textContent = `${draftCount} درافت چاوەڕوانە`;
+            if (countBadge) countBadge.textContent = `${submittedCount} نێردراو بۆ ئەدمین`;
+
+            const submitAllBtn = document.getElementById('btnSubmitAllDrafts');
+            if (submitAllBtn) {
+                if (draftCount > 0) {
+                    submitAllBtn.classList.remove('opacity-50', 'pointer-events-none');
+                    submitAllBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i><span>ناردنی (${draftCount}) درافت بۆ ئەدمین (کۆتایی هەفتە)</span>`;
+                } else {
+                    submitAllBtn.classList.add('opacity-50');
+                    submitAllBtn.innerHTML = `<i class="fa-solid fa-check-double"></i><span>سەرجەم درافتەکان نێردراون</span>`;
+                }
+            }
+
+            if (courseSessions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-10 text-center text-slate-400 text-xs font-bold">
+                            <i class="fa-solid fa-folder-open text-2xl text-slate-300 block mb-2"></i>
+                            هیچ درافت یان محازەرەیەکی تۆمارکراو بۆ وانەی (${activeSubject}) نییە
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Display sessions for this course
+            courseSessions.forEach(session => {
+                const recs = session.records || {};
+                const recKeys = Object.keys(recs);
+                let present = 0, absent = 0;
+                recKeys.forEach(k => {
+                    if (recs[k].status === 'present') present++;
+                    if (recs[k].status === 'absent') absent++;
+                });
+
+                const hours = session.lectureHours || 2;
+                const isDraft = session.status === 'draft';
+
+                // Study group kurdish text
+                let groupText = 'هەموو گرووپەکان';
+                if (session.study === 'morning_a') groupText = 'بەیانیان - گرووپ A';
+                else if (session.study === 'morning_b') groupText = 'بەیانیان - گرووپ B';
+                else if (session.study === 'evening') groupText = 'ئێواران (Evening)';
+
+                // Status badge
+                let statusBadgeHtml = isDraft
+                    ? `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-800 border border-amber-300 shadow-sm animate-pulse">
+                         <i class="fa-solid fa-file-pen text-amber-600"></i>
+                         <span>ڕەشنووس (درافت)</span>
+                       </span>`
+                    : `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm">
+                         <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                         <span>نێردراو بۆ ئەدمین</span>
+                       </span>`;
+
+                // Action buttons
+                let actionsHtml = '';
+                if (isDraft) {
+                    actionsHtml = `
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button type="button" onclick="submitSingleDraft('${session.id}')" title="ناردن بۆ ئەدمین" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl font-black transition flex items-center gap-1 shadow-sm">
+                                <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                                <span>ناردن بۆ ئەدمین</span>
+                            </button>
+                            <button type="button" onclick="viewSessionDetails('${session.id}')" title="وردەکاری" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1">
+                                <i class="fa-solid fa-eye text-[10px]"></i>
+                                <span>وردەکاری</span>
+                            </button>
+                            <button type="button" onclick="deleteDraftSession('${session.id}')" title="سڕینەوەی درافت" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 px-2 py-1.5 rounded-xl font-bold transition border border-rose-200">
+                                <i class="fa-solid fa-trash-can text-[11px]"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    actionsHtml = `
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button type="button" onclick="viewSessionDetails('${session.id}')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1">
+                                <i class="fa-solid fa-eye text-[10px]"></i>
+                                <span>وردەکاری</span>
+                            </button>
+                        </div>
+                    `;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = isDraft ? 'bg-amber-50/20 hover:bg-amber-50/40 transition' : 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-bold text-xs text-slate-700">
+                        <div class="flex items-center gap-1.5">
+                            <i class="fa-regular fa-calendar-check text-slate-400"></i>
+                            <span>${session.date}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="inline-block px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                            ${groupText}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-block bg-indigo-50 text-indigo-800 text-xs font-black px-2.5 py-0.5 rounded-full border border-indigo-200">
+                            <i class="fa-solid fa-clock text-[10px] ml-1"></i> ${hours} کاتژمێر
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="inline-flex items-center gap-1 text-xs font-mono font-bold">
+                            <span class="text-emerald-700">${present} هاتوو</span> / 
+                            <span class="text-rose-600">${absent} نەهاتوو</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        ${statusBadgeHtml}
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        ${actionsHtml}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function viewSessionDetails(sessionId) {
+            const session = attendanceSessions.find(s => s.id === sessionId);
+            if (!session) return;
+
+            const dept = DEPARTMENTS[session.dept] || { name: session.dept };
+            const recs = session.records || {};
+            const hours = session.lectureHours || 2;
+
+            let recordsHtml = '';
+            let count = 1;
+            Object.keys(recs).forEach(stuId => {
+                const stu = students.find(s => String(s.id) === String(stuId)) || { name: 'خوێندکار', code: '—' };
+                const r = recs[stuId];
+                let statusBadge = '';
+                if (r.status === 'present') statusBadge = '<span class="text-emerald-600 font-bold">ئامادە</span>';
+                else if (r.status === 'absent') statusBadge = `<span class="text-rose-600 font-black">غائیب (+${hours} کاتژمێر)</span>`;
+                else if (r.status === 'late') statusBadge = '<span class="text-amber-600 font-bold">دواکەوتوو</span>';
+                else if (r.status === 'excused') statusBadge = '<span class="text-blue-600 font-bold">مۆڵەت</span>';
+
+                recordsHtml += `
+                    <tr class="border-b border-slate-100 text-xs">
+                        <td class="py-2 text-center text-slate-400 font-bold">${count++}</td>
+                        <td class="py-2 font-mono text-slate-600">${stu.code}</td>
+                        <td class="py-2 font-bold text-slate-800">${stu.name}</td>
+                        <td class="py-2 text-center">${statusBadge}</td>
+                        <td class="py-2 text-slate-500">${r.note || '—'}</td>
+                    </tr>
+                `;
+            });
+
+            Swal.fire({
+                title: `<div class="text-base font-black text-slate-800">وردەکاری محازەرەی: ${session.subject}</div>`,
+                html: `
+                    <div class="text-right text-xs space-y-3 mt-2" dir="rtl">
+                        <div class="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                            <div><strong>بەروار:</strong> ${session.date}</div>
+                            <div><strong>بەش:</strong> ${dept.name}</div>
+                            <div><strong>مامۆستا:</strong> ${session.teacherName || '—'}</div>
+                            <div><strong>کاتژمێری ئەم وانەیە:</strong> ${hours} کاتژمێر</div>
+                            <div><strong>تۆتاڵ هاوەری وانەکە:</strong> ${session.totalCourseHours || 60} کاتژمێر</div>
+                            <div><strong>قۆناغ:</strong> قۆناغی ${getStageKurdish(session.stage)}</div>
+                            <div class="col-span-2 pt-1 border-t border-slate-200 flex items-center justify-between">
+                                <span><strong>دۆخی ناردن:</strong> ${session.status === 'draft' ? '<span class="text-amber-700 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full font-black">ڕەشنووس (درافت)</span>' : '<span class="text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full font-black">نێردراو بۆ ئەدمین</span>'}</span>
+                                ${session.status === 'draft' ? `<button type="button" onclick="Swal.close(); submitSingleDraft('${session.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1 rounded-lg text-xs transition flex items-center gap-1"><i class="fa-solid fa-paper-plane text-[10px]"></i><span>ناردنی ئەم درافتە بۆ ئەدمین</span></button>` : ''}
+                            </div>
+                        </div>
+                        <div class="max-h-60 overflow-y-auto">
+                            <table class="w-full text-right">
+                                <thead>
+                                    <tr class="text-[11px] text-slate-400 border-b border-slate-200 pb-1">
+                                        <th class="py-1 text-center">#</th>
+                                        <th class="py-1">کۆد</th>
+                                        <th class="py-1">ناو</th>
+                                        <th class="py-1 text-center">دۆخ</th>
+                                        <th class="py-1">تێبینی</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${recordsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: 'داخستن',
+                confirmButtonColor: '#4f46e5',
+                width: 600,
+                background: '#ffffff',
+                color: '#0f172a'
+            });
+        }
+
+        function printAttendanceSheet() {
+            const courseTitle = currentCourse ? currentCourse.subject : document.getElementById('teacherSubjectInput').value;
+            const teacher = currentCourse ? currentCourse.teacherName : document.getElementById('teacherLecturerNameInput').value;
+            const totalHours = currentCourseTotalHours;
+            const hours = currentLectureHours;
+
+            document.getElementById('printReportTitle').textContent = `فۆڕمی فەرمی غیاباتی محازەرەی (${courseTitle}) - تۆتاڵ هاوەری وانە: ${totalHours} کاتژمێر - کاتژمێری ئەم محازەرەیە: ${hours} کاتژمێر - مامۆستا: ${teacher}`;
+            window.print();
+        }
+
+        function getStageKurdish(st) {
+            switch(String(st)) {
+                case '1': return 'یەکەم';
+                case '2': return 'دووەم';
+                case '3': return 'سێیەم';
+                case '4': return 'چوارەم';
+                default: return st;
+            }
+        }
+
+        function logAuditAction(action, user) {
+            try {
+                let logs = JSON.parse(localStorage.getItem('college_audit_logs') || '[]');
+                logs.unshift({
+                    id: Date.now().toString(),
+                    action: action,
+                    user: user || 'مامۆستای وانە',
+                    timestamp: new Date().toLocaleString('en-US', { hour12: true }),
+                    type: 'attendance'
+                });
+                if (logs.length > 50) logs = logs.slice(0, 50);
+                localStorage.setItem('college_audit_logs', JSON.stringify(logs));
+            } catch(e) {}
+        }
+
+        function handleLogout() {
+            Swal.fire({
+                title: 'دڵنیایت لە دەرچوون؟',
+                text: 'دەگەڕێیتەوە بۆ پەڕەی چوونەژوورەوەی سەرەکی سیستەم.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'بەڵێ، دەرچوون',
+                cancelButtonText: 'پاشگەزبوونەوە',
+                background: '#0f172a',
+                color: '#f8fafc'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    localStorage.removeItem('college_auth_user');
+                    window.location.replace('login.html');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
