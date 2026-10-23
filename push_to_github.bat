@@ -10,6 +10,6 @@ if not exist "%GIT_EXE%" set "GIT_EXE=git"
 "%GIT_EXE%" branch -M main
 "%GIT_EXE%" remote remove origin 2>nul
 "%GIT_EXE%" remote add origin https://github.com/ranjhussen01-debug/uos-att.git
-"%GIT_EXE%" push -u origin main
+"%GIT_EXE%" push -u origin main --force
 
 pause
