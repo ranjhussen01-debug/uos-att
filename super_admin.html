@@ -2,13 +2,13 @@
 <html lang="ku" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>پەڕەی سوپەر ئادمین - دەسەڵاتی باڵای سەرپەرشتیاری گشتی</title>
     
-    <!-- Google Fonts: Tajawal & Vazirmatn (Fallback) -->
+    <!-- Google Fonts: Vazirmatn (Kurdish Native) & Noto Kufi Arabic (Rudaw Style) & Tajawal -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Vazirmatn:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;500;600;700;800;900&family=Vazirmatn:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -17,8 +17,8 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        kurdish: ['Rudaw', 'Tajawal', 'Vazirmatn', 'sans-serif'],
-                        sans: ['Rudaw', 'Tajawal', 'Vazirmatn', 'sans-serif'],
+                        kurdish: ['Vazirmatn', 'Noto Kufi Arabic', 'Tajawal', 'sans-serif'],
+                        sans: ['Vazirmatn', 'Noto Kufi Arabic', 'Tajawal', 'sans-serif'],
                     },
                     colors: {
                         royal: {
@@ -58,48 +58,20 @@
     <script src="firebase-service.js"></script>
 
     <style>
-        @font-face {
-            font-family: 'Rudaw';
-            src: url('fonts/rudawregular.ttf') format('truetype');
-            font-weight: 400;
-            font-style: normal;
-            font-display: swap;
-        }
-        @font-face {
-            font-family: 'Rudaw';
-            src: url('fonts/rudawbold.ttf') format('truetype');
-            font-weight: 700;
-            font-style: normal;
-            font-display: swap;
-        }
-        @font-face {
-            font-family: 'Rudaw';
-            src: url('fonts/rudawbold.ttf') format('truetype');
-            font-weight: 800;
-            font-style: normal;
-            font-display: swap;
-        }
-        @font-face {
-            font-family: 'Rudaw';
-            src: url('fonts/rudawbold.ttf') format('truetype');
-            font-weight: 900;
-            font-style: normal;
-            font-display: swap;
-        }
-
         * {
-            font-family: 'Rudaw', 'Tajawal', 'Vazirmatn', sans-serif !important;
+            font-family: 'Vazirmatn', 'Noto Kufi Arabic', 'Tajawal', sans-serif !important;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
-            font-feature-settings: "liga" 1, "calt" 1;
         }
 
-        body {
-            font-family: 'Rudaw', 'Tajawal', 'Vazirmatn', sans-serif;
+        html, body {
+            font-family: 'Vazirmatn', 'Noto Kufi Arabic', 'Tajawal', sans-serif;
             background-color: #f8fafc;
-            overflow-x: hidden;
+            overflow-x: hidden !important;
+            max-width: 100vw;
             width: 100%;
+            position: relative;
         }
         
         ::-webkit-scrollbar {
@@ -152,27 +124,26 @@
     <!-- SUPER ADMIN STANDALONE HEADER                                             -->
     <!-- ========================================================================= -->
     <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-50 no-print border-b border-slate-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between min-h-[4rem] py-2 sm:py-0 gap-2">
                 <!-- Branding -->
-                <div class="flex items-center space-x-3 space-x-reverse">
-                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex items-center justify-center text-slate-950 shadow-lg font-black text-xl">
+                <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                    <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex items-center justify-center text-slate-950 shadow-lg font-black text-lg sm:text-xl shrink-0">
                         <i class="fa-solid fa-crown text-slate-950"></i>
                     </div>
-                    <div>
-                        <div class="font-extrabold text-base sm:text-lg tracking-tight flex items-center gap-2">
-                            <span class="text-white">سەرپەرشتیاری باڵای گشتی</span>
-                            <span class="text-xs bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 px-2.5 py-0.5 rounded-full font-black shadow-sm">
+                    <div class="min-w-0">
+                        <div class="font-extrabold text-sm sm:text-lg tracking-tight flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <span class="text-white whitespace-nowrap">سەرپەرشتیاری باڵای گشتی</span>
+                            <span class="text-[10px] sm:text-xs bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 px-2 py-0.5 rounded-full font-black shadow-sm shrink-0">
                                 سوپەر ئادمین
                             </span>
                         </div>
-                        <p class="text-xs text-slate-400">سەرپەرشتیاری تەواوی کۆلێژ - چاودێری ئاماری گشت بەشەکان و بەڕێوەبردنی داتا</p>
+                        <p class="text-[11px] sm:text-xs text-slate-400 truncate max-w-[200px] xs:max-w-[260px] sm:max-w-md md:max-w-none">سەرپەرشتیاری تەواوی کۆلێژ - چاودێری ئاماری گشت بەشەکان</p>
                     </div>
                 </div>
 
                 <!-- Navigation links & User Session -->
-                <div class="flex items-center gap-3">
-
+                <div class="flex items-center gap-2 shrink-0">
                     <!-- User indicator -->
                     <div class="hidden lg:flex items-center gap-2 bg-amber-500/10 px-3 py-1.5 rounded-2xl border border-amber-500/30 text-xs">
                         <div class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
@@ -182,7 +153,7 @@
                     </div>
 
                     <!-- Logout Button -->
-                    <button onclick="handleLogout()" class="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-600 text-rose-300 hover:text-white px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition border border-rose-500/30">
+                    <button onclick="handleLogout()" class="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-600 text-rose-300 hover:text-white px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition border border-rose-500/30 shrink-0">
                         <i class="fa-solid fa-right-from-bracket"></i>
                         <span>دەرچوون</span>
                     </button>
@@ -193,9 +164,9 @@
 
     <!-- Super Admin Navigation Bar -->
     <nav class="bg-white border-b border-slate-200 no-print sticky top-16 z-40 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-14">
-                <div class="flex space-x-2 space-x-reverse overflow-x-auto py-1 w-full md:w-auto">
+                <div class="flex gap-2 overflow-x-auto py-2 w-full md:w-auto scrollbar-none">
                     <button id="superTabBtnStats" onclick="switchSuperTab('stats')" class="whitespace-nowrap px-3.5 sm:px-5 py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 bg-amber-50 text-amber-800 border border-amber-300 transition shadow-sm shrink-0">
                         <i class="fa-solid fa-chart-pie text-amber-600"></i>
                         <span>داشبۆرد و ئاماری ٥ بەشەکە</span>
@@ -210,7 +181,7 @@
                     </button>
                 </div>
 
-                <div class="hidden md:flex items-center gap-2 text-xs bg-slate-900 text-amber-300 px-3.5 py-1.5 rounded-xl border border-amber-500/30">
+                <div class="hidden md:flex items-center gap-2 text-xs bg-slate-900 text-amber-300 px-3.5 py-1.5 rounded-xl border border-amber-500/30 shrink-0">
                     <i class="fa-solid fa-lock text-amber-400"></i>
                     <span>دەسەڵاتی تایبەت: <strong>سوپەر ئادمین (Super Admin)</strong></span>
                 </div>
@@ -239,49 +210,49 @@
     </div>
 
     <!-- MAIN SUPER ADMIN VIEW -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 flex-1">
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6 sm:space-y-8 flex-1 w-full overflow-hidden">
         
         <!-- SECTION 1: SUPER ADMIN STATISTICS TAB -->
         <div id="superTabStatsContent" class="space-y-6">
             <!-- Royal Executive Banner -->
-            <div class="relative overflow-hidden bg-gradient-to-l from-slate-900 via-slate-800 to-slate-950 rounded-3xl p-6 sm:p-8 text-white shadow-2xl border border-slate-700/60">
-                <div class="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div class="relative overflow-hidden bg-gradient-to-l from-slate-900 via-slate-800 to-slate-950 rounded-3xl p-5 sm:p-8 text-white shadow-2xl border border-slate-700/60">
+                <div class="relative z-10 flex flex-col justify-between items-start gap-5 sm:gap-6">
                     <div>
-                        <div class="inline-flex items-center gap-2 bg-amber-500/20 text-amber-300 text-xs px-3.5 py-1 rounded-full border border-amber-400/40 font-bold mb-3">
+                        <div class="inline-flex items-center gap-2 bg-amber-500/20 text-amber-300 text-[11px] sm:text-xs px-3.5 py-1 rounded-full border border-amber-400/40 font-bold mb-2.5">
                             <i class="fa-solid fa-crown text-amber-400"></i>
                             <span>دەسەڵاتی سوپەر ئادمین - چاودێری ئاماری گشتی</span>
                         </div>
-                        <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                        <h1 class="text-xl sm:text-3xl font-black text-white tracking-tight">
                             پانێڵی ئاماری گشتی و سەرپەرشتیاری باڵا
                         </h1>
-                        <p class="text-slate-300 text-sm mt-2 max-w-2xl leading-relaxed">
+                        <p class="text-slate-300 text-xs sm:text-sm mt-2 max-w-2xl leading-relaxed">
                             لەم پەڕەیەدا وەک سەرپەرشتیاری گشتی، تەنها ئاماری گشتی و بەراوردکاری هەموو بەشەکان دەبینیت لەگەڵ دەسەڵاتی سڕینەوە و بەڕێوەبردنی گشتی داتا.
                         </p>
                     </div>
 
                     <!-- Quick Export and Master Actions -->
-                    <div class="flex flex-wrap gap-2.5">
-                        <button onclick="exportMasterExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-2.5 w-full">
+                        <button onclick="exportMasterExcel()" class="w-full sm:w-auto justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2">
                             <i class="fa-solid fa-file-excel"></i>
                             <span>داگرتنی ئاماری گشتی بە ئەکسڵ</span>
                         </button>
-                        <button onclick="openStagesAbsenceReportModal()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2 border border-blue-400/40">
+                        <button onclick="openStagesAbsenceReportModal()" class="w-full sm:w-auto justify-center bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2 border border-blue-400/40">
                             <i class="fa-solid fa-table-list"></i>
                             <span>وەرگرتنی ڕاپۆرتی غیاب</span>
                         </button>
-                        <button onclick="openMonthlyReportModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2 border border-indigo-400/40">
+                        <button onclick="openMonthlyReportModal()" class="w-full sm:w-auto justify-center bg-indigo-600 hover:bg-indigo-500 text-white font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2 border border-indigo-400/40">
                             <i class="fa-solid fa-file-invoice"></i>
                             <span>ڕاپۆرتی مانگانە</span>
                         </button>
-                        <button onclick="endSemesterAndExportPDF()" class="bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 hover:from-teal-500 hover:to-emerald-600 text-white font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2 border border-teal-400/40">
+                        <button onclick="endSemesterAndExportPDF()" class="w-full sm:w-auto justify-center bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 hover:from-teal-500 hover:to-emerald-600 text-white font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2 border border-teal-400/40">
                             <i class="fa-solid fa-calendar-check text-emerald-200 text-base"></i>
                             <span>کۆتایی هاتنی سمستەر</span>
                         </button>
-                        <button onclick="endAcademicYearAndExportPDF()" class="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2 border border-amber-300">
+                        <button onclick="endAcademicYearAndExportPDF()" class="w-full sm:w-auto justify-center bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2 border border-amber-300">
                             <i class="fa-solid fa-graduation-cap text-rose-700 text-base"></i>
                             <span>کۆتایی هاتنی ساڵی خوێندن</span>
                         </button>
-                        <button onclick="switchSuperTab('purge')" class="bg-rose-600/90 hover:bg-rose-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2">
+                        <button onclick="switchSuperTab('purge')" class="w-full sm:w-auto justify-center bg-rose-600/90 hover:bg-rose-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2">
                             <i class="fa-solid fa-trash-can"></i>
                             <span>دەسەڵاتی سڕینەوەی داتا</span>
                         </button>
