@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>چوونەژوورەوەی سیستەم | کۆلێژی کارگێڕی و ئابووری</title>
     
-    <!-- Google Fonts: Tajawal & Vazirmatn -->
+    <!-- Google Fonts: Tajawal & Vazirmatn (Fallback) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Vazirmatn:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
@@ -17,7 +17,8 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        kurdish: ['Tajawal', 'Vazirmatn', 'sans-serif'],
+                        kurdish: ['Rudaw', 'Tajawal', 'Vazirmatn', 'sans-serif'],
+                        sans: ['Rudaw', 'Tajawal', 'Vazirmatn', 'sans-serif'],
                     },
                     colors: {
                         royal: {
@@ -48,11 +49,50 @@
     <script src="firebase-service.js"></script>
     
     <style>
+        @font-face {
+            font-family: 'Rudaw';
+            src: url('fonts/rudawregular.ttf') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Rudaw';
+            src: url('fonts/rudawbold.ttf') format('truetype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Rudaw';
+            src: url('fonts/rudawbold.ttf') format('truetype');
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Rudaw';
+            src: url('fonts/rudawbold.ttf') format('truetype');
+            font-weight: 900;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        * {
+            font-family: 'Rudaw', 'Tajawal', 'Vazirmatn', sans-serif !important;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: "liga" 1, "calt" 1;
+        }
+
         body {
-            font-family: 'Tajawal', 'Vazirmatn', sans-serif;
+            font-family: 'Rudaw', 'Tajawal', 'Vazirmatn', sans-serif;
             background-color: #090e17;
             color: #f1f5f9;
             direction: rtl;
+            overflow-x: hidden;
+            width: 100%;
         }
         .login-card {
             background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
@@ -61,37 +101,37 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
+<body class="min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950 p-2 sm:p-0">
 
     <!-- Top Header / Crest -->
-    <header class="p-6 text-center">
-        <div class="inline-flex items-center gap-3 bg-slate-900/80 border border-slate-800 px-5 py-2 rounded-full shadow-lg">
-            <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-sm font-black border border-amber-500/30">
+    <header class="p-3 sm:p-6 text-center w-full">
+        <div class="inline-flex flex-col sm:flex-row items-center gap-2 sm:gap-3 bg-slate-900/80 border border-slate-800 px-4 py-2 sm:px-5 sm:py-2 rounded-2xl sm:rounded-full shadow-lg max-w-full">
+            <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-sm font-black border border-amber-500/30 shrink-0">
                 <i class="fa-solid fa-graduation-cap"></i>
             </div>
-            <div class="text-right">
-                <span class="font-extrabold text-xs sm:text-sm text-slate-200 block">حکومەتی هەرێمی کوردستان - وەزارەتی خوێندنی باڵا</span>
-                <span class="text-[11px] text-amber-400 font-bold">کۆلێژی کارگێڕی و ئابووری | دەروازەی چوونەژوورەوە</span>
+            <div class="text-center sm:text-right">
+                <span class="font-extrabold text-[11px] sm:text-sm text-slate-200 block">حکومەتی هەرێمی کوردستان - وەزارەتی خوێندنی باڵا</span>
+                <span class="text-[10px] sm:text-[11px] text-amber-400 font-bold block sm:inline">کۆلێژی کارگێڕی و ئابووری | دەروازەی چوونەژوورەوە</span>
             </div>
         </div>
     </header>
 
     <!-- Main Login Container -->
-    <main class="flex-1 flex items-center justify-center p-4">
-        <div class="w-full max-w-md">
+    <main class="flex-1 flex items-center justify-center p-3 sm:p-4 w-full">
+        <div class="w-full max-w-md mx-auto">
             
             <!-- Login Card -->
-            <div class="login-card rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+            <div class="login-card rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-2xl relative overflow-hidden">
                 <!-- Top Accent Line -->
                 <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-emerald-500 to-amber-500"></div>
 
                 <!-- Logo & Heading -->
-                <div class="text-center mb-8">
-                    <div class="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-950 text-3xl font-black shadow-xl shadow-amber-500/20 border-2 border-amber-300">
+                <div class="text-center mb-6 sm:mb-8">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-2xl sm:rounded-3xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-950 text-2xl sm:text-3xl font-black shadow-xl shadow-amber-500/20 border-2 border-amber-300">
                         <i class="fa-solid fa-shield-halved"></i>
                     </div>
-                    <h2 class="text-2xl font-black text-white tracking-tight">چوونەژوورەوەی سیستەم</h2>
-                    <p class="text-xs text-slate-400 mt-1">تکایە ناوی بەکارهێنەر و وشەی نهێنی خۆت بنووسە</p>
+                    <h2 class="text-xl sm:text-2xl font-black text-white tracking-tight">چوونەژوورەوەی سیستەم</h2>
+                    <p class="text-[11px] sm:text-xs text-slate-400 mt-1">تکایە ناوی بەکارهێنەر و وشەی نهێنی بنووسە</p>
                 </div>
 
                 <!-- Login Form -->

@@ -141,7 +141,10 @@ const MIME_TYPES = {
     '.jpeg': 'image/jpeg',
     '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon',
-    '.pdf': 'application/pdf'
+    '.pdf': 'application/pdf',
+    '.ttf': 'font/ttf',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2'
 };
 
 // HTTP Request Handler
