@@ -547,6 +547,22 @@
             initDate();
             renderAttendanceSheet();
             renderSessionsHistory();
+
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'college_students' || e.key === 'college_courses' || e.key === 'college_attendance_sessions') {
+                    initStorage();
+                    initAuthAndUser();
+                    renderAttendanceSheet();
+                    renderSessionsHistory();
+                }
+            });
+
+            window.addEventListener('college_storage_sync', () => {
+                initStorage();
+                initAuthAndUser();
+                renderAttendanceSheet();
+                renderSessionsHistory();
+            });
         });
 
         function initStorage() {
@@ -577,6 +593,12 @@
                 authUser = JSON.parse(localStorage.getItem('college_auth_user') || 'null');
             } catch(e) { authUser = null; }
 
+            // Always refresh courses from localStorage
+            try {
+                const savedCourses = localStorage.getItem('college_courses');
+                if (savedCourses) courses = JSON.parse(savedCourses);
+            } catch(e) {}
+
             populateCourseSelect();
 
             if (authUser) {
@@ -585,16 +607,31 @@
 
                 // If user is a logged-in teacher with course info
                 if (authUser.role === 'teacher') {
-                    let matchedCourse = courses.find(c => c.username === authUser.username) ||
+                    const uName = (authUser.username || '').toLowerCase().trim();
+                    let matchedCourse = courses.find(c => (c.username || '').toLowerCase().trim() === uName) ||
                                        courses.find(c => c.teacherName === authUser.name) ||
                                        courses.find(c => c.subject === authUser.subject);
+                    
                     if (matchedCourse) {
                         applyCourse(matchedCourse);
-                    } else if (courses.length > 0) {
-                        applyCourse(courses[0]);
+                    } else {
+                        // Fallback: Build course directly from teacher's authenticated session
+                        const deptKey = authUser.deptId || authUser.dept || 'dept_accounting';
+                        const virtualCourse = {
+                            id: 'crs_' + (authUser.username || 'user'),
+                            dept: deptKey,
+                            deptId: deptKey,
+                            subject: authUser.subject || 'وانەی سەرەکی',
+                            teacherName: authUser.name,
+                            stage: String(authUser.stage || '1'),
+                            totalHours: parseInt(authUser.totalHours) || 60,
+                            username: authUser.username
+                        };
+                        applyCourse(virtualCourse);
                     }
-                } else if (authUser.role === 'department' && authUser.deptId) {
-                    const deptCourses = courses.filter(c => c.deptId === authUser.deptId);
+                } else if (authUser.role === 'department' && (authUser.deptId || authUser.dept)) {
+                    const dKey = authUser.deptId || authUser.dept;
+                    const deptCourses = courses.filter(c => (c.deptId || c.dept) === dKey);
                     if (deptCourses.length > 0) {
                         applyCourse(deptCourses[0]);
                     } else if (courses.length > 0) {
@@ -614,15 +651,23 @@
             select.innerHTML = '';
             
             let list = courses;
-            if (authUser && authUser.role === 'department' && authUser.deptId) {
-                list = courses.filter(c => c.deptId === authUser.deptId);
+            if (authUser && authUser.role === 'teacher') {
+                const uName = (authUser.username || '').toLowerCase().trim();
+                list = courses.filter(c => (c.username || '').toLowerCase().trim() === uName || c.teacherName === authUser.name);
+                if (list.length === 0 && currentCourse) {
+                    list = [currentCourse];
+                }
+            } else if (authUser && authUser.role === 'department' && (authUser.deptId || authUser.dept)) {
+                const dKey = authUser.deptId || authUser.dept;
+                list = courses.filter(c => (c.deptId || c.dept) === dKey);
             }
 
             list.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c.id;
-                const deptName = DEPARTMENTS[c.deptId] ? DEPARTMENTS[c.deptId].name : c.deptId;
-                opt.textContent = `${c.subject} - ${c.teacherName} (${c.totalHours} کاتژمێر) - ${deptName}`;
+                const deptKey = c.deptId || c.dept || 'dept_accounting';
+                const deptName = DEPARTMENTS[deptKey] ? DEPARTMENTS[deptKey].name : deptKey;
+                opt.textContent = `${c.subject} - ${c.teacherName} (قۆناغی ${getStageKurdish(c.stage)}) - ${deptName}`;
                 select.appendChild(opt);
             });
         }
@@ -639,13 +684,17 @@
 
         function applyCourse(course) {
             currentCourse = course;
-            currentCourseTotalHours = course.totalHours || 60;
+            currentCourseTotalHours = parseInt(course.totalHours) || 60;
 
             const select = document.getElementById('teacherCourseSelect');
             if (select) select.value = course.id;
 
+            const deptKey = course.deptId || course.dept || 'dept_accounting';
+            course.deptId = deptKey;
+            course.dept = deptKey;
+
             // Update banner elements
-            const deptObj = DEPARTMENTS[course.deptId] || { name: course.deptId };
+            const deptObj = DEPARTMENTS[deptKey] || { name: deptKey };
             const bannerDept = document.getElementById('bannerDeptName');
             if (bannerDept) bannerDept.textContent = deptObj.name;
 
@@ -664,12 +713,12 @@
             const notice = document.getElementById('badgeContactHoursNotice');
             if (notice) notice.textContent = `تۆتاڵ هاوەری ئەم وانەیە: ${course.totalHours} کاتژمێر`;
 
-            // Update hidden inputs for session storage compatibility
+            // Update hidden inputs for session storage and filtering compatibility
             const hidDept = document.getElementById('teacherDeptSelect');
-            if (hidDept) hidDept.value = course.deptId;
+            if (hidDept) hidDept.value = deptKey;
 
             const hidStage = document.getElementById('teacherStageSelect');
-            if (hidStage) hidStage.value = course.stage;
+            if (hidStage) hidStage.value = String(course.stage || '1');
 
             const hidSub = document.getElementById('teacherSubjectInput');
             if (hidSub) hidSub.value = course.subject;
@@ -745,12 +794,13 @@
 
         function getFilteredStudents() {
             const dept = document.getElementById('teacherDeptSelect').value;
-            const stage = document.getElementById('teacherStageSelect').value;
+            const stage = String(document.getElementById('teacherStageSelect').value);
             const studyGroup = document.getElementById('teacherStudyGroupSelect').value;
 
             return students.filter(s => {
-                if (s.dept !== dept) return false;
-                if (String(s.stage) !== String(stage)) return false;
+                const sDept = s.dept || s.deptId;
+                if (sDept !== dept) return false;
+                if (String(s.stage) !== stage) return false;
 
                 if (studyGroup !== 'all') {
                     if (studyGroup === 'morning_a' && (s.study !== 'morning' || (s.group && s.group !== 'A'))) return false;

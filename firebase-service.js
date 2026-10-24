@@ -144,8 +144,95 @@
                 console.warn('[Firebase] Sessions realtime listener error:', err.message);
             });
 
+            // Listen for Realtime Courses (Teachers/Subjects) changes
+            db.collection('courses').onSnapshot(snapshot => {
+                if (isSyncing) return;
+                const remoteCourses = [];
+                snapshot.forEach(doc => {
+                    remoteCourses.push(doc.data());
+                });
+
+                if (remoteCourses.length > 0) {
+                    const localRaw = localStorage.getItem('college_courses');
+                    const localCourses = localRaw ? JSON.parse(localRaw) : [];
+                    if (JSON.stringify(remoteCourses) !== JSON.stringify(localCourses)) {
+                        console.log('[Firebase] Realtime courses update received from cloud:', remoteCourses.length);
+                        localStorage.setItem('college_courses', JSON.stringify(remoteCourses));
+                        syncCoursesToAuthUsers(remoteCourses);
+                        notifyLocalApp('courses_updated', remoteCourses);
+                    }
+                }
+            }, err => {
+                console.warn('[Firebase] Courses realtime listener error:', err.message);
+            });
+
+            // Listen for Realtime Users (Auth Accounts) changes
+            db.collection('users').onSnapshot(snapshot => {
+                if (isSyncing) return;
+                const remoteUsers = [];
+                snapshot.forEach(doc => {
+                    remoteUsers.push(doc.data());
+                });
+
+                if (remoteUsers.length > 0) {
+                    let localUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+                    let changed = false;
+                    remoteUsers.forEach(ru => {
+                        const idx = localUsers.findIndex(u => u.username && u.username.toLowerCase() === (ru.username || '').toLowerCase());
+                        if (idx >= 0) {
+                            if (JSON.stringify(localUsers[idx]) !== JSON.stringify(ru)) {
+                                localUsers[idx] = Object.assign(localUsers[idx], ru);
+                                changed = true;
+                            }
+                        } else {
+                            localUsers.push(ru);
+                            changed = true;
+                        }
+                    });
+                    if (changed) {
+                        localStorage.setItem('college_auth_users', JSON.stringify(localUsers));
+                        notifyLocalApp('users_updated', localUsers);
+                    }
+                }
+            }, err => {
+                console.warn('[Firebase] Users realtime listener error:', err.message);
+            });
+
         } catch (e) {
             console.error('[Firebase] Error setting up listeners:', e);
+        }
+    }
+
+    // Helper: Map all courses to auth accounts so every teacher can log in anywhere
+    function syncCoursesToAuthUsers(crsList) {
+        if (!Array.isArray(crsList)) return;
+        try {
+            let authUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+            crsList.forEach(c => {
+                if (!c.username) return;
+                const uName = String(c.username).trim().toLowerCase();
+                const idx = authUsers.findIndex(u => u.username && u.username.toLowerCase() === uName);
+                const userObj = {
+                    username: uName,
+                    password: c.password,
+                    name: c.teacherName,
+                    role: 'teacher',
+                    deptId: c.deptId || c.dept || 'dept_accounting',
+                    dept: c.deptId || c.dept || 'dept_accounting',
+                    subject: c.subject,
+                    stage: String(c.stage || '1'),
+                    totalHours: parseInt(c.totalHours) || 60,
+                    avatarColor: 'indigo'
+                };
+                if (idx >= 0) {
+                    authUsers[idx] = Object.assign(authUsers[idx], userObj);
+                } else {
+                    authUsers.push(userObj);
+                }
+            });
+            localStorage.setItem('college_auth_users', JSON.stringify(authUsers));
+        } catch(e) {
+            console.warn('[Firebase] syncCoursesToAuthUsers error:', e);
         }
     }
 
@@ -170,6 +257,21 @@
                 const crsList = [];
                 crsSnap.forEach(d => crsList.push(d.data()));
                 localStorage.setItem('college_courses', JSON.stringify(crsList));
+                syncCoursesToAuthUsers(crsList);
+                notifyLocalApp('courses_updated', crsList);
+            }
+
+            // Pull users
+            const usersSnap = await db.collection('users').get();
+            if (!usersSnap.empty) {
+                let localUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+                usersSnap.forEach(d => {
+                    const ru = d.data();
+                    const idx = localUsers.findIndex(u => u.username && u.username.toLowerCase() === (ru.username || '').toLowerCase());
+                    if (idx >= 0) localUsers[idx] = Object.assign(localUsers[idx], ru);
+                    else localUsers.push(ru);
+                });
+                localStorage.setItem('college_auth_users', JSON.stringify(localUsers));
             }
 
             // Pull sessions
@@ -201,7 +303,7 @@
         }
     }
 
-    // Push local data up to cloud (Students, Sessions, Courses, Audit Logs)
+    // Push local data up to cloud (Students, Sessions, Courses, Users, Audit Logs)
     async function pushAllLocalToCloud(isInitial = false) {
         if (!db) return;
         try {
@@ -211,6 +313,7 @@
             const localStudents = JSON.parse(localStorage.getItem('college_students') || '[]');
             const localCourses = JSON.parse(localStorage.getItem('college_courses') || '[]');
             const localSessions = JSON.parse(localStorage.getItem('college_attendance_sessions') || '[]');
+            const localUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
             const localAudit = JSON.parse(localStorage.getItem('college_audit_logs') || '[]');
 
             // Save students in batch
@@ -222,6 +325,8 @@
                     batch.set(ref, {
                         ...stu,
                         id: idStr,
+                        stage: String(stu.stage || '1'),
+                        dept: stu.dept || stu.deptId || 'dept_accounting',
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
                 });
@@ -234,9 +339,30 @@
                 localCourses.forEach(crs => {
                     const idStr = String(crs.id);
                     const ref = db.collection('courses').doc(idStr);
-                    batchC.set(ref, crs, { merge: true });
+                    batchC.set(ref, {
+                        ...crs,
+                        dept: crs.dept || crs.deptId || 'dept_accounting',
+                        deptId: crs.deptId || crs.dept || 'dept_accounting',
+                        stage: String(crs.stage || '1')
+                    }, { merge: true });
                 });
                 await batchC.commit();
+            }
+
+            // Save users
+            if (localUsers.length > 0) {
+                const batchU = db.batch();
+                localUsers.forEach(u => {
+                    if (!u.username) return;
+                    const uRef = db.collection('users').doc(u.username.toLowerCase().trim());
+                    batchU.set(uRef, {
+                        ...u,
+                        username: u.username.toLowerCase().trim(),
+                        stage: String(u.stage || '1'),
+                        deptId: u.deptId || u.dept || null
+                    }, { merge: true });
+                });
+                await batchU.commit();
             }
 
             // Save sessions
@@ -281,9 +407,11 @@
             await db.collection('students').doc(idStr).set({
                 ...student,
                 id: idStr,
+                stage: String(student.stage || '1'),
+                dept: student.dept || student.deptId || 'dept_accounting',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
-            console.log('[Firebase] Student synced to cloud:', student.name);
+            console.log('[Firebase] Student synced to cloud:', student.name, 'Stage:', student.stage);
         } catch (e) {
             console.warn('[Firebase] Could not sync student:', e);
         }
@@ -297,6 +425,84 @@
             console.log('[Firebase] Student removed from cloud:', studentId);
         } catch (e) {
             console.warn('[Firebase] Could not delete student:', e);
+        }
+    }
+
+    // Single course / teacher account save
+    async function saveCourse(course) {
+        if (!course || !course.id || !db) return;
+        try {
+            const idStr = String(course.id);
+            const deptKey = course.deptId || course.dept || 'dept_accounting';
+            const courseData = {
+                ...course,
+                id: idStr,
+                dept: deptKey,
+                deptId: deptKey,
+                stage: String(course.stage || '1'),
+                username: (course.username || '').toLowerCase().trim(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            await db.collection('courses').doc(idStr).set(courseData, { merge: true });
+            
+            // Also immediately register in users collection so login succeeds anywhere
+            if (course.username) {
+                const userObj = {
+                    username: course.username.toLowerCase().trim(),
+                    password: course.password,
+                    name: course.teacherName,
+                    role: 'teacher',
+                    deptId: deptKey,
+                    dept: deptKey,
+                    subject: course.subject,
+                    stage: String(course.stage || '1'),
+                    totalHours: parseInt(course.totalHours) || 60,
+                    avatarColor: 'indigo'
+                };
+                await db.collection('users').doc(course.username.toLowerCase().trim()).set(userObj, { merge: true });
+            }
+            console.log('[Firebase] Course and teacher account synced to cloud:', course.subject, course.teacherName);
+        } catch (e) {
+            console.warn('[Firebase] Could not save course to cloud:', e);
+        }
+    }
+
+    // Single course delete
+    async function deleteCourse(courseId) {
+        if (!courseId || !db) return;
+        try {
+            await db.collection('courses').doc(String(courseId)).delete();
+            console.log('[Firebase] Course deleted from cloud:', courseId);
+        } catch (e) {
+            console.warn('[Firebase] Could not delete course:', e);
+        }
+    }
+
+    // Single user save (Superadmin or Dept Head or Teacher)
+    async function saveUser(user) {
+        if (!user || !user.username || !db) return;
+        try {
+            const uName = user.username.toLowerCase().trim();
+            await db.collection('users').doc(uName).set({
+                ...user,
+                username: uName,
+                stage: String(user.stage || '1'),
+                deptId: user.deptId || user.dept || null
+            }, { merge: true });
+            console.log('[Firebase] User account synced to cloud:', uName);
+        } catch (e) {
+            console.warn('[Firebase] Could not save user:', e);
+        }
+    }
+
+    // Single user delete
+    async function deleteUser(username) {
+        if (!username || !db) return;
+        try {
+            await db.collection('users').doc(String(username).toLowerCase().trim()).delete();
+            console.log('[Firebase] User removed from cloud:', username);
+        } catch (e) {
+            console.warn('[Firebase] Could not delete user:', e);
         }
     }
 
@@ -370,6 +576,11 @@
     // Notify local application UI if render functions exist
     function notifyLocalApp(eventType, data) {
         try {
+            // Update auth/course in teacher page if available
+            if (typeof initAuthAndUser === 'function' && (eventType === 'courses_updated' || eventType === 'users_updated')) {
+                initAuthAndUser();
+            }
+
             // Check if page has render functions
             if (typeof renderAttendanceSheet === 'function') {
                 if (eventType === 'students_updated' && Array.isArray(data)) {
@@ -385,6 +596,12 @@
             }
             if (typeof renderDepartmentView === 'function') {
                 renderDepartmentView();
+            }
+            if (typeof renderDeptCoursesTable === 'function') {
+                renderDeptCoursesTable();
+            }
+            if (typeof renderDeptStudentsTable === 'function') {
+                renderDeptStudentsTable();
             }
             if (typeof renderSessionsHistory === 'function') {
                 renderSessionsHistory();
@@ -407,7 +624,7 @@
     localStorage.setItem = function (key, value) {
         originalSetItem.apply(this, arguments);
 
-        if (['college_students', 'college_attendance_sessions', 'college_courses', 'college_audit_logs'].includes(key)) {
+        if (['college_students', 'college_attendance_sessions', 'college_courses', 'college_audit_logs', 'college_auth_users'].includes(key)) {
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
                 if (db && !isSyncing) {
@@ -563,6 +780,10 @@
         pullAllFromCloud: pullAllCloudToLocal,
         saveStudent,
         deleteStudent,
+        saveCourse,
+        deleteCourse,
+        saveUser,
+        deleteUser,
         wipeAllStudents,
         saveAttendanceSession,
         wipeAllAttendanceSessions,

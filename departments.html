@@ -1627,33 +1627,45 @@
                 return;
             }
 
+            let savedCourseObj;
             if (id) {
                 // Update
                 const index = courses.findIndex(c => c.id === id);
                 if (index !== -1) {
+                    courses[index].dept = courses[index].dept || currentActiveDept;
+                    courses[index].deptId = courses[index].dept || currentActiveDept;
                     courses[index].subject = subject;
                     courses[index].teacherName = teacherName;
-                    courses[index].stage = stage;
+                    courses[index].stage = String(stage);
                     courses[index].totalHours = totalHours;
                     courses[index].username = username;
                     courses[index].password = password;
+                    savedCourseObj = courses[index];
                 }
             } else {
                 // Create
-                courses.push({
+                savedCourseObj = {
                     id: 'crs_' + Date.now(),
                     dept: currentActiveDept,
+                    deptId: currentActiveDept,
                     subject,
                     teacherName,
-                    stage,
+                    stage: String(stage),
                     totalHours,
                     username,
                     password
-                });
+                };
+                courses.push(savedCourseObj);
             }
 
             localStorage.setItem('college_courses', JSON.stringify(courses));
             syncAllCoursesToAuthUsers();
+
+            // Sync to Firebase directly so the teacher can log in on ANY device
+            if (window.FirebaseService && typeof window.FirebaseService.saveCourse === 'function' && savedCourseObj) {
+                window.FirebaseService.saveCourse(savedCourseObj);
+            }
+
             closeCourseModal();
             renderDeptCoursesTable();
 
@@ -1691,6 +1703,12 @@
                         authUsers = authUsers.filter(u => u.username.toLowerCase() !== course.username.toLowerCase());
                         localStorage.setItem('college_auth_users', JSON.stringify(authUsers));
                     } catch(e) {}
+
+                    // Remove from cloud
+                    if (window.FirebaseService) {
+                        if (typeof window.FirebaseService.deleteCourse === 'function') window.FirebaseService.deleteCourse(courseId);
+                        if (typeof window.FirebaseService.deleteUser === 'function') window.FirebaseService.deleteUser(course.username);
+                    }
 
                     renderDeptCoursesTable();
                     Swal.fire('سڕایەوە!', 'هەژماری وانەکە بە سەرکەوتوویی لادرا', 'success');
@@ -1817,26 +1835,35 @@
             const study = document.getElementById('modalStudentStudy').value;
             const group = document.getElementById('modalStudentGroup').value;
 
+            let studentObj;
             if (id) {
                 const idx = students.findIndex(s => s.id === id);
                 if (idx !== -1) {
-                    students[idx] = { ...students[idx], code, name, dept, stage, study, group };
+                    students[idx] = { ...students[idx], code, name, dept, stage: String(stage), study, group };
+                    studentObj = students[idx];
                 }
             } else {
-                students.push({
+                studentObj = {
                     id: String(Date.now()),
                     code,
                     name,
                     dept,
-                    stage,
+                    stage: String(stage),
                     study,
                     group,
                     totalHours: 40,
                     absentHours: 0
-                });
+                };
+                students.push(studentObj);
             }
 
             localStorage.setItem('college_students', JSON.stringify(students));
+            
+            // Sync directly to Firebase Firestore
+            if (window.FirebaseService && typeof window.FirebaseService.saveStudent === 'function' && studentObj) {
+                window.FirebaseService.saveStudent(studentObj);
+            }
+
             closeStudentModal();
             renderDeptStudentsTable();
             renderDeptDashboard();
@@ -1865,6 +1892,12 @@
                 if (result.isConfirmed) {
                     students = students.filter(s => s.id !== id);
                     localStorage.setItem('college_students', JSON.stringify(students));
+
+                    // Sync delete to Firebase Firestore
+                    if (window.FirebaseService && typeof window.FirebaseService.deleteStudent === 'function') {
+                        window.FirebaseService.deleteStudent(id);
+                    }
+
                     renderDeptStudentsTable();
                     renderDeptDashboard();
                     Swal.fire('سڕایەوە!', 'خوێندکارەکە بە سەرکەوتوویی لادرا', 'success');

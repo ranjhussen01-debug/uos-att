@@ -288,22 +288,91 @@
         }
 
         // Handle Login Submission
-        function handleLogin(e) {
+        async function handleLogin(e) {
             e.preventDefault();
             const username = document.getElementById('usernameInput').value.trim().toLowerCase();
-            const password = document.getElementById('passwordInput').value;
+            const password = document.getElementById('passwordInput').value.trim();
+            const loginBtn = document.getElementById('loginBtn');
+            const originalBtnHtml = loginBtn.innerHTML;
 
-            // Load registered users
-            let users = SYSTEM_USERS;
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-lg"></i><span>پشکنینی هەژمار...</span>';
+
+            let foundUser = null;
+
             try {
-                const saved = localStorage.getItem('college_auth_users');
-                if (saved) users = JSON.parse(saved);
-            } catch (err) {
-                users = SYSTEM_USERS;
-            }
+                // 1. Check registered users in localStorage / SYSTEM_USERS
+                let users = SYSTEM_USERS;
+                try {
+                    const saved = localStorage.getItem('college_auth_users');
+                    if (saved) users = JSON.parse(saved);
+                } catch (err) {
+                    users = SYSTEM_USERS;
+                }
 
-            // Find matching user
-            const foundUser = users.find(u => u.username.toLowerCase() === username && u.password === password);
+                foundUser = users.find(u => (u.username || '').toLowerCase() === username && String(u.password) === password);
+
+                // 2. If not found, check college_courses (for teacher accounts created in departments)
+                if (!foundUser) {
+                    try {
+                        const savedCourses = JSON.parse(localStorage.getItem('college_courses') || '[]');
+                        const matchedCourse = savedCourses.find(c => (c.username || '').toLowerCase().trim() === username && String(c.password) === password);
+                        if (matchedCourse) {
+                            foundUser = {
+                                username: matchedCourse.username.toLowerCase().trim(),
+                                password: matchedCourse.password,
+                                name: matchedCourse.teacherName,
+                                role: 'teacher',
+                                deptId: matchedCourse.deptId || matchedCourse.dept || 'dept_accounting',
+                                deptName: matchedCourse.deptId || matchedCourse.dept || 'dept_accounting',
+                                subject: matchedCourse.subject,
+                                stage: String(matchedCourse.stage || '1'),
+                                totalHours: parseInt(matchedCourse.totalHours) || 60
+                            };
+                        }
+                    } catch (e) {}
+                }
+
+                // 3. If still not found, check Firebase Firestore directly (for accounts created on other devices)
+                if (!foundUser && window.FirebaseService && typeof window.FirebaseService.getDb === 'function') {
+                    const db = window.FirebaseService.getDb();
+                    if (db) {
+                        try {
+                            // Check 'users' collection
+                            const userDoc = await db.collection('users').doc(username).get();
+                            if (userDoc.exists && String(userDoc.data().password) === password) {
+                                foundUser = userDoc.data();
+                            } else {
+                                // Check 'courses' collection
+                                const courseSnap = await db.collection('courses').where('username', '==', username).get();
+                                if (!courseSnap.empty) {
+                                    courseSnap.forEach(doc => {
+                                        const c = doc.data();
+                                        if (String(c.password) === password) {
+                                            foundUser = {
+                                                username: c.username.toLowerCase().trim(),
+                                                password: c.password,
+                                                name: c.teacherName,
+                                                role: 'teacher',
+                                                deptId: c.deptId || c.dept || 'dept_accounting',
+                                                deptName: c.deptId || c.dept || 'dept_accounting',
+                                                subject: c.subject,
+                                                stage: String(c.stage || '1'),
+                                                totalHours: parseInt(c.totalHours) || 60
+                                            };
+                                        }
+                                    });
+                                }
+                            }
+                        } catch (cloudErr) {
+                            console.warn('[Login] Firebase cloud lookup error:', cloudErr);
+                        }
+                    }
+                }
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = originalBtnHtml;
+            }
 
             if (!foundUser) {
                 Swal.fire({
@@ -318,15 +387,27 @@
                 return;
             }
 
+            // Sync found user into local storage so offline access works
+            try {
+                let localUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+                const idx = localUsers.findIndex(u => (u.username || '').toLowerCase() === foundUser.username.toLowerCase());
+                if (idx >= 0) {
+                    localUsers[idx] = Object.assign(localUsers[idx], foundUser);
+                } else {
+                    localUsers.push(foundUser);
+                }
+                localStorage.setItem('college_auth_users', JSON.stringify(localUsers));
+            } catch (e) {}
+
             // Save authenticated session
             const sessionData = {
                 username: foundUser.username,
                 name: foundUser.name,
                 role: foundUser.role,
-                deptId: foundUser.deptId || null,
-                deptName: foundUser.deptName || null,
+                deptId: foundUser.deptId || foundUser.dept || null,
+                deptName: foundUser.deptName || foundUser.dept || null,
                 subject: foundUser.subject || null,
-                stage: foundUser.stage || '1',
+                stage: String(foundUser.stage || '1'),
                 totalHours: parseInt(foundUser.totalHours) || 60,
                 loginTime: new Date().toISOString()
             };
