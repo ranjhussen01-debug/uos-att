@@ -21,6 +21,28 @@
     let isSyncing = false;
     let lastSyncTime = null;
     let syncListeners = [];
+    let isQuotaExceeded = false;
+
+    try {
+        if (sessionStorage.getItem('firebase_quota_exceeded') === 'true') {
+            isQuotaExceeded = true;
+        }
+    } catch (e) {}
+
+    function handleFirestoreError(err, context) {
+        if (!err) return false;
+        const msg = String(err.message || '');
+        if (err.code === 'resource-exhausted' || msg.includes('Quota exceeded') || msg.includes('quota') || err.code === 'permission-denied') {
+            if (!isQuotaExceeded) {
+                isQuotaExceeded = true;
+                try { sessionStorage.setItem('firebase_quota_exceeded', 'true'); } catch (e) {}
+                console.warn(`[Firebase] Quota limit reached or offline (${context}). Switched cleanly to Local Storage Mode.`);
+                renderStatusBadge('warning', 'دۆخی پارێزراوی خۆجێیی (سیستەم بە تەواوی کارایە)');
+            }
+            return true;
+        }
+        return false;
+    }
 
     const DEFAULT_COURSES = [
         // بەشی ژمێریاری
@@ -116,20 +138,23 @@
 
     // Set up real-time listeners for students and sessions
     function setupRealtimeSync() {
-        if (!db) return;
+        if (!db || isQuotaExceeded) return;
 
         // Check if remote has data or if we should perform initial seed
         const metaDocRef = db.collection('system_meta').doc('sync_state');
 
         // Always check if users or courses collection is empty on cloud
         db.collection('users').limit(1).get().then(uSnap => {
-            if (uSnap.empty) {
+            if (uSnap.empty && !isQuotaExceeded) {
                 console.log('[Firebase] Cloud users collection is empty. Pushing all users and courses now...');
                 pushAllLocalToCloud(true);
             }
-        }).catch(() => {});
+        }).catch(err => {
+            handleFirestoreError(err, 'users check');
+        });
 
         metaDocRef.get().then(doc => {
+            if (isQuotaExceeded) return;
             if (!doc.exists) {
                 console.log('[Firebase] Remote database is empty. Uploading initial local data to cloud...');
                 pushAllLocalToCloud(true);
@@ -138,13 +163,15 @@
                 pullAllCloudToLocal();
             }
         }).catch(err => {
-            console.warn('[Firebase] Could not read meta document, attempting initial pull:', err);
-            pullAllCloudToLocal();
+            if (!handleFirestoreError(err, 'meta check')) {
+                pullAllCloudToLocal();
+            }
         });
 
         // Listen for Realtime Students changes
         try {
             db.collection('students').onSnapshot(snapshot => {
+                if (isQuotaExceeded) return;
                 if (snapshot.empty && !localStorage.getItem('college_students')) return;
                 
                 // If local is currently writing, don't self-overwrite immediately
@@ -169,11 +196,13 @@
                 lastSyncTime = new Date();
                 updateBadgeTooltip();
             }, err => {
+                if (handleFirestoreError(err, 'students')) return;
                 console.warn('[Firebase] Students realtime listener error:', err.message);
             });
 
             // Listen for Realtime Sessions changes
             db.collection('attendance_sessions').onSnapshot(snapshot => {
+                if (isQuotaExceeded) return;
                 if (isSyncing) return;
 
                 const remoteSessions = [];
@@ -196,11 +225,13 @@
                 lastSyncTime = new Date();
                 updateBadgeTooltip();
             }, err => {
+                if (handleFirestoreError(err, 'sessions')) return;
                 console.warn('[Firebase] Sessions realtime listener error:', err.message);
             });
 
             // Listen for Realtime Courses (Teachers/Subjects) changes
             db.collection('courses').onSnapshot(snapshot => {
+                if (isQuotaExceeded) return;
                 if (isSyncing) return;
                 const remoteCourses = [];
                 snapshot.forEach(doc => {
@@ -218,11 +249,13 @@
                     }
                 }
             }, err => {
+                if (handleFirestoreError(err, 'courses')) return;
                 console.warn('[Firebase] Courses realtime listener error:', err.message);
             });
 
             // Listen for Realtime Users (Auth Accounts) changes
             db.collection('users').onSnapshot(snapshot => {
+                if (isQuotaExceeded) return;
                 if (isSyncing) return;
                 const remoteUsers = [];
                 snapshot.forEach(doc => {
@@ -250,11 +283,12 @@
                     }
                 }
             }, err => {
+                if (handleFirestoreError(err, 'users')) return;
                 console.warn('[Firebase] Users realtime listener error:', err.message);
             });
 
         } catch (e) {
-            console.error('[Firebase] Error setting up listeners:', e);
+            handleFirestoreError(e, 'setting up listeners');
         }
     }
 
@@ -293,7 +327,7 @@
 
     // Pull all data from cloud to local
     async function pullAllCloudToLocal() {
-        if (!db) return;
+        if (!db || isQuotaExceeded) return;
         try {
             setSyncingState(true);
 
@@ -351,6 +385,9 @@
             lastSyncTime = new Date();
             renderStatusBadge('connected', 'هاوکاتکراوە (Sync Complete)');
         } catch (error) {
+            if (handleFirestoreError(error, 'pullAllCloudToLocal')) {
+                return;
+            }
             console.error('[Firebase] Error pulling cloud data:', error);
             renderStatusBadge('warning', 'کێشە لە خوێندنەوەی کلاود');
         } finally {
@@ -360,7 +397,7 @@
 
     // Push local data up to cloud (Students, Sessions, Courses, Users, Audit Logs)
     async function pushAllLocalToCloud(isInitial = false) {
-        if (!db) return;
+        if (!db || isQuotaExceeded) return;
         try {
             setSyncingState(true);
             renderStatusBadge('syncing', 'داتاکان دەنێردرێنە فایەربەیس...');
@@ -477,6 +514,9 @@
             console.log('[Firebase] Successfully pushed local dataset to Firebase Firestore.');
             return true;
         } catch (error) {
+            if (handleFirestoreError(error, 'pushAllLocalToCloud')) {
+                return false;
+            }
             console.error('[Firebase] Error pushing local to cloud:', error);
             renderStatusBadge('error', 'هەڵە لە ناردنی داتا');
             return false;
@@ -487,8 +527,7 @@
 
     // Single student save
     async function saveStudent(student) {
-        if (!student || !student.id) return;
-        if (!db) return;
+        if (!student || !student.id || !db || isQuotaExceeded) return;
         try {
             const idStr = String(student.id);
             await db.collection('students').doc(idStr).set({
@@ -500,24 +539,24 @@
             }, { merge: true });
             console.log('[Firebase] Student synced to cloud:', student.name, 'Stage:', student.stage);
         } catch (e) {
-            console.warn('[Firebase] Could not sync student:', e);
+            handleFirestoreError(e, 'saveStudent');
         }
     }
 
     // Single student delete
     async function deleteStudent(studentId) {
-        if (!studentId || !db) return;
+        if (!studentId || !db || isQuotaExceeded) return;
         try {
             await db.collection('students').doc(String(studentId)).delete();
             console.log('[Firebase] Student removed from cloud:', studentId);
         } catch (e) {
-            console.warn('[Firebase] Could not delete student:', e);
+            handleFirestoreError(e, 'deleteStudent');
         }
     }
 
     // Single course / teacher account save
     async function saveCourse(course) {
-        if (!course || !course.id || !db) return;
+        if (!course || !course.id || !db || isQuotaExceeded) return;
         try {
             const idStr = String(course.id);
             const deptKey = course.deptId || course.dept || 'dept_accounting';
@@ -550,24 +589,24 @@
             }
             console.log('[Firebase] Course and teacher account synced to cloud:', course.subject, course.teacherName);
         } catch (e) {
-            console.warn('[Firebase] Could not save course to cloud:', e);
+            handleFirestoreError(e, 'saveCourse');
         }
     }
 
     // Single course delete
     async function deleteCourse(courseId) {
-        if (!courseId || !db) return;
+        if (!courseId || !db || isQuotaExceeded) return;
         try {
             await db.collection('courses').doc(String(courseId)).delete();
             console.log('[Firebase] Course deleted from cloud:', courseId);
         } catch (e) {
-            console.warn('[Firebase] Could not delete course:', e);
+            handleFirestoreError(e, 'deleteCourse');
         }
     }
 
     // Single user save (Superadmin or Dept Head or Teacher)
     async function saveUser(user) {
-        if (!user || !user.username || !db) return;
+        if (!user || !user.username || !db || isQuotaExceeded) return;
         try {
             const uName = user.username.toLowerCase().trim();
             await db.collection('users').doc(uName).set({
@@ -578,18 +617,18 @@
             }, { merge: true });
             console.log('[Firebase] User account synced to cloud:', uName);
         } catch (e) {
-            console.warn('[Firebase] Could not save user:', e);
+            handleFirestoreError(e, 'saveUser');
         }
     }
 
     // Single user delete
     async function deleteUser(username) {
-        if (!username || !db) return;
+        if (!username || !db || isQuotaExceeded) return;
         try {
             await db.collection('users').doc(String(username).toLowerCase().trim()).delete();
             console.log('[Firebase] User removed from cloud:', username);
         } catch (e) {
-            console.warn('[Firebase] Could not delete user:', e);
+            handleFirestoreError(e, 'deleteUser');
         }
     }
 
