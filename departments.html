@@ -1183,6 +1183,7 @@
 
             initDateInputs();
             renderDepartmentView();
+            setTimeout(syncCoursesToCloudUsers, 1000);
         });
 
         function initStorage() {
@@ -1483,6 +1484,33 @@
             }
         }
 
+        function syncCoursesToCloudUsers() {
+            if (!window.FirebaseService || typeof window.FirebaseService.saveUser !== 'function') return;
+            try {
+                courses.forEach(c => {
+                    if (c.username) {
+                        const deptKey = c.deptId || c.dept || 'dept_accounting';
+                        const userObj = {
+                            username: c.username.toLowerCase().trim(),
+                            password: c.password,
+                            name: c.teacherName,
+                            role: 'teacher',
+                            deptId: deptKey,
+                            dept: deptKey,
+                            deptName: (typeof DEPARTMENTS !== 'undefined' && DEPARTMENTS[deptKey]?.name) || '',
+                            subject: c.subject,
+                            stage: String(c.stage || '1'),
+                            totalHours: parseInt(c.totalHours) || 60,
+                            avatarColor: 'indigo'
+                        };
+                        window.FirebaseService.saveUser(userObj);
+                    }
+                });
+            } catch(e) {
+                console.warn("[Dashboard] Could not sync courses to cloud users:", e);
+            }
+        }
+
         function renderDeptCoursesTable() {
             const search = (document.getElementById('deptCourseSearchInput')?.value || '').trim().toLowerCase();
             const stageFilter = document.getElementById('deptCourseStageFilter')?.value || 'all';
@@ -1629,11 +1657,13 @@
                 return;
             }
 
+            let oldUsername = null;
             let savedCourseObj;
             if (id) {
                 // Update
                 const index = courses.findIndex(c => c.id === id);
                 if (index !== -1) {
+                    oldUsername = courses[index].username;
                     courses[index].dept = courses[index].dept || currentActiveDept;
                     courses[index].deptId = courses[index].dept || currentActiveDept;
                     courses[index].subject = subject;
@@ -1663,9 +1693,38 @@
             localStorage.setItem('college_courses', JSON.stringify(courses));
             syncAllCoursesToAuthUsers();
 
-            // Sync to Firebase directly so the teacher can log in on ANY device
-            if (window.FirebaseService && typeof window.FirebaseService.saveCourse === 'function' && savedCourseObj) {
-                window.FirebaseService.saveCourse(savedCourseObj);
+            // Prepare user object for the 'users' collection
+            const userObj = {
+                username: username,
+                password: password,
+                name: teacherName,
+                role: 'teacher',
+                deptId: currentActiveDept,
+                dept: currentActiveDept,
+                deptName: (typeof DEPARTMENTS !== 'undefined' && DEPARTMENTS[currentActiveDept]?.name) || '',
+                subject: subject,
+                stage: String(stage),
+                totalHours: totalHours,
+                avatarColor: 'indigo'
+            };
+
+            // If username was updated, delete old username from cloud 'users' collection
+            if (oldUsername && oldUsername.toLowerCase() !== username && window.FirebaseService && typeof window.FirebaseService.deleteUser === 'function') {
+                window.FirebaseService.deleteUser(oldUsername);
+            }
+
+            // Sync to Firebase directly: BOTH to 'users' collection AND 'courses' collection
+            if (window.FirebaseService) {
+                if (typeof window.FirebaseService.saveUser === 'function') {
+                    window.FirebaseService.saveUser(userObj).then(() => {
+                        console.log('[Dashboard] User successfully written to Firestore "users" collection:', username);
+                    }).catch(err => {
+                        console.warn('[Dashboard] Could not write user to Firestore:', err);
+                    });
+                }
+                if (typeof window.FirebaseService.saveCourse === 'function' && savedCourseObj) {
+                    window.FirebaseService.saveCourse(savedCourseObj);
+                }
             }
 
             closeCourseModal();
@@ -1675,9 +1734,9 @@
                 toast: true,
                 position: 'top-start',
                 icon: 'success',
-                title: id ? 'زانیاری هەژماری وانە نوێکرایەوە' : 'هەژماری وانەی نوێ بە سەرکەوتوویی دروستکرا',
+                title: id ? 'زانیاری هەژماری وانە نوێکرایەوە' : 'هەژماری مامۆستا دروستکرا و تۆمارکرا لە بەشی Users',
                 showConfirmButton: false,
-                timer: 2000
+                timer: 2500
             });
         }
 

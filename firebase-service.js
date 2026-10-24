@@ -23,21 +23,19 @@
     let syncListeners = [];
     let isQuotaExceeded = false;
 
+    // Reset any old session quota lock to allow fresh user actions
     try {
-        if (sessionStorage.getItem('firebase_quota_exceeded') === 'true') {
-            isQuotaExceeded = true;
-        }
+        sessionStorage.removeItem('firebase_quota_exceeded');
     } catch (e) {}
 
     function handleFirestoreError(err, context) {
         if (!err) return false;
         const msg = String(err.message || '');
-        if (err.code === 'resource-exhausted' || msg.includes('Quota exceeded') || msg.includes('quota') || err.code === 'permission-denied') {
+        if (err.code === 'resource-exhausted' || msg.includes('Quota exceeded') || msg.includes('quota')) {
             if (!isQuotaExceeded) {
                 isQuotaExceeded = true;
-                try { sessionStorage.setItem('firebase_quota_exceeded', 'true'); } catch (e) {}
-                console.warn(`[Firebase] Quota limit reached or offline (${context}). Switched cleanly to Local Storage Mode.`);
-                renderStatusBadge('warning', 'دۆخی پارێزراوی خۆجێیی (سیستەم بە تەواوی کارایە)');
+                console.warn(`[Firebase] Quota limit reached (${context}). Switched batch sync to Local Storage Mode.`);
+                renderStatusBadge('warning', 'دۆخی خۆجێیی بەردەستە (سیستەم کارایە)');
             }
             return true;
         }
@@ -527,7 +525,9 @@
 
     // Single student save
     async function saveStudent(student) {
-        if (!student || !student.id || !db || isQuotaExceeded) return;
+        if (!student || !student.id) return false;
+        if (!db) initFirebase();
+        if (!db) return false;
         try {
             const idStr = String(student.id);
             await db.collection('students').doc(idStr).set({
@@ -537,98 +537,135 @@
                 dept: student.dept || student.deptId || 'dept_accounting',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
-            console.log('[Firebase] Student synced to cloud:', student.name, 'Stage:', student.stage);
+            console.log('[Firebase] ✅ Student synced to cloud:', student.name, 'Stage:', student.stage);
+            return true;
         } catch (e) {
             handleFirestoreError(e, 'saveStudent');
+            return false;
         }
     }
 
     // Single student delete
     async function deleteStudent(studentId) {
-        if (!studentId || !db || isQuotaExceeded) return;
+        if (!studentId) return false;
+        if (!db) initFirebase();
+        if (!db) return false;
         try {
             await db.collection('students').doc(String(studentId)).delete();
-            console.log('[Firebase] Student removed from cloud:', studentId);
+            console.log('[Firebase] ✅ Student removed from cloud:', studentId);
+            return true;
         } catch (e) {
             handleFirestoreError(e, 'deleteStudent');
+            return false;
         }
     }
 
     // Single course / teacher account save
     async function saveCourse(course) {
-        if (!course || !course.id || !db || isQuotaExceeded) return;
+        if (!course || !course.id) return false;
+        if (!db) initFirebase();
+        if (!db) return false;
         try {
             const idStr = String(course.id);
             const deptKey = course.deptId || course.dept || 'dept_accounting';
+            const uName = (course.username || '').toLowerCase().trim();
             const courseData = {
                 ...course,
                 id: idStr,
                 dept: deptKey,
                 deptId: deptKey,
                 stage: String(course.stage || '1'),
-                username: (course.username || '').toLowerCase().trim(),
+                username: uName,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
             await db.collection('courses').doc(idStr).set(courseData, { merge: true });
+            console.log('[Firebase] ✅ Course document saved to "courses" collection:', course.subject);
             
             // Also immediately register in users collection so login succeeds anywhere
-            if (course.username) {
+            if (uName) {
                 const userObj = {
-                    username: course.username.toLowerCase().trim(),
-                    password: course.password,
-                    name: course.teacherName,
+                    username: uName,
+                    password: String(course.password || ''),
+                    name: course.teacherName || uName,
                     role: 'teacher',
                     deptId: deptKey,
                     dept: deptKey,
                     subject: course.subject,
                     stage: String(course.stage || '1'),
                     totalHours: parseInt(course.totalHours) || 60,
-                    avatarColor: 'indigo'
+                    avatarColor: 'indigo',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
-                await db.collection('users').doc(course.username.toLowerCase().trim()).set(userObj, { merge: true });
+                await db.collection('users').doc(uName).set(userObj, { merge: true });
+                console.log('[Firebase] ✅ Teacher user account registered in "users" collection:', uName);
             }
-            console.log('[Firebase] Course and teacher account synced to cloud:', course.subject, course.teacherName);
+            return true;
         } catch (e) {
+            console.error('[Firebase] ❌ Error saving course/teacher to Firestore:', e);
             handleFirestoreError(e, 'saveCourse');
+            return false;
         }
     }
 
     // Single course delete
     async function deleteCourse(courseId) {
-        if (!courseId || !db || isQuotaExceeded) return;
+        if (!courseId) return false;
+        if (!db) initFirebase();
+        if (!db) return false;
         try {
             await db.collection('courses').doc(String(courseId)).delete();
-            console.log('[Firebase] Course deleted from cloud:', courseId);
+            console.log('[Firebase] ✅ Course deleted from cloud:', courseId);
+            return true;
         } catch (e) {
             handleFirestoreError(e, 'deleteCourse');
+            return false;
         }
     }
 
     // Single user save (Superadmin or Dept Head or Teacher)
     async function saveUser(user) {
-        if (!user || !user.username || !db || isQuotaExceeded) return;
+        if (!user || !user.username) return false;
+        if (!db) initFirebase();
+        if (!db) return false;
         try {
-            const uName = user.username.toLowerCase().trim();
-            await db.collection('users').doc(uName).set({
-                ...user,
+            const uName = String(user.username).toLowerCase().trim();
+            const userPayload = {
                 username: uName,
+                password: String(user.password || ''),
+                name: user.name || user.teacherName || uName,
+                role: user.role || 'teacher',
                 stage: String(user.stage || '1'),
-                deptId: user.deptId || user.dept || null
-            }, { merge: true });
-            console.log('[Firebase] User account synced to cloud:', uName);
+                deptId: user.deptId || user.dept || null,
+                dept: user.deptId || user.dept || null,
+                deptName: user.deptName || '',
+                subject: user.subject || '',
+                totalHours: parseInt(user.totalHours) || 60,
+                avatarColor: user.avatarColor || 'indigo',
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            await db.collection('users').doc(uName).set(userPayload, { merge: true });
+            console.log('[Firebase] ✅ User account document saved to "users" collection:', uName, userPayload);
+            return true;
         } catch (e) {
+            console.error('[Firebase] ❌ Error saving user to "users" collection:', e);
             handleFirestoreError(e, 'saveUser');
+            return false;
         }
     }
 
     // Single user delete
     async function deleteUser(username) {
-        if (!username || !db || isQuotaExceeded) return;
+        if (!username) return false;
+        if (!db) initFirebase();
+        if (!db) return false;
         try {
-            await db.collection('users').doc(String(username).toLowerCase().trim()).delete();
-            console.log('[Firebase] User removed from cloud:', username);
+            const uName = String(username).toLowerCase().trim();
+            await db.collection('users').doc(uName).delete();
+            console.log('[Firebase] ✅ User removed from "users" collection:', uName);
+            return true;
         } catch (e) {
             handleFirestoreError(e, 'deleteUser');
+            return false;
         }
     }
 
