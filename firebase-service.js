@@ -371,7 +371,7 @@
             DEFAULT_COURSES.forEach(c => cMap.set(c.id, c));
             localCourses.forEach(c => cMap.set(c.id, c));
             localCourses = Array.from(cMap.values());
-            localStorage.setItem('college_courses', JSON.stringify(localCourses));
+            originalSetItem.call(localStorage, 'college_courses', JSON.stringify(localCourses));
 
             // Merge base users, default courses as teachers, and any local additions
             let localUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
@@ -397,7 +397,11 @@
                 if (u.username) uMap.set(u.username.toLowerCase().trim(), u);
             });
             localUsers = Array.from(uMap.values());
-            localStorage.setItem('college_auth_users', JSON.stringify(localUsers));
+            originalSetItem.call(localStorage, 'college_auth_users', JSON.stringify(localUsers));
+
+            const localStudents = JSON.parse(localStorage.getItem('college_students') || '[]');
+            const localSessions = JSON.parse(localStorage.getItem('college_attendance_sessions') || '[]');
+            const localAudit = JSON.parse(localStorage.getItem('college_audit_logs') || '[]');
 
             // Save students in batch
             if (localStudents.length > 0) {
@@ -707,6 +711,8 @@
     localStorage.setItem = function (key, value) {
         originalSetItem.apply(this, arguments);
 
+        if (isSyncing) return;
+
         if (['college_students', 'college_attendance_sessions', 'college_courses', 'college_audit_logs', 'college_auth_users'].includes(key)) {
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
@@ -714,7 +720,7 @@
                     console.log(`[Firebase AutoSync] Change detected in ${key}. Syncing to Firestore...`);
                     pushAllLocalToCloud(false);
                 }
-            }, 1500);
+            }, 2000);
         }
     };
 
