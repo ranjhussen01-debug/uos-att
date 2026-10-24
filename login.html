@@ -158,14 +158,50 @@
                         <i class="fa-solid fa-right-to-bracket text-lg"></i>
                         <span>چوونە ژوورەوە</span>
                     </button>
+
+                    <!-- Quick Accounts Button -->
+                    <div class="pt-4 border-t border-slate-800 text-center">
+                        <button type="button" onclick="openQuickAccountsModal()" 
+                            class="w-full text-xs font-bold text-amber-400 hover:text-amber-300 inline-flex items-center justify-center gap-2 bg-slate-900/90 hover:bg-slate-800 py-3 px-4 rounded-xl transition border border-amber-500/20 shadow-sm">
+                            <i class="fa-solid fa-users-gear text-sm"></i>
+                            <span>بینینی سەرجەم هەژمارەکان (چوونەژوورەوەی خێرا)</span>
+                        </button>
+                    </div>
                 </form>
-
-
 
             </div>
 
         </div>
     </main>
+
+    <!-- Quick Accounts Modal -->
+    <div id="quickAccountsModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm hidden">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+                <div class="flex items-center gap-2 text-amber-400 font-black text-sm">
+                    <i class="fa-solid fa-users-viewfinder text-base"></i>
+                    <span>سەرجەم هەژمارەکانی سیستەم (کلیک بکە بۆ چوونەژوورەوە)</span>
+                </div>
+                <button type="button" onclick="closeQuickAccountsModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="p-3 bg-slate-950/30 border-b border-slate-800 flex items-center gap-1.5 overflow-x-auto text-xs font-bold">
+                <button type="button" onclick="filterQuickAccounts('all')" id="qTab_all" class="q-tab px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950">هەمووی</button>
+                <button type="button" onclick="filterQuickAccounts('admin')" id="qTab_admin" class="q-tab px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700">سوپەر ئادمین</button>
+                <button type="button" onclick="filterQuickAccounts('dept')" id="qTab_dept" class="q-tab px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700">بەشەکان</button>
+                <button type="button" onclick="filterQuickAccounts('teacher')" id="qTab_teacher" class="q-tab px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700">مامۆستایان</button>
+            </div>
+
+            <!-- Accounts List Container -->
+            <div id="quickAccountsList" class="p-3 overflow-y-auto space-y-2 flex-1">
+                <!-- Injected via JavaScript -->
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer class="p-4 text-center text-xs text-slate-500 border-t border-slate-900">
@@ -174,91 +210,183 @@
 
     <!-- Authentication JavaScript -->
     <script>
-        // System Defined User Accounts
-        const SYSTEM_USERS = [
-            {
-                username: 'superadmin',
-                password: 'admin123',
-                name: 'سەرپەرشتیاری گشتی (سوپەر ئادمین)',
-                role: 'superadmin',
-                avatarColor: 'amber'
-            },
-            {
-                username: 'teacher',
-                password: 'teacher123',
-                name: 'م. کاروان ئەحمەد',
-                role: 'teacher',
-                deptId: 'dept_accounting',
-                deptName: 'بەشی ژمێریاری',
-                subject: 'بنەماکانی ژمێریاری',
-                stage: '1',
-                totalHours: 60,
-                avatarColor: 'indigo'
-            },
-            {
-                username: 'accounting',
-                password: 'acc123',
-                name: 'بەڕێوەبەری بەشی ژمێریاری',
-                role: 'department',
-                deptId: 'dept_accounting',
-                deptName: 'بەشی ژمێریاری',
-                avatarColor: 'emerald'
-            },
-            {
-                username: 'business',
-                password: 'bus123',
-                name: 'بەڕێوەبەری بەشی کارگێڕی کار',
-                role: 'department',
-                deptId: 'dept_business',
-                deptName: 'بەشی کارگێڕی کار',
-                avatarColor: 'blue'
-            },
-            {
-                username: 'economics',
-                password: 'econ123',
-                name: 'بەڕێوەبەری بەشی ئابووری',
-                role: 'department',
-                deptId: 'dept_economics',
-                deptName: 'بەشی ئابووری',
-                avatarColor: 'purple'
-            },
-            {
-                username: 'finance',
-                password: 'fin123',
-                name: 'بەڕێوەبەری بەشی کارگێڕی بەبازاڕکردن',
-                role: 'department',
-                deptId: 'dept_finance',
-                deptName: 'بەشی کارگێڕی بەبازاڕکردن',
-                avatarColor: 'teal'
-            },
-            {
-                username: 'statistics',
-                password: 'stat123',
-                name: 'بەڕێوەبەری بەشی ئامار و زانیاری',
-                role: 'department',
-                deptId: 'dept_statistics',
-                deptName: 'بەشی ئامار و زانیاری',
-                avatarColor: 'amber'
-            }
+        const DEPARTMENTS = {
+            'dept_accounting': { name: 'بەشی ژمێریاری' },
+            'dept_business': { name: 'بەشی کارگێڕی کار' },
+            'dept_economics': { name: 'بەشی ئابووری' },
+            'dept_finance': { name: 'بەشی کارگێڕی بەبازاڕکردن' },
+            'dept_statistics': { name: 'بەشی ئامار و زانیاری' }
+        };
+
+        const DEFAULT_COURSES = [
+            // بەشی ژمێریاری
+            { id: 'crs_1', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'بنەماکانی ژمێریاری', teacherName: 'م. کاروان ئەحمەد', stage: '1', totalHours: 60, username: 'teacher', password: 'teacher123' },
+            { id: 'crs_2', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'مافەکانی مرۆڤ', teacherName: 'م. شادان عوسمان', stage: '1', totalHours: 40, username: 'shadan_acc', password: 'shadan123' },
+            { id: 'crs_3', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'ژمێریاری نەوت و گاز', teacherName: 'د. هێمن عومەر', stage: '2', totalHours: 60, username: 'hemin_acc', password: 'hemin123' },
+            { id: 'crs_4', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'ژمێریاری تێچوون', teacherName: 'م. کامەران عەزیز', stage: '2', totalHours: 60, username: 'kamaran_acc', password: 'kamaran123' },
+            { id: 'crs_5', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'ژمێریاری پێشکەوتوو', teacherName: 'د. فەرهاد حەمە', stage: '3', totalHours: 60, username: 'farhad_acc', password: 'farhad123' },
+            { id: 'crs_6', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'وردبینی و پێداچوونەوە', teacherName: 'پ.د. سەردار عەلی', stage: '4', totalHours: 60, username: 'sardar_acc', password: 'sardar123' },
+
+            // بەشی کارگێڕی کار
+            { id: 'crs_7', deptId: 'dept_business', dept: 'dept_business', subject: 'پڕەنسیپەکانی کارگێڕی', teacherName: 'م. ڕێبوار کەمال', stage: '1', totalHours: 60, username: 'rebwar_bus', password: 'rebwar123' },
+            { id: 'crs_8', deptId: 'dept_business', dept: 'dept_business', subject: 'زانستی کۆمپیوتەر', teacherName: 'م. هێرش جەمال', stage: '1', totalHours: 40, username: 'hersh_bus', password: 'hersh123' },
+            { id: 'crs_9', deptId: 'dept_business', dept: 'dept_business', subject: 'بەڕێوەبردنی سەرچاوە مرۆییەکان', teacherName: 'د. نەوزاد ساڵح', stage: '2', totalHours: 60, username: 'nawzad_bus', password: 'nawzad123' },
+            { id: 'crs_10', deptId: 'dept_business', dept: 'dept_business', subject: 'کارگێڕی ستراتیژی', teacherName: 'د. ڕەوەند بەکر', stage: '3', totalHours: 60, username: 'rawand_bus', password: 'rawand123' },
+            { id: 'crs_11', deptId: 'dept_business', dept: 'dept_business', subject: 'کارگێڕی پرۆژەکان', teacherName: 'پ.د. ئاراس قادر', stage: '4', totalHours: 60, username: 'aras_bus', password: 'aras123' },
+
+            // بەشی ئابووری
+            { id: 'crs_12', deptId: 'dept_economics', dept: 'dept_economics', subject: 'مایکرۆ ئابووری', teacherName: 'د. شوان عەلی', stage: '1', totalHours: 60, username: 'shwan_econ', password: 'shwan123' },
+            { id: 'crs_13', deptId: 'dept_economics', dept: 'dept_economics', subject: 'بیرکاری بۆ ئابووریناسان', teacherName: 'م. ئامانج مەجید', stage: '1', totalHours: 40, username: 'amanj_econ', password: 'amanj123' },
+            { id: 'crs_14', deptId: 'dept_economics', dept: 'dept_economics', subject: 'ماکرۆ ئابووری', teacherName: 'د. سەرکەوت حوسێن', stage: '2', totalHours: 60, username: 'sarkawt_econ', password: 'sarkawt123' },
+            { id: 'crs_15', deptId: 'dept_economics', dept: 'dept_economics', subject: 'ئابووری نێودەوڵەتی', teacherName: 'م. بێستوون فوئاد', stage: '3', totalHours: 60, username: 'bestun_econ', password: 'bestun123' },
+            { id: 'crs_16', deptId: 'dept_economics', dept: 'dept_economics', subject: 'گەشەپێدانی ئابووری', teacherName: 'د. نەبەز عەبدوڵڵا', stage: '4', totalHours: 60, username: 'nabaz_econ', password: 'nabaz123' },
+
+            // بەشی کارگێڕی بەبازاڕکردن
+            { id: 'crs_17', deptId: 'dept_finance', dept: 'dept_finance', subject: 'بنەماکانی بەبازاڕکردن', teacherName: 'م. ئاری دارا', stage: '1', totalHours: 60, username: 'ari_fin', password: 'ari123' },
+            { id: 'crs_18', deptId: 'dept_finance', dept: 'dept_finance', subject: 'پەیوەندییە گشتییەکان', teacherName: 'م. جوانۆ تەها', stage: '1', totalHours: 40, username: 'jwano_fin', password: 'jwano123' },
+            { id: 'crs_19', deptId: 'dept_finance', dept: 'dept_finance', subject: 'ڕەفتاری بەکاربەر', teacherName: 'د. لاوان نەریمان', stage: '2', totalHours: 60, username: 'lawan_fin', password: 'lawan123' },
+            { id: 'crs_20', deptId: 'dept_finance', dept: 'dept_finance', subject: 'بەبازاڕکردنی دیجیتاڵی', teacherName: 'م. دیلان تاریق', stage: '3', totalHours: 60, username: 'dilan_fin', password: 'dilan123' },
+            { id: 'crs_21', deptId: 'dept_finance', dept: 'dept_finance', subject: 'ستراتیژی بەبازاڕکردن', teacherName: 'د. کاوە ئەحمەد', stage: '4', totalHours: 60, username: 'kawa_fin', password: 'kawa123' },
+
+            // بەشی ئامار و زانیاری
+            { id: 'crs_22', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'ئاماری سەرەتایی', teacherName: 'د. دانا جەمیل', stage: '1', totalHours: 60, username: 'dana_stat', password: 'dana123' },
+            { id: 'crs_23', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'بیرکاری سەرەتایی', teacherName: 'م. دڵشاد فەتاح', stage: '1', totalHours: 40, username: 'dilshad_stat', password: 'dilshad123' },
+            { id: 'crs_24', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'ئەگەرو گریمانە', teacherName: 'م. زانا حامید', stage: '2', totalHours: 60, username: 'zana_stat', password: 'zana123' },
+            { id: 'crs_25', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'شیکاری ئاماری پێشکەوتوو', teacherName: 'د. شێرکۆ کەریم', stage: '3', totalHours: 60, username: 'sherko_stat', password: 'sherko123' },
+            { id: 'crs_26', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'زنجیرەی کاتی', teacherName: 'پ.د. عەلی ڕەزا', stage: '4', totalHours: 60, username: 'ali_stat', password: 'ali123' }
         ];
 
-        // Ensure users are loaded in localStorage if not present
-        if (!localStorage.getItem('college_auth_users')) {
-            localStorage.setItem('college_auth_users', JSON.stringify(SYSTEM_USERS));
-        } else {
+        const BASE_SYSTEM_USERS = [
+            { username: 'superadmin', password: 'admin123', name: 'سەرپەرشتیاری گشتی (سوپەر ئادمین)', role: 'superadmin', avatarColor: 'amber' },
+            { username: 'accounting', password: 'acc123', name: 'بەڕێوەبەری بەشی ژمێریاری', role: 'department', deptId: 'dept_accounting', deptName: 'بەشی ژمێریاری', avatarColor: 'emerald' },
+            { username: 'business', password: 'bus123', name: 'بەڕێوەبەری بەشی کارگێڕی کار', role: 'department', deptId: 'dept_business', deptName: 'بەشی کارگێڕی کار', avatarColor: 'blue' },
+            { username: 'economics', password: 'econ123', name: 'بەڕێوەبەری بەشی ئابووری', role: 'department', deptId: 'dept_economics', deptName: 'بەشی ئابووری', avatarColor: 'purple' },
+            { username: 'finance', password: 'fin123', name: 'بەڕێوەبەری بەشی کارگێڕی بەبازاڕکردن', role: 'department', deptId: 'dept_finance', deptName: 'بەشی کارگێڕی بەبازاڕکردن', avatarColor: 'teal' },
+            { username: 'statistics', password: 'stat123', name: 'بەڕێوەبەری بەشی ئامار و زانیاری', role: 'department', deptId: 'dept_statistics', deptName: 'بەشی ئامار و زانیاری', avatarColor: 'amber' }
+        ];
+
+        // Combine base users + all teachers from DEFAULT_COURSES
+        const SYSTEM_USERS = [...BASE_SYSTEM_USERS];
+        DEFAULT_COURSES.forEach(c => {
+            SYSTEM_USERS.push({
+                username: c.username.toLowerCase().trim(),
+                password: c.password,
+                name: c.teacherName,
+                role: 'teacher',
+                deptId: c.deptId || c.dept,
+                deptName: DEPARTMENTS[c.deptId || c.dept]?.name || '',
+                subject: c.subject,
+                stage: String(c.stage || '1'),
+                totalHours: parseInt(c.totalHours) || 60,
+                avatarColor: 'indigo'
+            });
+        });
+
+        // Initialize and sync localStorage users and courses
+        (function initLocalDatasets() {
             try {
-                let saved = JSON.parse(localStorage.getItem('college_auth_users'));
-                if (Array.isArray(saved) && !saved.some(u => u.username === 'teacher')) {
-                    saved.push({
-                        username: 'teacher',
-                        password: 'teacher123',
-                        name: 'م. کاروان ئەحمەد (مامۆستای وانەبێژ)',
-                        role: 'teacher',
-                        avatarColor: 'indigo'
-                    });
-                    localStorage.setItem('college_auth_users', JSON.stringify(saved));
+                // Ensure courses
+                let curCourses = JSON.parse(localStorage.getItem('college_courses') || '[]');
+                const cMap = new Map();
+                DEFAULT_COURSES.forEach(c => cMap.set(c.id, c));
+                curCourses.forEach(c => cMap.set(c.id, c));
+                localStorage.setItem('college_courses', JSON.stringify(Array.from(cMap.values())));
+
+                // Ensure users
+                let curUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+                const uMap = new Map();
+                SYSTEM_USERS.forEach(u => uMap.set(u.username.toLowerCase(), u));
+                curUsers.forEach(u => {
+                    if (u.username) uMap.set(u.username.toLowerCase(), u);
+                });
+                localStorage.setItem('college_auth_users', JSON.stringify(Array.from(uMap.values())));
+            } catch (e) {}
+        })();
+
+        // Quick Accounts Modal Functions
+        function openQuickAccountsModal() {
+            renderQuickAccountsList('all');
+            document.getElementById('quickAccountsModal').classList.remove('hidden');
+        }
+
+        function closeQuickAccountsModal() {
+            document.getElementById('quickAccountsModal').classList.add('hidden');
+        }
+
+        function filterQuickAccounts(type) {
+            ['all', 'admin', 'dept', 'teacher'].forEach(t => {
+                const btn = document.getElementById(`qTab_${t}`);
+                if (btn) {
+                    if (t === type) {
+                        btn.className = 'q-tab px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950';
+                    } else {
+                        btn.className = 'q-tab px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700';
+                    }
                 }
-            } catch(e) {}
+            });
+            renderQuickAccountsList(type);
+        }
+
+        function renderQuickAccountsList(filterType) {
+            const listEl = document.getElementById('quickAccountsList');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            let usersToDisplay = [];
+            try {
+                usersToDisplay = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+            } catch (e) {
+                usersToDisplay = SYSTEM_USERS;
+            }
+            if (usersToDisplay.length === 0) usersToDisplay = SYSTEM_USERS;
+
+            if (filterType === 'admin') {
+                usersToDisplay = usersToDisplay.filter(u => u.role === 'superadmin');
+            } else if (filterType === 'dept') {
+                usersToDisplay = usersToDisplay.filter(u => u.role === 'department');
+            } else if (filterType === 'teacher') {
+                usersToDisplay = usersToDisplay.filter(u => u.role === 'teacher');
+            }
+
+            usersToDisplay.forEach(u => {
+                const item = document.createElement('div');
+                item.className = 'p-3 bg-slate-950/60 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 rounded-xl transition flex items-center justify-between cursor-pointer';
+                item.onclick = () => {
+                    fillCredentials(u.username, u.password);
+                    closeQuickAccountsModal();
+                };
+
+                let roleBadge = '';
+                if (u.role === 'superadmin') {
+                    roleBadge = '<span class="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-md font-bold">سوپەر ئادمین</span>';
+                } else if (u.role === 'department') {
+                    roleBadge = '<span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-md font-bold">بەڕێوەبەری بەش</span>';
+                } else {
+                    const st = u.stage ? `قۆناغی ${u.stage}` : 'مامۆستا';
+                    roleBadge = `<span class="text-[10px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-md font-bold">${st} - ${u.subject || 'وانەبێژ'}</span>`;
+                }
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-amber-400 text-xs shrink-0">
+                            <i class="fa-solid ${u.role === 'superadmin' ? 'fa-shield-halved' : (u.role === 'department' ? 'fa-building-columns' : 'fa-chalkboard-user')}"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-white flex items-center gap-2">
+                                <span>${u.name}</span>
+                                ${roleBadge}
+                            </div>
+                            <div class="text-[11px] text-slate-400 font-mono mt-0.5">
+                                User: <span class="text-amber-300 font-bold">${u.username}</span> | Pass: <span class="text-slate-300 font-bold">${u.password}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="text-xs bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-slate-950 font-bold px-3 py-1.5 rounded-lg transition border border-amber-500/30">
+                        هەڵبژاردن
+                    </button>
+                `;
+                listEl.appendChild(item);
+            });
         }
 
         // Toggle password visibility

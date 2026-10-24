@@ -22,6 +22,53 @@
     let lastSyncTime = null;
     let syncListeners = [];
 
+    const DEFAULT_COURSES = [
+        // بەشی ژمێریاری
+        { id: 'crs_1', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'بنەماکانی ژمێریاری', teacherName: 'م. کاروان ئەحمەد', stage: '1', totalHours: 60, username: 'teacher', password: 'teacher123' },
+        { id: 'crs_2', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'مافەکانی مرۆڤ', teacherName: 'م. شادان عوسمان', stage: '1', totalHours: 40, username: 'shadan_acc', password: 'shadan123' },
+        { id: 'crs_3', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'ژمێریاری نەوت و گاز', teacherName: 'د. هێمن عومەر', stage: '2', totalHours: 60, username: 'hemin_acc', password: 'hemin123' },
+        { id: 'crs_4', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'ژمێریاری تێچوون', teacherName: 'م. کامەران عەزیز', stage: '2', totalHours: 60, username: 'kamaran_acc', password: 'kamaran123' },
+        { id: 'crs_5', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'ژمێریاری پێشکەوتوو', teacherName: 'د. فەرهاد حەمە', stage: '3', totalHours: 60, username: 'farhad_acc', password: 'farhad123' },
+        { id: 'crs_6', deptId: 'dept_accounting', dept: 'dept_accounting', subject: 'وردبینی و پێداچوونەوە', teacherName: 'پ.د. سەردار عەلی', stage: '4', totalHours: 60, username: 'sardar_acc', password: 'sardar123' },
+
+        // بەشی کارگێڕی کار
+        { id: 'crs_7', deptId: 'dept_business', dept: 'dept_business', subject: 'پڕەنسیپەکانی کارگێڕی', teacherName: 'م. ڕێبوار کەمال', stage: '1', totalHours: 60, username: 'rebwar_bus', password: 'rebwar123' },
+        { id: 'crs_8', deptId: 'dept_business', dept: 'dept_business', subject: 'زانستی کۆمپیوتەر', teacherName: 'م. هێرش جەمال', stage: '1', totalHours: 40, username: 'hersh_bus', password: 'hersh123' },
+        { id: 'crs_9', deptId: 'dept_business', dept: 'dept_business', subject: 'بەڕێوەبردنی سەرچاوە مرۆییەکان', teacherName: 'د. نەوزاد ساڵح', stage: '2', totalHours: 60, username: 'nawzad_bus', password: 'nawzad123' },
+        { id: 'crs_10', deptId: 'dept_business', dept: 'dept_business', subject: 'کارگێڕی ستراتیژی', teacherName: 'د. ڕەوەند بەکر', stage: '3', totalHours: 60, username: 'rawand_bus', password: 'rawand123' },
+        { id: 'crs_11', deptId: 'dept_business', dept: 'dept_business', subject: 'کارگێڕی پرۆژەکان', teacherName: 'پ.د. ئاراس قادر', stage: '4', totalHours: 60, username: 'aras_bus', password: 'aras123' },
+
+        // بەشی ئابووری
+        { id: 'crs_12', deptId: 'dept_economics', dept: 'dept_economics', subject: 'مایکرۆ ئابووری', teacherName: 'د. شوان عەلی', stage: '1', totalHours: 60, username: 'shwan_econ', password: 'shwan123' },
+        { id: 'crs_13', deptId: 'dept_economics', dept: 'dept_economics', subject: 'بیرکاری بۆ ئابووریناسان', teacherName: 'م. ئامانج مەجید', stage: '1', totalHours: 40, username: 'amanj_econ', password: 'amanj123' },
+        { id: 'crs_14', deptId: 'dept_economics', dept: 'dept_economics', subject: 'ماکرۆ ئابووری', teacherName: 'د. سەرکەوت حوسێن', stage: '2', totalHours: 60, username: 'sarkawt_econ', password: 'sarkawt123' },
+        { id: 'crs_15', deptId: 'dept_economics', dept: 'dept_economics', subject: 'ئابووری نێودەوڵەتی', teacherName: 'م. بێستوون فوئاد', stage: '3', totalHours: 60, username: 'bestun_econ', password: 'bestun123' },
+        { id: 'crs_16', deptId: 'dept_economics', dept: 'dept_economics', subject: 'گەشەپێدانی ئابووری', teacherName: 'د. نەبەز عەبدوڵڵا', stage: '4', totalHours: 60, username: 'nabaz_econ', password: 'nabaz123' },
+
+        // بەشی کارگێڕی بەبازاڕکردن
+        { id: 'crs_17', deptId: 'dept_finance', dept: 'dept_finance', subject: 'بنەماکانی بەبازاڕکردن', teacherName: 'م. ئاری دارا', stage: '1', totalHours: 60, username: 'ari_fin', password: 'ari123' },
+        { id: 'crs_18', deptId: 'dept_finance', dept: 'dept_finance', subject: 'پەیوەندییە گشتییەکان', teacherName: 'م. جوانۆ تەها', stage: '1', totalHours: 40, username: 'jwano_fin', password: 'jwano123' },
+        { id: 'crs_19', deptId: 'dept_finance', dept: 'dept_finance', subject: 'ڕەفتاری بەکاربەر', teacherName: 'د. لاوان نەریمان', stage: '2', totalHours: 60, username: 'lawan_fin', password: 'lawan123' },
+        { id: 'crs_20', deptId: 'dept_finance', dept: 'dept_finance', subject: 'بەبازاڕکردنی دیجیتاڵی', teacherName: 'م. دیلان تاریق', stage: '3', totalHours: 60, username: 'dilan_fin', password: 'dilan123' },
+        { id: 'crs_21', deptId: 'dept_finance', dept: 'dept_finance', subject: 'ستراتیژی بەبازاڕکردن', teacherName: 'د. کاوە ئەحمەد', stage: '4', totalHours: 60, username: 'kawa_fin', password: 'kawa123' },
+
+        // بەشی ئامار و زانیاری
+        { id: 'crs_22', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'ئاماری سەرەتایی', teacherName: 'د. دانا جەمیل', stage: '1', totalHours: 60, username: 'dana_stat', password: 'dana123' },
+        { id: 'crs_23', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'بیرکاری سەرەتایی', teacherName: 'م. دڵشاد فەتاح', stage: '1', totalHours: 40, username: 'dilshad_stat', password: 'dilshad123' },
+        { id: 'crs_24', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'ئەگەرو گریمانە', teacherName: 'م. زانا حامید', stage: '2', totalHours: 60, username: 'zana_stat', password: 'zana123' },
+        { id: 'crs_25', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'شیکاری ئاماری پێشکەوتوو', teacherName: 'د. شێرکۆ کەریم', stage: '3', totalHours: 60, username: 'sherko_stat', password: 'sherko123' },
+        { id: 'crs_26', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'زنجیرەی کاتی', teacherName: 'پ.د. عەلی ڕەزا', stage: '4', totalHours: 60, username: 'ali_stat', password: 'ali123' }
+    ];
+
+    const BASE_SYSTEM_USERS = [
+        { username: 'superadmin', password: 'admin123', name: 'سەرپەرشتیاری گشتی (سوپەر ئادمین)', role: 'superadmin', avatarColor: 'amber' },
+        { username: 'accounting', password: 'acc123', name: 'بەڕێوەبەری بەشی ژمێریاری', role: 'department', deptId: 'dept_accounting', deptName: 'بەشی ژمێریاری', avatarColor: 'emerald' },
+        { username: 'business', password: 'bus123', name: 'بەڕێوەبەری بەشی کارگێڕی کار', role: 'department', deptId: 'dept_business', deptName: 'بەشی کارگێڕی کار', avatarColor: 'blue' },
+        { username: 'economics', password: 'econ123', name: 'بەڕێوەبەری بەشی ئابووری', role: 'department', deptId: 'dept_economics', deptName: 'بەشی ئابووری', avatarColor: 'purple' },
+        { username: 'finance', password: 'fin123', name: 'بەڕێوەبەری بەشی کارگێڕی بەبازاڕکردن', role: 'department', deptId: 'dept_finance', deptName: 'بەشی کارگێڕی بەبازاڕکردن', avatarColor: 'teal' },
+        { username: 'statistics', password: 'stat123', name: 'بەڕێوەبەری بەشی ئامار و زانیاری', role: 'department', deptId: 'dept_statistics', deptName: 'بەشی ئامار و زانیاری', avatarColor: 'amber' }
+    ];
+
     // Initialize Firebase SDK
     function initFirebase() {
         if (typeof firebase === 'undefined') {
@@ -73,6 +120,14 @@
 
         // Check if remote has data or if we should perform initial seed
         const metaDocRef = db.collection('system_meta').doc('sync_state');
+
+        // Always check if users or courses collection is empty on cloud
+        db.collection('users').limit(1).get().then(uSnap => {
+            if (uSnap.empty) {
+                console.log('[Firebase] Cloud users collection is empty. Pushing all users and courses now...');
+                pushAllLocalToCloud(true);
+            }
+        }).catch(() => {});
 
         metaDocRef.get().then(doc => {
             if (!doc.exists) {
@@ -310,11 +365,39 @@
             setSyncingState(true);
             renderStatusBadge('syncing', 'داتاکان دەنێردرێنە فایەربەیس...');
 
-            const localStudents = JSON.parse(localStorage.getItem('college_students') || '[]');
-            const localCourses = JSON.parse(localStorage.getItem('college_courses') || '[]');
-            const localSessions = JSON.parse(localStorage.getItem('college_attendance_sessions') || '[]');
-            const localUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
-            const localAudit = JSON.parse(localStorage.getItem('college_audit_logs') || '[]');
+            // Merge default courses with any local additions
+            let localCourses = JSON.parse(localStorage.getItem('college_courses') || '[]');
+            const cMap = new Map();
+            DEFAULT_COURSES.forEach(c => cMap.set(c.id, c));
+            localCourses.forEach(c => cMap.set(c.id, c));
+            localCourses = Array.from(cMap.values());
+            localStorage.setItem('college_courses', JSON.stringify(localCourses));
+
+            // Merge base users, default courses as teachers, and any local additions
+            let localUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+            const uMap = new Map();
+            BASE_SYSTEM_USERS.forEach(u => uMap.set(u.username.toLowerCase(), u));
+            localCourses.forEach(c => {
+                if (c.username) {
+                    uMap.set(c.username.toLowerCase().trim(), {
+                        username: c.username.toLowerCase().trim(),
+                        password: c.password,
+                        name: c.teacherName,
+                        role: 'teacher',
+                        deptId: c.deptId || c.dept || 'dept_accounting',
+                        dept: c.deptId || c.dept || 'dept_accounting',
+                        subject: c.subject,
+                        stage: String(c.stage || '1'),
+                        totalHours: parseInt(c.totalHours) || 60,
+                        avatarColor: 'indigo'
+                    });
+                }
+            });
+            localUsers.forEach(u => {
+                if (u.username) uMap.set(u.username.toLowerCase().trim(), u);
+            });
+            localUsers = Array.from(uMap.values());
+            localStorage.setItem('college_auth_users', JSON.stringify(localUsers));
 
             // Save students in batch
             if (localStudents.length > 0) {

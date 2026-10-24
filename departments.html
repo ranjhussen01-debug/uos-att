@@ -1457,15 +1457,17 @@
                 let authUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
                 courses.forEach(c => {
                     const idx = authUsers.findIndex(u => u.username && u.username.toLowerCase() === c.username.toLowerCase());
+                    const deptKey = c.deptId || c.dept || 'dept_accounting';
                     const userObj = {
                         username: c.username.toLowerCase().trim(),
                         password: c.password,
                         name: c.teacherName,
                         role: 'teacher',
-                        deptId: c.dept,
-                        deptName: DEPARTMENTS[c.dept]?.name || '',
+                        deptId: deptKey,
+                        dept: deptKey,
+                        deptName: DEPARTMENTS[deptKey]?.name || '',
                         subject: c.subject,
-                        stage: c.stage,
+                        stage: String(c.stage || '1'),
                         totalHours: parseInt(c.totalHours) || 60,
                         avatarColor: 'indigo'
                     };
