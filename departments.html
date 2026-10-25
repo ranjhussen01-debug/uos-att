@@ -314,6 +314,14 @@
                         <i class="fa-solid fa-plus-circle"></i>
                         <span>دروستکردنی هەژماری وانە</span>
                     </button>
+                    <button onclick="manualSyncFromCloud()" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-1.5 border border-amber-400/30 shadow" title="هێنان و نوێکردنەوەی هەموو داتاکانی سەر فایەربەیس">
+                        <i class="fa-solid fa-cloud-arrow-down text-amber-400"></i>
+                        <span>هاوکاتکردنی کلاود</span>
+                    </button>
+                    <button onclick="openDeviceSyncModal()" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 font-bold px-3 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-1.5 border border-emerald-400/30 shadow" title="گواستنەوەی خێرا لە نێوان مۆبایل و کۆمپیوتەر">
+                        <i class="fa-solid fa-mobile-screen-button text-emerald-400"></i>
+                        <span>گواستنەوە بۆ ئامێری تر</span>
+                    </button>
                     <button onclick="switchDeptTab('courses')" class="bg-white/10 hover:bg-white/20 text-white font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center gap-2 border border-white/20">
                         <i class="fa-solid fa-chalkboard-user text-indigo-300"></i>
                         <span>وانە و مامۆستایان</span>
@@ -1206,21 +1214,86 @@
 
             initDateInputs();
             renderDepartmentView();
-            setTimeout(syncCoursesToCloudUsers, 1000);
+
+            // Set up Realtime Sync Listener from FirebaseService
+            if (window.FirebaseService && typeof window.FirebaseService.onSync === 'function') {
+                window.FirebaseService.onSync((eventType, data) => {
+                    console.log('[Departments] Cloud sync event:', eventType);
+                    if (eventType === 'courses_updated' && Array.isArray(data)) {
+                        courses = data;
+                        syncAllCoursesToAuthUsers();
+                        renderDeptCoursesTable();
+                        renderDepartmentView();
+                    } else if (eventType === 'students_updated' && Array.isArray(data)) {
+                        students = data;
+                        renderDeptStudentsTable();
+                        renderDepartmentView();
+                    } else if (eventType === 'sessions_updated' && Array.isArray(data)) {
+                        attendanceSessions = data;
+                        renderDepartmentView();
+                    }
+                });
+            }
+
+            // Also listen for custom event college_cloud_sync
+            window.addEventListener('college_cloud_sync', (e) => {
+                const { eventType, data } = e.detail || {};
+                if (eventType === 'courses_updated' && Array.isArray(data)) {
+                    courses = data;
+                    syncAllCoursesToAuthUsers();
+                    renderDeptCoursesTable();
+                    renderDepartmentView();
+                } else if (eventType === 'students_updated' && Array.isArray(data)) {
+                    students = data;
+                    renderDeptStudentsTable();
+                    renderDepartmentView();
+                }
+            });
+
+            // Automatically pull all latest cloud data (courses, users, students) from Firebase
+            if (window.FirebaseService && typeof window.FirebaseService.pullAllFromCloud === 'function') {
+                window.FirebaseService.pullAllFromCloud().then(() => {
+                    const crsRaw = localStorage.getItem('college_courses');
+                    if (crsRaw) {
+                        try {
+                            const cloudCourses = JSON.parse(crsRaw);
+                            if (Array.isArray(cloudCourses) && cloudCourses.length > 0) {
+                                courses = cloudCourses;
+                                syncAllCoursesToAuthUsers();
+                                renderDeptCoursesTable();
+                                renderDepartmentView();
+                            }
+                        } catch(e) {}
+                    }
+                    const stuRaw = localStorage.getItem('college_students');
+                    if (stuRaw) {
+                        try {
+                            const cloudStudents = JSON.parse(stuRaw);
+                            if (Array.isArray(cloudStudents) && cloudStudents.length > 0) {
+                                students = cloudStudents;
+                                renderDeptStudentsTable();
+                                renderDepartmentView();
+                            }
+                        } catch(e) {}
+                    }
+                    // Auto-sync any local courses that may not be in cloud yet
+                    setTimeout(syncAllCoursesToCloud, 1200);
+                });
+            }
         });
 
         function initStorage() {
             const DATA_VERSION = 'v3_rich_stages_absence';
             if (localStorage.getItem('college_data_version') !== DATA_VERSION) {
-                localStorage.setItem('college_students', JSON.stringify(DEFAULT_STUDENTS));
-                localStorage.setItem('college_courses', JSON.stringify(DEFAULT_COURSES));
-                localStorage.setItem('college_attendance_sessions', JSON.stringify(DEFAULT_SESSIONS));
+                if (!localStorage.getItem('college_students')) localStorage.setItem('college_students', JSON.stringify(DEFAULT_STUDENTS));
+                if (!localStorage.getItem('college_courses')) localStorage.setItem('college_courses', JSON.stringify(DEFAULT_COURSES));
+                if (!localStorage.getItem('college_attendance_sessions')) localStorage.setItem('college_attendance_sessions', JSON.stringify(DEFAULT_SESSIONS));
                 localStorage.setItem('college_data_version', DATA_VERSION);
             }
 
             const savedStudents = localStorage.getItem('college_students');
             if (savedStudents) {
-                students = JSON.parse(savedStudents);
+                try { students = JSON.parse(savedStudents); } catch(e) { students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS)); }
             } else {
                 students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS));
                 localStorage.setItem('college_students', JSON.stringify(students));
@@ -1507,12 +1580,12 @@
             }
         }
 
-        function syncCoursesToCloudUsers() {
-            if (!window.FirebaseService || typeof window.FirebaseService.saveUser !== 'function') return;
+        async function syncAllCoursesToCloud() {
+            if (!window.FirebaseService) return;
             try {
-                courses.forEach(c => {
-                    if (c.username) {
-                        const deptKey = c.deptId || c.dept || 'dept_accounting';
+                for (const c of courses) {
+                    if (c && c.username) {
+                        const deptKey = c.deptId || c.dept || currentActiveDept || 'dept_accounting';
                         const userObj = {
                             username: c.username.toLowerCase().trim(),
                             password: c.password,
@@ -1526,12 +1599,147 @@
                             totalHours: parseInt(c.totalHours) || 60,
                             avatarColor: 'indigo'
                         };
-                        window.FirebaseService.saveUser(userObj);
+                        if (typeof window.FirebaseService.saveUser === 'function') {
+                            await window.FirebaseService.saveUser(userObj);
+                        }
+                        if (typeof window.FirebaseService.saveCourse === 'function') {
+                            await window.FirebaseService.saveCourse(c);
+                        }
                     }
-                });
+                }
+                console.log('[Dashboard] All courses and teacher accounts successfully pushed to cloud.');
             } catch(e) {
-                console.warn("[Dashboard] Could not sync courses to cloud users:", e);
+                console.warn("[Dashboard] Could not sync all courses to cloud:", e);
             }
+        }
+
+        async function manualSyncFromCloud() {
+            if (!window.FirebaseService || typeof window.FirebaseService.pullAllFromCloud !== 'function') return;
+            Swal.fire({
+                title: 'هاوکاتکردن لەگەڵ فایەربەیس',
+                text: 'سەرجەم داتاکان، وانە نوێیەکان و هەژماری مامۆستایان لە کلاودەوە دەهێنرێن...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+            try {
+                await window.FirebaseService.pullAllFromCloud();
+                const crsRaw = localStorage.getItem('college_courses');
+                if (crsRaw) {
+                    courses = JSON.parse(crsRaw);
+                    syncAllCoursesToAuthUsers();
+                    renderDeptCoursesTable();
+                    renderDepartmentView();
+                }
+                const stuRaw = localStorage.getItem('college_students');
+                if (stuRaw) {
+                    students = JSON.parse(stuRaw);
+                    renderDeptStudentsTable();
+                    renderDepartmentView();
+                }
+                Swal.fire({
+                    icon: 'success',
+                    title: 'هاوکاتکردن سەرکەوتووبوو!',
+                    text: 'سەرجەم وانەکان و هەژمارە دروستکراوەکان بە سەرکەوتوویی بارکرانەوە.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } catch (err) {
+                Swal.fire('هەڵە', 'نەتوانرا هاوکاتکردن ئەنجام بدرێت: ' + err.message, 'error');
+            }
+        }
+
+        // Instant Cross-Device Sync Modal (Export / Import data directly without waiting for cloud quota)
+        function openDeviceSyncModal() {
+            const syncPayload = {
+                version: 'uatt_v1',
+                timestamp: Date.now(),
+                courses: courses,
+                students: students,
+                authUsers: JSON.parse(localStorage.getItem('college_auth_users') || '[]')
+            };
+            const jsonStr = JSON.stringify(syncPayload);
+            const base64Code = btoa(unescape(encodeURIComponent(jsonStr)));
+
+            Swal.fire({
+                title: 'گواستنەوەی دەستبەجێ لە نێوان مۆبایل و کۆمپیوتەر',
+                html: `
+                    <div class="text-right text-xs space-y-3 font-sans" dir="rtl">
+                        <p class="text-slate-300">ئەم کۆدە هەموو ئەو وانە، مامۆستا و خوێندکارانە دەگوێزێتەوە کە لەسەر ئەم ئامێرە دروستت کردوون، تا دەستبەجێ لەسەر ئامێرەکەی ترت دەربکەون:</p>
+                        
+                        <div>
+                            <label class="block font-bold text-amber-400 mb-1">کۆدی ئەم ئامێرە (بۆ کۆپیکردن):</label>
+                            <textarea id="syncExportCode" readonly class="w-full h-16 bg-slate-900 border border-slate-700 text-slate-300 rounded-xl p-2 text-[10px] font-mono select-all focus:outline-none">${base64Code}</textarea>
+                            <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('syncExportCode').value); Swal.showValidationMessage('کۆدەکە بە سەرکەوتوویی کۆپیکرا!');" class="mt-1.5 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 rounded-lg text-xs transition flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-copy"></i>
+                                <span>کۆپیکردنی کۆدەکە</span>
+                            </button>
+                        </div>
+
+                        <hr class="border-slate-800 my-2">
+
+                        <div>
+                            <label class="block font-bold text-emerald-400 mb-1">ئەگەر کۆدت لە مۆبایل یان کۆمپیوتەرەوە هێناوە، لێرە پەیستی بکە:</label>
+                            <textarea id="syncImportCode" placeholder="کۆدە کۆپیکراوەکە لێرە دابنێ..." class="w-full h-16 bg-slate-900 border border-slate-700 text-slate-200 rounded-xl p-2 text-[10px] font-mono focus:outline-none"></textarea>
+                        </div>
+                    </div>
+                `,
+                background: '#0f172a',
+                color: '#f8fafc',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa-solid fa-file-import ml-1"></i> هاوردەکردنی داتاکان',
+                cancelButtonText: 'داخستن',
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#64748b',
+                preConfirm: () => {
+                    const importText = document.getElementById('syncImportCode')?.value?.trim();
+                    if (!importText) return true;
+                    try {
+                        const decodedJson = decodeURIComponent(escape(atob(importText)));
+                        const parsed = JSON.parse(decodedJson);
+                        if (!parsed || !parsed.courses) throw new Error('فۆرماتی کۆدەکە دروست نییە');
+
+                        // Merge courses
+                        const cMap = new Map();
+                        courses.forEach(c => cMap.set(c.id, c));
+                        parsed.courses.forEach(c => cMap.set(c.id, c));
+                        courses = Array.from(cMap.values());
+                        localStorage.setItem('college_courses', JSON.stringify(courses));
+                        syncAllCoursesToAuthUsers();
+
+                        // Merge students
+                        if (parsed.students && Array.isArray(parsed.students)) {
+                            const sMap = new Map();
+                            students.forEach(s => sMap.set(s.id, s));
+                            parsed.students.forEach(s => sMap.set(s.id, s));
+                            students = Array.from(sMap.values());
+                            localStorage.setItem('college_students', JSON.stringify(students));
+                        }
+
+                        renderDeptCoursesTable();
+                        renderDeptStudentsTable();
+                        renderDepartmentView();
+
+                        // Try to push to cloud in background
+                        syncAllCoursesToCloud();
+
+                        return true;
+                    } catch (e) {
+                        Swal.showValidationMessage('کۆدەکە دروست نییە: ' + e.message);
+                        return false;
+                    }
+                }
+            }).then((res) => {
+                if (res.isConfirmed && document.getElementById('syncImportCode')?.value?.trim()) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'سەرجەم داتاکان گوازرانەوە!',
+                        text: 'هەموو ئەو وانە و هەژمارانەی لە ئامێرەکەی ترت دروستت کردبوون، ئێستا لێرە بە سەرکەوتوویی بارکران.',
+                        background: '#0f172a',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#10b981'
+                    });
+                }
+            });
         }
 
         function renderDeptCoursesTable() {
@@ -1652,8 +1860,11 @@
             document.getElementById('deptCourseModal').classList.remove('hidden');
         }
 
-        function saveCourseModal(e) {
+        async function saveCourseModal(e) {
             e.preventDefault();
+            const submitBtn = e.target.querySelector('button[type="submit"]') || e.submitter;
+            const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+
             const id = document.getElementById('courseModalId').value;
             const subject = document.getElementById('courseSubjectInput').value.trim();
             const teacherName = document.getElementById('courseTeacherNameInput').value.trim();
@@ -1668,7 +1879,7 @@
             }
 
             // Check if username taken by another course
-            const existingCourse = courses.find(c => c.username.toLowerCase() === username && c.id !== id);
+            const existingCourse = courses.find(c => c.username && c.username.toLowerCase() === username && c.id !== id);
             if (existingCourse) {
                 Swal.fire({
                     icon: 'warning',
@@ -1678,6 +1889,11 @@
                     confirmButtonColor: '#4f46e5'
                 });
                 return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner animate-spin ml-1.5"></i> تۆمارکردن لە فایەربەیس...';
             }
 
             let oldUsername = null;
@@ -1731,36 +1947,44 @@
                 avatarColor: 'indigo'
             };
 
-            // If username was updated, delete old username from cloud 'users' collection
-            if (oldUsername && oldUsername.toLowerCase() !== username && window.FirebaseService && typeof window.FirebaseService.deleteUser === 'function') {
-                window.FirebaseService.deleteUser(oldUsername);
-            }
-
-            // Sync to Firebase directly: BOTH to 'users' collection AND 'courses' collection
-            if (window.FirebaseService) {
-                if (typeof window.FirebaseService.saveUser === 'function') {
-                    window.FirebaseService.saveUser(userObj).then(() => {
-                        console.log('[Dashboard] User successfully written to Firestore "users" collection:', username);
-                    }).catch(err => {
-                        console.warn('[Dashboard] Could not write user to Firestore:', err);
-                    });
+            try {
+                // If username was updated, delete old username from cloud 'users' collection
+                if (oldUsername && oldUsername.toLowerCase() !== username && window.FirebaseService && typeof window.FirebaseService.deleteUser === 'function') {
+                    await window.FirebaseService.deleteUser(oldUsername);
                 }
-                if (typeof window.FirebaseService.saveCourse === 'function' && savedCourseObj) {
-                    window.FirebaseService.saveCourse(savedCourseObj);
+
+                // Sync to Firebase directly: BOTH to 'users' collection AND 'courses' collection
+                if (window.FirebaseService) {
+                    if (typeof window.FirebaseService.saveUser === 'function') {
+                        await window.FirebaseService.saveUser(userObj);
+                    }
+                    if (typeof window.FirebaseService.saveCourse === 'function' && savedCourseObj) {
+                        await window.FirebaseService.saveCourse(savedCourseObj);
+                    }
+                }
+
+                closeCourseModal();
+                renderDeptCoursesTable();
+                renderDepartmentView();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: id ? 'زانیارییەکان نوێکرانەوە' : 'هەژماری مامۆستا بە سەرکەوتوویی دروستکرا!',
+                    html: `هەژماری وانەی <b>${subject}</b> بۆ مامۆستا <b>${teacherName}</b> ڕاستەوخۆ لە داتابەیسی فایەربەیس لە هەردوو خشتەی (Users و Courses) تۆمارکرا و دەستبەجێ لە کۆمپیوتەر و هەموو ئامێرەکان بەردەستە.`,
+                    confirmButtonText: 'باشە',
+                    confirmButtonColor: '#4f46e5'
+                });
+            } catch (err) {
+                console.error('[Dashboard] Error during saveCourseModal:', err);
+                closeCourseModal();
+                renderDeptCoursesTable();
+                Swal.fire('ئاگاداری', 'هەژمارەکە لە مۆبایل پاشەکەوت کرا، بەڵام کێشەیەک ڕوویدا لە پەیوەستبوون بە کلاود: ' + (err.message || ''), 'warning');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
                 }
             }
-
-            closeCourseModal();
-            renderDeptCoursesTable();
-
-            Swal.fire({
-                toast: true,
-                position: 'top-start',
-                icon: 'success',
-                title: id ? 'زانیاری هەژماری وانە نوێکرایەوە' : 'هەژماری مامۆستا دروستکرا و تۆمارکرا لە بەشی Users',
-                showConfirmButton: false,
-                timer: 2500
-            });
         }
 
         function deleteCourse(courseId) {

@@ -739,6 +739,17 @@
     // Notify local application UI if render functions exist
     function notifyLocalApp(eventType, data) {
         try {
+            // Update in-memory global variables across active dashboards
+            if (eventType === 'courses_updated' && Array.isArray(data)) {
+                if (typeof courses !== 'undefined') courses = data;
+            }
+            if (eventType === 'students_updated' && Array.isArray(data)) {
+                if (typeof students !== 'undefined') students = data;
+            }
+            if (eventType === 'sessions_updated' && Array.isArray(data)) {
+                if (typeof attendanceSessions !== 'undefined') attendanceSessions = data;
+            }
+
             // Update auth/course in teacher page if available
             if (typeof initAuthAndUser === 'function' && (eventType === 'courses_updated' || eventType === 'users_updated')) {
                 initAuthAndUser();
@@ -746,15 +757,9 @@
 
             // Check if page has render functions
             if (typeof renderAttendanceSheet === 'function') {
-                if (eventType === 'students_updated' && Array.isArray(data)) {
-                    if (typeof students !== 'undefined') students = data;
-                }
                 renderAttendanceSheet();
             }
             if (typeof renderSuperAdminView === 'function') {
-                if (eventType === 'students_updated' && Array.isArray(data)) {
-                    if (typeof students !== 'undefined') students = data;
-                }
                 renderSuperAdminView();
             }
             if (typeof renderDepartmentView === 'function') {
@@ -769,6 +774,11 @@
             if (typeof renderSessionsHistory === 'function') {
                 renderSessionsHistory();
             }
+
+            // Dispatch global event for any modern listeners
+            try {
+                window.dispatchEvent(new CustomEvent('college_cloud_sync', { detail: { eventType, data } }));
+            } catch (e) {}
         } catch (err) {
             console.warn('[Firebase] Notify local app error:', err);
         }
