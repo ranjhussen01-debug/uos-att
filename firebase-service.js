@@ -818,7 +818,7 @@
         if (!badge) {
             badge = document.createElement('div');
             badge.id = 'firebaseStatusBadge';
-            badge.className = 'fixed bottom-3 left-3 z-50 flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-white px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl shadow-xl text-[11px] sm:text-xs font-bold transition-all duration-300 hover:scale-105 cursor-pointer max-w-[90vw] select-none';
+            badge.className = 'fixed bottom-14 sm:bottom-3 left-3 z-40 flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-white px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl shadow-xl text-[11px] sm:text-xs font-bold transition-all duration-300 hover:scale-105 cursor-pointer max-w-[90vw] whitespace-nowrap select-none';
             badge.setAttribute('dir', 'rtl');
             badge.onclick = showSyncModal;
             document.body.appendChild(badge);

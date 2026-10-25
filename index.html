@@ -69,11 +69,24 @@
     </script>
 
     <style>
-        * {
-            font-family: 'Vazirmatn', 'Noto Kufi Arabic', 'Tajawal', sans-serif !important;
+        body, input, button, select, textarea, p, span, h1, h2, h3, h4, h5, h6, table, th, td, div, label, a {
+            font-family: 'Vazirmatn', 'Noto Kufi Arabic', 'Tajawal', sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
+        }
+
+        /* Protect FontAwesome icons */
+        .fa, .fas, .far, .fal, .fad, .fab, .fa-solid, .fa-regular, .fa-brands, [class^="fa-"], [class*=" fa-"], i[class*="fa-"] {
+            font-family: "Font Awesome 6 Free" !important;
+            font-weight: 900 !important;
+            font-style: normal !important;
+            display: inline-block;
+            text-rendering: auto;
+            -webkit-font-smoothing: antialiased;
+        }
+        .fa-brands, [class*="fa-brands"] {
+            font-family: "Font Awesome 6 Brands" !important;
         }
 
         html, body {

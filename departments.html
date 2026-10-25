@@ -44,11 +44,24 @@
     <script src="firebase-service.js"></script>
 
     <style>
-        * {
-            font-family: 'Vazirmatn', 'Noto Kufi Arabic', 'Tajawal', sans-serif !important;
+        body, input, button, select, textarea, p, span, h1, h2, h3, h4, h5, h6, table, th, td, div, label, a {
+            font-family: 'Vazirmatn', 'Noto Kufi Arabic', 'Tajawal', sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
+        }
+
+        /* Protect FontAwesome icons from being overridden by Kurdish font */
+        .fa, .fas, .far, .fal, .fad, .fab, .fa-solid, .fa-regular, .fa-brands, [class^="fa-"], [class*=" fa-"], i[class*="fa-"] {
+            font-family: "Font Awesome 6 Free" !important;
+            font-weight: 900 !important;
+            font-style: normal !important;
+            display: inline-block;
+            text-rendering: auto;
+            -webkit-font-smoothing: antialiased;
+        }
+        .fa-brands, [class*="fa-brands"] {
+            font-family: "Font Awesome 6 Brands" !important;
         }
 
         html, body {
@@ -281,7 +294,7 @@
     </nav>
 
     <!-- MAIN DEPARTMENT CONTAINER -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-32 sm:pb-16 space-y-6 flex-1">
         
         <!-- DEPARTMENT HERO BANNER -->
         <div id="deptHeroBanner" class="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl transition-all duration-300 bg-gradient-to-l from-blue-900 via-slate-900 to-slate-950 border border-slate-700">
@@ -378,16 +391,16 @@
                     </div>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-right text-sm">
+                <div class="overflow-x-auto scrollbar-thin">
+                    <table class="w-full min-w-[650px] text-right text-sm whitespace-nowrap">
                         <thead class="bg-slate-50 text-slate-500 text-xs font-bold uppercase border-y border-slate-200">
                             <tr>
-                                <th class="py-3 px-4">کۆد</th>
-                                <th class="py-3 px-4">ناوی خوێندکار</th>
-                                <th class="py-3 px-4">قۆناغ</th>
-                                <th class="py-3 px-4 text-center">کاتژمێری غیابات</th>
-                                <th class="py-3 px-4 text-center">ڕێژەی غیابات</th>
-                                <th class="py-3 px-4 text-center">بارودۆخ</th>
+                                <th class="py-3 px-4 whitespace-nowrap">کۆد</th>
+                                <th class="py-3 px-4 whitespace-nowrap">ناوی خوێندکار</th>
+                                <th class="py-3 px-4 whitespace-nowrap">قۆناغ</th>
+                                <th class="py-3 px-4 text-center whitespace-nowrap">کاتژمێری غیابات</th>
+                                <th class="py-3 px-4 text-center whitespace-nowrap">ڕێژەی غیابات</th>
+                                <th class="py-3 px-4 text-center whitespace-nowrap">بارودۆخ</th>
                             </tr>
                         </thead>
                         <tbody id="deptWarningTableBody" class="divide-y divide-slate-100">
@@ -437,18 +450,23 @@
             </div>
 
             <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-right text-sm">
+                <!-- Mobile Hint -->
+                <div class="block sm:hidden px-4 py-2.5 bg-indigo-50/70 border-b border-indigo-100 text-[11px] text-indigo-700 font-bold flex items-center justify-between">
+                    <span><i class="fa-solid fa-arrows-left-right ml-1"></i> خشتەکە بە لای ڕاست و چەپدا ڕابکێشە بۆ بینینی سەرجەم ستوونەکان</span>
+                    <i class="fa-solid fa-hand-pointer text-indigo-400 animate-pulse"></i>
+                </div>
+                <div class="overflow-x-auto scrollbar-thin">
+                    <table class="w-full min-w-[850px] text-right text-sm whitespace-nowrap">
                         <thead class="bg-slate-100/80 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
                             <tr>
-                                <th class="py-3 px-4 w-12 text-center">#</th>
-                                <th class="py-3 px-4">ناوی بابەت / وانە</th>
-                                <th class="py-3 px-4">ناوی مامۆستای وانەبێژ</th>
-                                <th class="py-3 px-4 text-center">قۆناغ</th>
-                                <th class="py-3 px-4 font-mono">ناوی بەکارهێنەر (Username)</th>
-                                <th class="py-3 px-4 font-mono">وشەی نهێنی (Password)</th>
-                                <th class="py-3 px-4 text-center">تۆتاڵ هاوەری وانەکە</th>
-                                <th class="py-3 px-4 text-center">کردارەکان</th>
+                                <th class="py-3 px-4 w-12 text-center whitespace-nowrap">#</th>
+                                <th class="py-3 px-4 min-w-[160px] whitespace-nowrap">ناوی بابەت / وانە</th>
+                                <th class="py-3 px-4 min-w-[160px] whitespace-nowrap">ناوی مامۆستای وانەبێژ</th>
+                                <th class="py-3 px-4 min-w-[100px] text-center whitespace-nowrap">قۆناغ</th>
+                                <th class="py-3 px-4 min-w-[130px] font-mono whitespace-nowrap">ناوی بەکارهێنەر (Username)</th>
+                                <th class="py-3 px-4 min-w-[130px] font-mono whitespace-nowrap">وشەی نهێنی (Password)</th>
+                                <th class="py-3 px-4 min-w-[120px] text-center whitespace-nowrap">تۆتاڵ هاوەری وانەکە</th>
+                                <th class="py-3 px-4 min-w-[140px] text-center whitespace-nowrap">کردارەکان</th>
                             </tr>
                         </thead>
                         <tbody id="deptCoursesTableBody" class="divide-y divide-slate-100">
@@ -508,18 +526,23 @@
             </div>
 
             <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-right text-sm">
+                <!-- Mobile Hint -->
+                <div class="block sm:hidden px-4 py-2.5 bg-indigo-50/70 border-b border-indigo-100 text-[11px] text-indigo-700 font-bold flex items-center justify-between">
+                    <span><i class="fa-solid fa-arrows-left-right ml-1"></i> خشتەکە بە لای ڕاست و چەپدا ڕابکێشە بۆ بینینی سەرجەم ستوونەکان</span>
+                    <i class="fa-solid fa-hand-pointer text-indigo-400 animate-pulse"></i>
+                </div>
+                <div class="overflow-x-auto scrollbar-thin">
+                    <table class="w-full min-w-[850px] text-right text-sm whitespace-nowrap">
                         <thead class="bg-slate-100/80 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
                             <tr>
-                                <th class="py-3 px-4 w-12 text-center">#</th>
-                                <th class="py-3 px-4">کۆدی زانکۆیی</th>
-                                <th class="py-3 px-4">ناوی تەواوی خوێندکار</th>
-                                <th class="py-3 px-4">قۆناغ</th>
-                                <th class="py-3 px-4">خوێندن / گرووپ</th>
-                                <th class="py-3 px-4 text-center">کۆی غیابات</th>
-                                <th class="py-3 px-4 text-center">ڕێژە</th>
-                                <th class="py-3 px-4 text-center">کردارەکان</th>
+                                <th class="py-3 px-4 w-12 text-center whitespace-nowrap">#</th>
+                                <th class="py-3 px-4 min-w-[120px] whitespace-nowrap">کۆدی زانکۆیی</th>
+                                <th class="py-3 px-4 min-w-[180px] whitespace-nowrap">ناوی تەواوی خوێندکار</th>
+                                <th class="py-3 px-4 min-w-[100px] whitespace-nowrap">قۆناغ</th>
+                                <th class="py-3 px-4 min-w-[120px] whitespace-nowrap">خوێندن / گرووپ</th>
+                                <th class="py-3 px-4 min-w-[100px] text-center whitespace-nowrap">کۆی غیابات</th>
+                                <th class="py-3 px-4 min-w-[90px] text-center whitespace-nowrap">ڕێژە</th>
+                                <th class="py-3 px-4 min-w-[120px] text-center whitespace-nowrap">کردارەکان</th>
                             </tr>
                         </thead>
                         <tbody id="deptStudentsTableBody" class="divide-y divide-slate-100">
@@ -1543,51 +1566,51 @@
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
                 tr.innerHTML = `
-                    <td class="py-3 px-4 text-center font-bold text-xs text-slate-400">${idx + 1}</td>
-                    <td class="py-3 px-4 font-bold text-slate-900">
+                    <td class="py-3 px-4 text-center font-bold text-xs text-slate-400 whitespace-nowrap">${idx + 1}</td>
+                    <td class="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">
                         <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-book-bookmark text-indigo-500 text-sm"></i>
-                            <span class="text-sm font-black">${course.subject}</span>
+                            <i class="fa-solid fa-book-bookmark text-indigo-500 text-sm flex-shrink-0"></i>
+                            <span class="text-sm font-black whitespace-nowrap">${course.subject}</span>
                         </div>
                     </td>
-                    <td class="py-3 px-4 font-bold text-slate-800">
+                    <td class="py-3 px-4 font-bold text-slate-800 whitespace-nowrap">
                         <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-chalkboard-user text-slate-400 text-xs"></i>
-                            <span>${course.teacherName}</span>
+                            <i class="fa-solid fa-chalkboard-user text-slate-400 text-xs flex-shrink-0"></i>
+                            <span class="whitespace-nowrap">${course.teacherName}</span>
                         </div>
                     </td>
-                    <td class="py-3 px-4 text-center">
-                        <span class="inline-block bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-lg font-bold">
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <span class="inline-block bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-lg font-bold whitespace-nowrap">
                             قۆناغی ${getStageArabic(course.stage)}
                         </span>
                     </td>
-                    <td class="py-3 px-4">
-                        <span class="font-mono text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-md">
+                    <td class="py-3 px-4 whitespace-nowrap">
+                        <span class="font-mono text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-md inline-block whitespace-nowrap">
                             ${course.username}
                         </span>
                     </td>
-                    <td class="py-3 px-4">
-                        <span class="font-mono text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md">
+                    <td class="py-3 px-4 whitespace-nowrap">
+                        <span class="font-mono text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-md inline-block whitespace-nowrap">
                             ${course.password}
                         </span>
                     </td>
-                    <td class="py-3 px-4 text-center">
-                        <span class="inline-flex items-center gap-1 font-mono text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-xl">
-                            <i class="fa-solid fa-clock text-[10px] text-emerald-600"></i>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <span class="inline-flex items-center gap-1 font-mono text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-xl whitespace-nowrap">
+                            <i class="fa-solid fa-clock text-[10px] text-emerald-600 flex-shrink-0"></i>
                             ${course.totalHours || 60} کاتژمێر
                         </span>
                     </td>
-                    <td class="py-3 px-4 text-center">
-                        <div class="flex items-center justify-center gap-1.5">
-                            <button onclick="quickLaunchTeacher('${course.id}')" title="چوونە پەڕەی ئەم مامۆستایە" class="p-2 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition shadow-sm text-xs font-bold flex items-center gap-1">
-                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                <span class="hidden xl:inline">تۆمارکردن</span>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <div class="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                            <button onclick="quickLaunchTeacher('${course.id}')" title="چوونە پەڕەی ئەم مامۆستایە" class="px-2.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition shadow-sm text-xs font-bold flex items-center gap-1 whitespace-nowrap">
+                                <i class="fa-solid fa-arrow-up-right-from-square flex-shrink-0"></i>
+                                <span>تۆمارکردن</span>
                             </button>
                             <button onclick="editCourse('${course.id}')" title="دەستکاریکردن" class="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition text-xs">
-                                <i class="fa-solid fa-pen-to-square"></i>
+                                <i class="fa-solid fa-pen-to-square flex-shrink-0"></i>
                             </button>
                             <button onclick="deleteCourse('${course.id}')" title="سڕینەوە" class="p-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition text-xs">
-                                <i class="fa-solid fa-trash-can"></i>
+                                <i class="fa-solid fa-trash-can flex-shrink-0"></i>
                             </button>
                         </div>
                     </td>
@@ -1830,26 +1853,26 @@
                 const badgeColor = percentage >= 10 ? 'bg-rose-100 text-rose-800' : (percentage >= 5 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800');
 
                 const tr = document.createElement('tr');
-                tr.className = 'hover:bg-slate-50 transition';
+                tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
                 tr.innerHTML = `
-                    <td class="py-3 px-4 text-center font-bold text-slate-400 text-xs">${index + 1}</td>
-                    <td class="py-3 px-4 font-mono font-bold text-slate-700 text-xs">${student.code}</td>
-                    <td class="py-3 px-4 font-bold text-slate-800">${student.name}</td>
-                    <td class="py-3 px-4 text-xs font-semibold">قۆناغی ${getStageArabic(student.stage)}</td>
-                    <td class="py-3 px-4 text-xs text-slate-500">${student.study === 'evening' ? 'ئێواران' : 'بەیانیان'} (${student.group || 'A'})</td>
-                    <td class="py-3 px-4 text-center font-bold text-slate-800 font-mono">${student.absentHours || 0} کاتژمێر</td>
-                    <td class="py-3 px-4 text-center">
-                        <span class="text-xs px-2.5 py-0.5 rounded-full font-black ${badgeColor}">
+                    <td class="py-3 px-4 text-center font-bold text-slate-400 text-xs whitespace-nowrap">${index + 1}</td>
+                    <td class="py-3 px-4 font-mono font-bold text-slate-700 text-xs whitespace-nowrap">${student.code}</td>
+                    <td class="py-3 px-4 font-bold text-slate-800 whitespace-nowrap">${student.name}</td>
+                    <td class="py-3 px-4 text-xs font-semibold whitespace-nowrap">قۆناغی ${getStageArabic(student.stage)}</td>
+                    <td class="py-3 px-4 text-xs text-slate-500 whitespace-nowrap">${student.study === 'evening' ? 'ئێواران' : 'بەیانیان'} (${student.group || 'A'})</td>
+                    <td class="py-3 px-4 text-center font-bold text-slate-800 font-mono whitespace-nowrap">${student.absentHours || 0} کاتژمێر</td>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <span class="text-xs px-2.5 py-0.5 rounded-full font-black ${badgeColor} whitespace-nowrap">
                             %${percentage}
                         </span>
                     </td>
-                    <td class="py-3 px-4 text-center">
-                        <div class="flex items-center justify-center gap-1.5">
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <div class="flex items-center justify-center gap-1.5 whitespace-nowrap">
                             <button onclick="editStudent('${student.id}')" title="دەستکاریکردن" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center text-xs transition">
-                                <i class="fa-solid fa-pen"></i>
+                                <i class="fa-solid fa-pen flex-shrink-0"></i>
                             </button>
                             <button onclick="deleteStudent('${student.id}')" title="سڕینەوە" class="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center text-xs transition">
-                                <i class="fa-solid fa-trash"></i>
+                                <i class="fa-solid fa-trash flex-shrink-0"></i>
                             </button>
                         </div>
                     </td>
