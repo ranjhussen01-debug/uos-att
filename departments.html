@@ -1852,10 +1852,8 @@
             document.getElementById('deptCourseModal').classList.remove('hidden');
         }
 
-        async function saveCourseModal(e) {
+        function saveCourseModal(e) {
             e.preventDefault();
-            const submitBtn = e.target.querySelector('button[type="submit"]') || e.submitter;
-            const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
 
             const id = document.getElementById('courseModalId').value;
             const subject = document.getElementById('courseSubjectInput').value.trim();
@@ -1881,11 +1879,6 @@
                     confirmButtonColor: '#4f46e5'
                 });
                 return;
-            }
-
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fa-solid fa-spinner animate-spin ml-1.5"></i> تۆمارکردن لە فایەربەیس...';
             }
 
             let oldUsername = null;
@@ -1921,6 +1914,7 @@
                 courses.push(savedCourseObj);
             }
 
+            // Save locally first so the UI is instantaneous
             localStorage.setItem('college_courses', JSON.stringify(courses));
             syncAllCoursesToAuthUsers();
 
@@ -1939,42 +1933,41 @@
                 avatarColor: 'indigo'
             };
 
-            try {
-                // If username was updated, delete old username from cloud 'users' collection
-                if (oldUsername && oldUsername.toLowerCase() !== username && window.FirebaseService && typeof window.FirebaseService.deleteUser === 'function') {
-                    await window.FirebaseService.deleteUser(oldUsername);
+            // Immediately close modal and update table (no loading hang)
+            closeCourseModal();
+            renderDeptCoursesTable();
+            renderDepartmentView();
+
+            Swal.fire({
+                icon: 'success',
+                title: id ? 'زانیارییەکان نوێکرانەوە' : 'هەژماری مامۆستا بە سەرکەوتوویی دروستکرا!',
+                html: `هەژماری وانەی <b>${subject}</b> بۆ مامۆستا <b>${teacherName}</b> بە سەرکەوتوویی پاشەکەوت کرا و ڕاستەوخۆ لە فایەربەیس (Users) تۆمار دەبێت.`,
+                confirmButtonText: 'باشە',
+                confirmButtonColor: '#4f46e5',
+                timer: 2500
+            });
+
+            // Asynchronously sync to Firebase directly: BOTH to 'users' collection AND 'courses' collection
+            if (window.FirebaseService) {
+                // If username was changed, delete old doc from 'users'
+                if (oldUsername && oldUsername.toLowerCase() !== username && typeof window.FirebaseService.deleteUser === 'function') {
+                    window.FirebaseService.deleteUser(oldUsername).catch(e => console.warn('[Dashboard] Error removing old username:', e));
                 }
 
-                // Sync to Firebase directly: BOTH to 'users' collection AND 'courses' collection
-                if (window.FirebaseService) {
-                    if (typeof window.FirebaseService.saveUser === 'function') {
-                        await window.FirebaseService.saveUser(userObj);
-                    }
-                    if (typeof window.FirebaseService.saveCourse === 'function' && savedCourseObj) {
-                        await window.FirebaseService.saveCourse(savedCourseObj);
-                    }
+                if (typeof window.FirebaseService.saveUser === 'function') {
+                    window.FirebaseService.saveUser(userObj).then(() => {
+                        console.log('[Dashboard] ✅ User saved to Firestore "users" collection:', username);
+                    }).catch(err => {
+                        console.warn('[Dashboard] Error saving user to Firestore:', err);
+                    });
                 }
 
-                closeCourseModal();
-                renderDeptCoursesTable();
-                renderDepartmentView();
-
-                Swal.fire({
-                    icon: 'success',
-                    title: id ? 'زانیارییەکان نوێکرانەوە' : 'هەژماری مامۆستا بە سەرکەوتوویی دروستکرا!',
-                    html: `هەژماری وانەی <b>${subject}</b> بۆ مامۆستا <b>${teacherName}</b> ڕاستەوخۆ لە داتابەیسی فایەربەیس لە هەردوو خشتەی (Users و Courses) تۆمارکرا و دەستبەجێ لە کۆمپیوتەر و هەموو ئامێرەکان بەردەستە.`,
-                    confirmButtonText: 'باشە',
-                    confirmButtonColor: '#4f46e5'
-                });
-            } catch (err) {
-                console.error('[Dashboard] Error during saveCourseModal:', err);
-                closeCourseModal();
-                renderDeptCoursesTable();
-                Swal.fire('ئاگاداری', 'هەژمارەکە لە مۆبایل پاشەکەوت کرا، بەڵام کێشەیەک ڕوویدا لە پەیوەستبوون بە کلاود: ' + (err.message || ''), 'warning');
-            } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnHtml;
+                if (typeof window.FirebaseService.saveCourse === 'function' && savedCourseObj) {
+                    window.FirebaseService.saveCourse(savedCourseObj).then(() => {
+                        console.log('[Dashboard] ✅ Course saved to Firestore "courses" collection:', savedCourseObj.id);
+                    }).catch(err => {
+                        console.warn('[Dashboard] Error saving course to Firestore:', err);
+                    });
                 }
             }
         }

@@ -560,6 +560,13 @@
         }
     }
 
+    function withTimeout(promise, ms = 6000) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase network timeout')), ms))
+        ]);
+    }
+
     // Single course / teacher account save
     async function saveCourse(course) {
         if (!course || !course.id) return false;
@@ -569,6 +576,10 @@
             const idStr = String(course.id);
             const deptKey = course.deptId || course.dept || 'dept_accounting';
             const uName = (course.username || '').toLowerCase().trim();
+            const serverTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+                ? firebase.firestore.FieldValue.serverTimestamp()
+                : new Date().toISOString();
+
             const courseData = {
                 ...course,
                 id: idStr,
@@ -576,9 +587,9 @@
                 deptId: deptKey,
                 stage: String(course.stage || '1'),
                 username: uName,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                updatedAt: serverTs
             };
-            await db.collection('courses').doc(idStr).set(courseData, { merge: true });
+            await withTimeout(db.collection('courses').doc(idStr).set(courseData, { merge: true }), 6000);
             console.log('[Firebase] ✅ Course document saved to "courses" collection:', course.subject);
             
             // Also immediately register in users collection so login succeeds anywhere
@@ -594,9 +605,9 @@
                     stage: String(course.stage || '1'),
                     totalHours: parseInt(course.totalHours) || 60,
                     avatarColor: 'indigo',
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    updatedAt: serverTs
                 };
-                await db.collection('users').doc(uName).set(userObj, { merge: true });
+                await withTimeout(db.collection('users').doc(uName).set(userObj, { merge: true }), 6000);
                 console.log('[Firebase] ✅ Teacher user account registered in "users" collection:', uName);
             }
             return true;
@@ -613,7 +624,7 @@
         if (!db) initFirebase();
         if (!db) return false;
         try {
-            await db.collection('courses').doc(String(courseId)).delete();
+            await withTimeout(db.collection('courses').doc(String(courseId)).delete(), 6000);
             console.log('[Firebase] ✅ Course deleted from cloud:', courseId);
             return true;
         } catch (e) {
@@ -629,6 +640,10 @@
         if (!db) return false;
         try {
             const uName = String(user.username).toLowerCase().trim();
+            const serverTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+                ? firebase.firestore.FieldValue.serverTimestamp()
+                : new Date().toISOString();
+
             const userPayload = {
                 username: uName,
                 password: String(user.password || ''),
@@ -641,9 +656,9 @@
                 subject: user.subject || '',
                 totalHours: parseInt(user.totalHours) || 60,
                 avatarColor: user.avatarColor || 'indigo',
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                updatedAt: serverTs
             };
-            await db.collection('users').doc(uName).set(userPayload, { merge: true });
+            await withTimeout(db.collection('users').doc(uName).set(userPayload, { merge: true }), 6000);
             console.log('[Firebase] ✅ User account document saved to "users" collection:', uName, userPayload);
             return true;
         } catch (e) {
