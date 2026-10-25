@@ -1223,6 +1223,7 @@
                     } else if (eventType === 'sessions_updated' && Array.isArray(data)) {
                         attendanceSessions = data;
                         renderDepartmentView();
+                        if (typeof renderDeptReportsList === 'function') renderDeptReportsList();
                     }
                 });
             }
@@ -1239,10 +1240,14 @@
                     students = data;
                     renderDeptStudentsTable();
                     renderDepartmentView();
+                } else if (eventType === 'sessions_updated' && Array.isArray(data)) {
+                    attendanceSessions = data;
+                    renderDepartmentView();
+                    if (typeof renderDeptReportsList === 'function') renderDeptReportsList();
                 }
             });
 
-            // Automatically pull all latest cloud data (courses, users, students) from Firebase
+            // Automatically pull all latest cloud data (courses, users, students, sessions) from Firebase
             if (window.FirebaseService && typeof window.FirebaseService.pullAllFromCloud === 'function') {
                 window.FirebaseService.pullAllFromCloud().then(() => {
                     const crsRaw = localStorage.getItem('college_courses');
@@ -1265,6 +1270,17 @@
                                 students = cloudStudents;
                                 renderDeptStudentsTable();
                                 renderDepartmentView();
+                            }
+                        } catch(e) {}
+                    }
+                    const sessRaw = localStorage.getItem('college_attendance_sessions');
+                    if (sessRaw) {
+                        try {
+                            const cloudSessions = JSON.parse(sessRaw);
+                            if (Array.isArray(cloudSessions)) {
+                                attendanceSessions = cloudSessions;
+                                renderDepartmentView();
+                                if (typeof renderDeptReportsList === 'function') renderDeptReportsList();
                             }
                         } catch(e) {}
                     }

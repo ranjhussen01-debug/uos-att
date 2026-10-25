@@ -1241,6 +1241,27 @@
             initStorage();
             initDateInputs();
             renderSuperAdminView();
+
+            // Realtime Sync Listener
+            if (window.FirebaseService && typeof window.FirebaseService.onSync === 'function') {
+                window.FirebaseService.onSync((eventType, data) => {
+                    initStorage();
+                    renderSuperAdminView();
+                });
+            }
+
+            window.addEventListener('college_cloud_sync', () => {
+                initStorage();
+                renderSuperAdminView();
+            });
+
+            // Automatically pull all latest cloud data (courses, users, students, sessions) from Firebase
+            if (window.FirebaseService && typeof window.FirebaseService.pullAllFromCloud === 'function') {
+                window.FirebaseService.pullAllFromCloud().then(() => {
+                    initStorage();
+                    renderSuperAdminView();
+                }).catch(e => console.warn('[SuperAdmin] Cloud pull error:', e));
+            }
         });
 
         function initStorage() {

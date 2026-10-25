@@ -597,12 +597,32 @@
                 }
             });
 
-            window.addEventListener('college_storage_sync', () => {
+            // Listen for Realtime Cloud Sync
+            if (window.FirebaseService && typeof window.FirebaseService.onSync === 'function') {
+                window.FirebaseService.onSync((eventType, data) => {
+                    initStorage();
+                    initAuthAndUser();
+                    renderAttendanceSheet();
+                    renderSessionsHistory();
+                });
+            }
+
+            window.addEventListener('college_cloud_sync', () => {
                 initStorage();
                 initAuthAndUser();
                 renderAttendanceSheet();
                 renderSessionsHistory();
             });
+
+            // Automatically pull all latest courses, users and students from Firebase on startup
+            if (window.FirebaseService && typeof window.FirebaseService.pullAllFromCloud === 'function') {
+                window.FirebaseService.pullAllFromCloud().then(() => {
+                    initStorage();
+                    initAuthAndUser();
+                    renderAttendanceSheet();
+                    renderSessionsHistory();
+                }).catch(e => console.warn('[TeacherAttendance] Cloud pull error:', e));
+            }
         });
 
         function initStorage() {
@@ -844,9 +864,13 @@
         }
 
         function getFilteredStudents() {
-            const dept = document.getElementById('teacherDeptSelect').value;
-            const stage = String(document.getElementById('teacherStageSelect').value);
-            const studyGroup = document.getElementById('teacherStudyGroupSelect').value;
+            const dept = (currentCourse && (currentCourse.deptId || currentCourse.dept)) ||
+                         (authUser && (authUser.deptId || authUser.dept)) ||
+                         document.getElementById('teacherDeptSelect')?.value || 'dept_accounting';
+            const stage = String((currentCourse && currentCourse.stage) ||
+                                 (authUser && authUser.stage) ||
+                                 document.getElementById('teacherStageSelect')?.value || '1');
+            const studyGroup = document.getElementById('teacherStudyGroupSelect')?.value || 'all';
 
             return students.filter(s => {
                 const sDept = s.dept || s.deptId;
@@ -1045,11 +1069,19 @@
                 return;
             }
 
-            const dept = document.getElementById('teacherDeptSelect').value;
-            const stage = document.getElementById('teacherStageSelect').value;
-            const studyGroup = document.getElementById('teacherStudyGroupSelect').value;
-            const subject = document.getElementById('teacherSubjectInput').value.trim() || 'محازەرە';
-            const teacherName = document.getElementById('teacherLecturerNameInput').value.trim() || 'مامۆستای وانە';
+            const courseDept = (currentCourse && (currentCourse.deptId || currentCourse.dept)) ||
+                               (authUser && (authUser.deptId || authUser.dept)) ||
+                               document.getElementById('teacherDeptSelect')?.value || 'dept_accounting';
+            const courseStage = String((currentCourse && currentCourse.stage) ||
+                                       (authUser && authUser.stage) ||
+                                       document.getElementById('teacherStageSelect')?.value || '1');
+            const studyGroup = document.getElementById('teacherStudyGroupSelect')?.value || 'all';
+            const courseSubject = (currentCourse && currentCourse.subject) ||
+                                  (authUser && authUser.subject) ||
+                                  document.getElementById('teacherSubjectInput')?.value.trim() || 'محازەرە';
+            const lecturerName = (currentCourse && currentCourse.teacherName) ||
+                                 (authUser && authUser.name) ||
+                                 document.getElementById('teacherLecturerNameInput')?.value.trim() || 'مامۆستای وانە';
             const date = document.getElementById('teacherDateInput').value;
             const lectureHours = currentLectureHours;
 
@@ -1072,10 +1104,11 @@
             // Create new attendance session
             const newSession = {
                 id: 'sess_' + Date.now(),
-                dept: dept,
-                stage: stage,
-                subject: subject,
-                teacherName: teacherName,
+                dept: courseDept,
+                deptId: courseDept,
+                stage: courseStage,
+                subject: courseSubject,
+                teacherName: lecturerName,
                 totalCourseHours: currentCourseTotalHours,
                 lectureHours: lectureHours,
                 date: date,
@@ -1094,15 +1127,32 @@
                 localStorage.setItem('college_students', JSON.stringify(students));
             }
 
+            // Sync to Firebase directly: BOTH session AND modified students
+            if (window.FirebaseService) {
+                if (typeof window.FirebaseService.saveAttendanceSession === 'function') {
+                    window.FirebaseService.saveAttendanceSession(newSession).then(() => {
+                        console.log('[TeacherAttendance] ✅ Session saved to Firebase:', newSession.id);
+                    }).catch(e => console.warn(e));
+                }
+                if (!isDraft && typeof window.FirebaseService.saveStudent === 'function') {
+                    filtered.forEach(s => {
+                        const state = currentSheetStates[s.id];
+                        if (state && state.status === 'absent') {
+                            window.FirebaseService.saveStudent(s).catch(e => console.warn(e));
+                        }
+                    });
+                }
+            }
+
             // Log action in audit logs
             if (isDraft) {
-                logAuditAction(`پاشەکەوتکردنی درافتی محازەرەی ${subject} (${lectureHours} کاتژمێر)`, teacherName);
+                logAuditAction(`پاشەکەوتکردنی درافتی محازەرەی ${courseSubject} (${lectureHours} کاتژمێر)`, lecturerName);
                 Swal.fire({
                     icon: 'success',
                     title: 'ڕەشنووسی وانە بە سەرکەوتوویی وەک درافت پاشەکەوتکرا!',
                     html: `
                         <div class="text-right text-xs space-y-2 mt-3 p-3 bg-slate-900 rounded-xl border border-slate-700 text-slate-300">
-                            <div class="flex justify-between"><span>بابەت:</span><strong class="text-white">${subject}</strong></div>
+                            <div class="flex justify-between"><span>بابەت:</span><strong class="text-white">${courseSubject}</strong></div>
                             <div class="flex justify-between"><span>دۆخ:</span><strong class="text-amber-400">ڕەشنووس (درافت)</strong></div>
                             <div class="flex justify-between"><span>کاتژمێری محازەرە:</span><strong class="text-indigo-400">${lectureHours} کاتژمێر</strong></div>
                             <div class="flex justify-between"><span>خوێندکارانی غائیب:</span><strong class="text-rose-400">${absentCount} خوێندکار</strong></div>
@@ -1115,14 +1165,14 @@
                     color: '#f8fafc'
                 });
             } else {
-                logAuditAction(`ناردنی دەستبەجێی غیاباتی محازەرەی ${subject} بۆ دەپارتمێنت ئەدمین`, teacherName);
+                logAuditAction(`ناردنی دەستبەجێی غیاباتی محازەرەی ${courseSubject} بۆ دەپارتمێنت ئەدمین`, lecturerName);
                 Swal.fire({
                     icon: 'success',
                     title: 'غیاباتی محازەرە ڕاستەوخۆ نێردرا بۆ دەپارتمێنت ئەدمین!',
                     html: `
                         <div class="text-right text-xs space-y-2 mt-3 p-3 bg-slate-900 rounded-xl border border-slate-700 text-slate-300">
-                            <div class="flex justify-between"><span>بابەت:</span><strong class="text-white">${subject}</strong></div>
-                            <div class="flex justify-between"><span>مامۆستا:</span><strong class="text-indigo-400">${teacherName}</strong></div>
+                            <div class="flex justify-between"><span>بابەت:</span><strong class="text-white">${courseSubject}</strong></div>
+                            <div class="flex justify-between"><span>مامۆستا:</span><strong class="text-indigo-400">${lecturerName}</strong></div>
                             <div class="flex justify-between"><span>کاتژمێری محازەرە:</span><strong class="text-amber-400">${lectureHours} کاتژمێر</strong></div>
                             <div class="flex justify-between"><span>خوێندکارانی غائیب:</span><strong class="text-rose-400">${absentCount} خوێندکار (+${absentCount * lectureHours} کاتژمێر تۆمارکرا)</strong></div>
                         </div>
@@ -1158,6 +1208,7 @@
                 if (result.isConfirmed) {
                     const hours = session.lectureHours || 2;
                     let absentCount = 0;
+                    const modifiedStudents = [];
 
                     // Apply absent hours to students
                     Object.keys(session.records || {}).forEach(stuId => {
@@ -1167,6 +1218,7 @@
                             if (stu) {
                                 stu.absentHours = (stu.absentHours || 0) + hours;
                                 absentCount++;
+                                modifiedStudents.push(stu);
                             }
                         }
                     });
@@ -1177,12 +1229,24 @@
                     localStorage.setItem('college_attendance_sessions', JSON.stringify(attendanceSessions));
                     localStorage.setItem('college_students', JSON.stringify(students));
 
+                    // Push to Firebase directly
+                    if (window.FirebaseService) {
+                        if (typeof window.FirebaseService.saveAttendanceSession === 'function') {
+                            window.FirebaseService.saveAttendanceSession(session).catch(e => console.warn(e));
+                        }
+                        if (typeof window.FirebaseService.saveStudent === 'function') {
+                            modifiedStudents.forEach(stu => {
+                                window.FirebaseService.saveStudent(stu).catch(e => console.warn(e));
+                            });
+                        }
+                    }
+
                     logAuditAction(`ناردنی درافتی محازەرەی ${session.subject} بۆ دەپارتمێنت ئەدمین`, session.teacherName);
 
                     Swal.fire({
                         icon: 'success',
                         title: 'درافتەکە بە سەرکەوتوویی نێردرا!',
-                        text: `غیاباتی خوێندکاران (+${absentCount * hours} کاتژمێر) خرایە سەر تۆماری گشتی.`,
+                        text: `غیاباتی خوێندکاران (+${absentCount * hours} کاتژمێر) خرایە سەر تۆماری گشتی و بۆ ئەدمین نێردرا.`,
                         confirmButtonText: 'تەواوە',
                         confirmButtonColor: '#10b981',
                         background: '#0f172a',
@@ -1197,10 +1261,14 @@
 
         // SUBMIT ALL WEEKLY DRAFTS FOR THIS COURSE TO ADMIN
         function submitAllWeeklyDraftsToAdmin() {
-            const activeDept = currentCourse ? currentCourse.deptId : document.getElementById('teacherDeptSelect').value;
-            const activeSubject = currentCourse ? currentCourse.subject : document.getElementById('teacherSubjectInput').value;
+            const activeDept = (currentCourse && (currentCourse.deptId || currentCourse.dept)) ||
+                               (authUser && (authUser.deptId || authUser.dept)) ||
+                               document.getElementById('teacherDeptSelect')?.value;
+            const activeSubject = (currentCourse && currentCourse.subject) ||
+                                  (authUser && authUser.subject) ||
+                                  document.getElementById('teacherSubjectInput')?.value;
 
-            const drafts = attendanceSessions.filter(s => s.dept === activeDept && s.subject === activeSubject && s.status === 'draft');
+            const drafts = attendanceSessions.filter(s => (s.dept === activeDept || s.deptId === activeDept) && s.subject === activeSubject && s.status === 'draft');
 
             if (drafts.length === 0) {
                 Swal.fire({
@@ -1234,6 +1302,7 @@
             }).then((result) => {
                 if (result.isConfirmed) {
                     let totalAbsentHoursAdded = 0;
+                    const modifiedStudentMap = new Map();
 
                     drafts.forEach(draft => {
                         const hours = draft.lectureHours || 2;
@@ -1244,6 +1313,7 @@
                                 if (stu) {
                                     stu.absentHours = (stu.absentHours || 0) + hours;
                                     totalAbsentHoursAdded += hours;
+                                    modifiedStudentMap.set(String(stu.id), stu);
                                 }
                             }
                         });
@@ -1254,12 +1324,24 @@
                     localStorage.setItem('college_attendance_sessions', JSON.stringify(attendanceSessions));
                     localStorage.setItem('college_students', JSON.stringify(students));
 
+                    // Push all to Firebase directly
+                    if (window.FirebaseService) {
+                        if (typeof window.FirebaseService.saveAttendanceSession === 'function') {
+                            drafts.forEach(d => window.FirebaseService.saveAttendanceSession(d).catch(e => console.warn(e)));
+                        }
+                        if (typeof window.FirebaseService.saveStudent === 'function') {
+                            modifiedStudentMap.forEach(stu => {
+                                window.FirebaseService.saveStudent(stu).catch(e => console.warn(e));
+                            });
+                        }
+                    }
+
                     logAuditAction(`ناردنی سەرجەم (${drafts.length}) درافتی هەفتانەی وانەی ${activeSubject} بۆ دەپارتمێنت ئەدمین`, authUser?.name);
 
                     Swal.fire({
                         icon: 'success',
                         title: 'سەرجەم درافتەکانی هەفتەکە بە سەرکەوتوویی ڕەوانە کران!',
-                        text: `(${drafts.length}) محازەرە نێردرا و کۆی (${totalAbsentHoursAdded}) کاتژمێری غیابات لە سیستەمدا تۆمارکرا.`,
+                        text: `(${drafts.length}) محازەرە نێردرا و کۆی (${totalAbsentHoursAdded}) کاتژمێری غیابات بۆ ئەدمین تۆمارکرا.`,
                         confirmButtonText: 'تەواوە',
                         confirmButtonColor: '#4f46e5',
                         background: '#0f172a',

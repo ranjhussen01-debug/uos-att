@@ -706,12 +706,29 @@
 
     // Save attendance session
     async function saveAttendanceSession(session) {
-        if (!session || !session.id || !db) return;
+        if (!session || !session.id) return false;
+        if (!db) initFirebase();
+        if (!db) return false;
         try {
-            await db.collection('attendance_sessions').doc(String(session.id)).set(session);
-            console.log('[Firebase] Attendance session synced to cloud:', session.subject);
+            const sessId = String(session.id);
+            const serverTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+                ? firebase.firestore.FieldValue.serverTimestamp()
+                : new Date().toISOString();
+            const sessionPayload = {
+                ...session,
+                id: sessId,
+                dept: session.dept || session.deptId || 'dept_accounting',
+                deptId: session.dept || session.deptId || 'dept_accounting',
+                stage: String(session.stage || '1'),
+                updatedAt: serverTs
+            };
+            await withTimeout(db.collection('attendance_sessions').doc(sessId).set(sessionPayload, { merge: true }), 6000);
+            console.log('[Firebase] ✅ Attendance session synced to cloud:', session.subject, sessId);
+            return true;
         } catch (e) {
-            console.warn('[Firebase] Could not save session:', e);
+            console.warn('[Firebase] ❌ Could not save attendance session to cloud:', e);
+            handleFirestoreError(e, 'saveAttendanceSession');
+            return false;
         }
     }
 
