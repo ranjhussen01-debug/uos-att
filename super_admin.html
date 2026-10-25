@@ -1471,6 +1471,10 @@
                     });
                 }
                 saveDeptHeads(users);
+                if (window.FirebaseService && typeof window.FirebaseService.saveUser === 'function') {
+                    const uObj = users.find(u => u.username === loginUsername);
+                    if (uObj) window.FirebaseService.saveUser(uObj);
+                }
                 DEPARTMENTS[deptKey].adminName = name;
                 renderHeadsTable();
                 renderSuperAdminView();
@@ -1539,6 +1543,9 @@
                 if (idx >= 0) users[idx] = newUser;
                 else users.push(newUser);
                 saveDeptHeads(users);
+                if (window.FirebaseService && typeof window.FirebaseService.saveUser === 'function') {
+                    window.FirebaseService.saveUser(newUser);
+                }
                 DEPARTMENTS[deptKey].adminName = name;
                 renderHeadsTable();
                 renderSuperAdminView();
