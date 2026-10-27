@@ -102,6 +102,58 @@
             background: #94a3b8;
         }
 
+        /* Mobile Portrait & Landscape Optimizations */
+        @media (max-width: 640px) {
+            input, select, textarea {
+                font-size: 16px !important;
+            }
+        }
+
+        /* Landscape Mobile Mode (height <= 500px) */
+        @media (max-height: 500px) and (orientation: landscape) {
+            header {
+                min-height: 3rem !important;
+                height: 3rem !important;
+            }
+            header .max-w-7xl > div {
+                height: 3rem !important;
+            }
+            nav.sticky {
+                top: 3rem !important;
+            }
+            nav .h-14 {
+                height: 2.75rem !important;
+            }
+            main {
+                padding-top: 0.75rem !important;
+                padding-bottom: 2rem !important;
+            }
+            .space-y-6 > * + * {
+                margin-top: 1rem !important;
+            }
+            .swal2-popup {
+                max-height: 90vh !important;
+                overflow-y: auto !important;
+            }
+        }
+
+        /* Hide scrollbars for slick tab scrolling */
+        .scrollbar-none::-webkit-scrollbar,
+        .no-scrollbar::-webkit-scrollbar {
+            display: none !important;
+        }
+        .scrollbar-none,
+        .no-scrollbar {
+            -ms-overflow-style: none !important;
+            scrollbar-width: none !important;
+        }
+
+        /* Safe area insets for mobile */
+        body {
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+
         @media print {
             .no-print {
                 display: none !important;
@@ -223,7 +275,7 @@
     </div>
 
     <!-- MAIN SUPER ADMIN VIEW -->
-    <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6 sm:space-y-8 flex-1 w-full overflow-hidden">
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6 sm:space-y-8 flex-1 w-full min-w-0">
         
         <!-- SECTION 1: SUPER ADMIN STATISTICS TAB -->
         <div id="superTabStatsContent" class="space-y-6">

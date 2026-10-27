@@ -132,56 +132,86 @@
             border-color: #2563eb !important;
             box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
         }
+        /* Mobile Portrait & Landscape Optimizations */
+        @media (max-width: 640px) {
+            input, select, textarea {
+                font-size: 16px !important;
+            }
+        }
+
+        /* Landscape Mobile Mode (height <= 500px) */
+        @media (max-height: 500px) and (orientation: landscape) {
+            header {
+                min-height: 3.25rem !important;
+            }
+            main {
+                padding-top: 0.75rem !important;
+                padding-bottom: 2rem !important;
+            }
+            .space-y-6 > * + * {
+                margin-top: 1rem !important;
+            }
+            .swal2-popup {
+                max-height: 90vh !important;
+                overflow-y: auto !important;
+            }
+        }
+
+        /* Safe area insets for mobile */
+        body {
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
 
     <!-- TOP HEADER -->
     <header class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950/90 text-white shadow-2xl sticky top-0 z-50 no-print border-b border-indigo-500/20 backdrop-blur-xl">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between py-3.5 gap-4">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between py-2.5 sm:py-3.5 gap-2 sm:gap-4">
                 <!-- Branding (Right side in RTL) -->
-                <div class="flex items-center gap-3.5">
+                <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
                     <div class="relative group shrink-0">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 font-black text-xl border border-white/20 transition-transform duration-300 group-hover:scale-105">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 font-black text-lg sm:text-xl border border-white/20 transition-transform duration-300 group-hover:scale-105">
                             <i class="fa-solid fa-chalkboard-user"></i>
                         </div>
-                        <div class="absolute -bottom-1 -left-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
+                        <div class="absolute -bottom-1 -left-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-emerald-500 rounded-full border-2 border-slate-900 flex items-center justify-center">
                             <div class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></div>
                         </div>
                     </div>
-                    <div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span class="font-black text-base sm:text-lg tracking-tight text-white drop-shadow-sm">کۆلێژی کارگێڕی و ئابووری</span>
-                            <span class="inline-flex items-center gap-1.5 bg-gradient-to-r from-indigo-500/25 to-purple-500/25 text-indigo-300 text-[11px] sm:text-xs px-3 py-0.5 rounded-full font-black border border-indigo-400/30 shadow-sm">
-                                <i class="fa-solid fa-chalkboard text-[10px] text-indigo-400"></i>
-                                پەڕەی تایبەت بە مامۆستایان
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <span class="font-black text-xs sm:text-base md:text-lg tracking-tight text-white drop-shadow-sm truncate">کۆلێژی کارگێڕی و ئابووری</span>
+                            <span class="inline-flex items-center gap-1 bg-gradient-to-r from-indigo-500/25 to-purple-500/25 text-indigo-300 text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 rounded-full font-black border border-indigo-400/30 shadow-sm shrink-0">
+                                <i class="fa-solid fa-chalkboard text-[9px] text-indigo-400"></i>
+                                مامۆستایان
                             </span>
                         </div>
-                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mt-0.5">
+                        <p class="hidden xs:flex text-[11px] sm:text-xs text-slate-400 font-medium items-center gap-1.5 mt-0.5 truncate">
                             <i class="fa-solid fa-circle-check text-emerald-400 text-[10px]"></i>
-                            <span>تۆمارکردنی غیابات بەپێی کاتژمێری محازەرە و بەشەکان</span>
+                            <span class="truncate">تۆمارکردنی غیابات بەپێی کاتژمێری محازەرە</span>
                         </p>
                     </div>
                 </div>
 
                 <!-- User Session & Logout (Left side in RTL) -->
-                <div class="flex items-center gap-3 shrink-0">
+                <div class="flex items-center gap-2 sm:gap-3 shrink-0">
                     <!-- User Profile Pill -->
-                    <div class="flex items-center gap-2.5 bg-white/5 hover:bg-white/10 px-3.5 py-1.5 rounded-2xl border border-indigo-400/30 backdrop-blur-md shadow-md transition duration-200">
-                        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white flex items-center justify-center font-bold text-xs shadow-inner">
+                    <div class="hidden xs:flex items-center gap-2 bg-white/5 hover:bg-white/10 px-2.5 sm:px-3.5 py-1.5 rounded-xl sm:rounded-2xl border border-indigo-400/30 backdrop-blur-md shadow-md transition duration-200">
+                        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white flex items-center justify-center font-bold text-xs shadow-inner shrink-0">
                             <i class="fa-solid fa-user-tie"></i>
                         </div>
                         <div class="text-right">
-                            <span class="block text-[10px] text-indigo-300 font-semibold leading-tight">هەژماری مامۆستا</span>
-                            <span id="teacherHeaderName" class="block font-black text-xs sm:text-sm text-white leading-tight">مامۆستای وانە</span>
+                            <span class="block text-[9px] sm:text-[10px] text-indigo-300 font-semibold leading-tight">مامۆستا</span>
+                            <span id="teacherHeaderName" class="block font-black text-xs sm:text-sm text-white leading-tight max-w-[100px] truncate">مامۆستای وانە</span>
                         </div>
                     </div>
 
                     <!-- Logout Button -->
-                    <button onclick="handleLogout()" class="group flex items-center gap-2 bg-gradient-to-r from-rose-500/15 to-rose-600/25 hover:from-rose-600 hover:to-rose-700 text-rose-300 hover:text-white px-4 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all duration-300 border border-rose-500/30 hover:border-rose-600 shadow-md hover:shadow-rose-600/30 hover:scale-[1.02] active:scale-95">
-                        <i class="fa-solid fa-right-from-bracket transition-transform duration-300 group-hover:-translate-x-0.5"></i>
-                        <span>دەرچوون</span>
+                    <button onclick="handleLogout()" title="دەرچوون لە هەژمار" class="group flex items-center gap-1.5 bg-gradient-to-r from-rose-500/15 to-rose-600/25 hover:from-rose-600 hover:to-rose-700 text-rose-300 hover:text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black transition-all duration-300 border border-rose-500/30 hover:border-rose-600 shadow-md">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span class="hidden sm:inline">دەرچوون</span>
                     </button>
                 </div>
             </div>

@@ -98,6 +98,58 @@
             transform: translateY(1px);
         }
 
+        /* Mobile Portrait & Landscape Optimizations */
+        @media (max-width: 640px) {
+            input, select, textarea {
+                font-size: 16px !important; /* Prevents auto-zoom on iOS */
+            }
+        }
+
+        /* Landscape Mobile Mode (height <= 500px) */
+        @media (max-height: 500px) and (orientation: landscape) {
+            header {
+                min-height: 3rem !important;
+                height: 3rem !important;
+            }
+            header .max-w-7xl > div {
+                height: 3rem !important;
+            }
+            nav.sticky {
+                top: 3rem !important;
+            }
+            nav .h-14, nav .h-12 {
+                height: 2.75rem !important;
+            }
+            main {
+                padding-top: 0.75rem !important;
+                padding-bottom: 2rem !important;
+            }
+            .space-y-6 > * + * {
+                margin-top: 1rem !important;
+            }
+            .swal2-popup {
+                max-height: 90vh !important;
+                overflow-y: auto !important;
+            }
+        }
+
+        /* Hide scrollbars for slick tab scrolling */
+        .scrollbar-none::-webkit-scrollbar,
+        .no-scrollbar::-webkit-scrollbar {
+            display: none !important;
+        }
+        .scrollbar-none,
+        .no-scrollbar {
+            -ms-overflow-style: none !important;
+            scrollbar-width: none !important;
+        }
+
+        /* Safe area insets for mobile */
+        body {
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+
         @media print {
             .no-print {
                 display: none !important;
@@ -132,96 +184,92 @@
     <!-- ========================================================================= -->
     <!-- DEPARTMENTS STANDALONE TOP HEADER                                         -->
     <!-- ========================================================================= -->
-    <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-50 no-print border-b border-slate-800">
+    <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-50 no-print border-b border-slate-800 backdrop-blur-md">
         <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-            <div class="flex flex-col md:flex-row items-center justify-between py-2.5 md:py-0 md:h-16 gap-2.5">
+            <div class="flex items-center justify-between h-14 sm:h-16 gap-2">
                 <!-- Branding -->
-                <div class="flex items-center justify-between w-full md:w-auto space-x-3 space-x-reverse">
-                    <div class="flex items-center space-x-3 space-x-reverse">
-                        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600 flex items-center justify-center text-slate-950 shadow-lg font-black text-lg sm:text-xl shrink-0">
-                            <i class="fa-solid fa-graduation-cap"></i>
+                <div class="flex items-center space-x-2.5 sm:space-x-3 space-x-reverse min-w-0">
+                    <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600 flex items-center justify-center text-slate-950 shadow-lg font-black text-base sm:text-xl shrink-0">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="font-extrabold text-xs sm:text-base md:text-lg tracking-tight flex items-center gap-1.5 truncate">
+                            <span class="truncate">کۆلێژی کارگێڕی و ئابووری</span>
+                            <span class="hidden sm:inline-block text-[10px] sm:text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30 shrink-0">
+                                دیپارتمێنتەکان
+                            </span>
                         </div>
-                        <div>
-                            <div class="font-extrabold text-sm sm:text-lg tracking-tight flex items-center gap-2">
-                                <span>کۆلێژی کارگێڕی و ئابووری</span>
-                                <span class="text-[10px] sm:text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
-                                    دیپارتمێنتەکان
-                                </span>
-                            </div>
-                            <p class="text-[10px] sm:text-xs text-slate-400">تۆماری غیابات و بەڕێوەبردنی خوێندکاران</p>
-                        </div>
+                        <p class="hidden xs:block text-[10px] sm:text-xs text-slate-400 truncate">تۆماری غیابات و بەڕێوەبردنی خوێندکاران</p>
                     </div>
                 </div>
 
-                <!-- 5 Department Quick Switcher & Link to Super Admin -->
-                <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3 w-full md:w-auto">
+                <!-- 5 Department Quick Switcher & Actions -->
+                <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
                     <!-- Dropdown for Switching Between 5 Departments -->
                     <div class="relative">
-                        <button id="deptDropdownBtn" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl text-xs sm:text-sm font-bold transition shadow-md">
-                            <i id="currentDeptHeaderIcon" class="fa-solid fa-calculator text-blue-400"></i>
-                            <span id="currentDeptHeaderName">بەشی ژمێریاری</span>
-                            <i class="fa-solid fa-chevron-down text-xs opacity-60"></i>
+                        <button id="deptDropdownBtn" class="flex items-center gap-1.5 sm:gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition shadow-md">
+                            <i id="currentDeptHeaderIcon" class="fa-solid fa-calculator text-blue-400 text-xs sm:text-sm"></i>
+                            <span id="currentDeptHeaderName" class="text-xs sm:text-sm max-w-[90px] xs:max-w-none truncate">بەشی ژمێریاری</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i>
                         </button>
 
-                        <div id="deptDropdownMenu" class="hidden absolute left-0 mt-2 w-72 bg-white rounded-3xl shadow-2xl border border-slate-100 py-3 z-50 text-slate-800 animate-in fade-in zoom-in duration-100">
-                            <div class="px-5 py-2 border-b border-slate-100">
+                        <div id="deptDropdownMenu" class="hidden absolute left-0 mt-2 w-64 sm:w-72 bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 py-2 sm:py-3 z-50 text-slate-800 animate-in fade-in zoom-in duration-100 max-h-[80vh] overflow-y-auto">
+                            <div class="px-4 py-1.5 sm:px-5 sm:py-2 border-b border-slate-100">
                                 <span class="text-[11px] font-black text-slate-400 uppercase tracking-wider block">هەڵبژاردنی بەشی زانستی</span>
                             </div>
-                            <div class="p-2 space-y-1">
-                                <button onclick="selectDepartment('dept_accounting')" class="w-full text-right p-2.5 rounded-xl hover:bg-blue-50 flex items-center gap-3 transition">
-                                    <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-sm">
+                            <div class="p-1.5 sm:p-2 space-y-1">
+                                <button onclick="selectDepartment('dept_accounting')" class="w-full text-right p-2 sm:p-2.5 rounded-xl hover:bg-blue-50 flex items-center gap-2.5 transition">
+                                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-xs sm:text-sm shrink-0">
                                         <i class="fa-solid fa-calculator"></i>
                                     </div>
-                                    <div>
-                                        <span class="font-bold text-xs text-slate-800 block">بەشی ژمێریاری</span>
-                                        <span class="text-[10px] text-slate-400">Accounting</span>
+                                    <div class="min-w-0">
+                                        <span class="font-bold text-xs text-slate-800 block truncate">بەشی ژمێریاری</span>
+                                        <span class="text-[10px] text-slate-400 block truncate">Accounting</span>
                                     </div>
                                 </button>
-                                <button onclick="selectDepartment('dept_business')" class="w-full text-right p-2.5 rounded-xl hover:bg-purple-50 flex items-center gap-3 transition">
-                                    <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-sm">
+                                <button onclick="selectDepartment('dept_business')" class="w-full text-right p-2 sm:p-2.5 rounded-xl hover:bg-purple-50 flex items-center gap-2.5 transition">
+                                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-xs sm:text-sm shrink-0">
                                         <i class="fa-solid fa-briefcase"></i>
                                     </div>
-                                    <div>
-                                        <span class="font-bold text-xs text-slate-800 block">بەشی کارگێڕی کار</span>
-                                        <span class="text-[10px] text-slate-400">Business</span>
+                                    <div class="min-w-0">
+                                        <span class="font-bold text-xs text-slate-800 block truncate">بەشی کارگێڕی کار</span>
+                                        <span class="text-[10px] text-slate-400 block truncate">Business</span>
                                     </div>
                                 </button>
-                                <button onclick="selectDepartment('dept_economics')" class="w-full text-right p-2.5 rounded-xl hover:bg-emerald-50 flex items-center gap-3 transition">
-                                    <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm">
+                                <button onclick="selectDepartment('dept_economics')" class="w-full text-right p-2 sm:p-2.5 rounded-xl hover:bg-emerald-50 flex items-center gap-2.5 transition">
+                                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs sm:text-sm shrink-0">
                                         <i class="fa-solid fa-chart-line"></i>
                                     </div>
-                                    <div>
-                                        <span class="font-bold text-xs text-slate-800 block">بەشی ئابووری</span>
-                                        <span class="text-[10px] text-slate-400">Economics</span>
+                                    <div class="min-w-0">
+                                        <span class="font-bold text-xs text-slate-800 block truncate">بەشی ئابووری</span>
+                                        <span class="text-[10px] text-slate-400 block truncate">Economics</span>
                                     </div>
                                 </button>
-                                <button onclick="selectDepartment('dept_finance')" class="w-full text-right p-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-3 transition">
-                                    <div class="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center text-sm">
+                                <button onclick="selectDepartment('dept_finance')" class="w-full text-right p-2 sm:p-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-2.5 transition">
+                                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center text-xs sm:text-sm shrink-0">
                                         <i class="fa-solid fa-bullhorn"></i>
                                     </div>
-                                    <div>
-                                        <span class="font-bold text-xs text-slate-800 block">بەشی کارگێڕی بەبازاڕکردن</span>
-                                        <span class="text-[10px] text-slate-400">Marketing Management</span>
+                                    <div class="min-w-0">
+                                        <span class="font-bold text-xs text-slate-800 block truncate">بەشی کارگێڕی بەبازاڕکردن</span>
+                                        <span class="text-[10px] text-slate-400 block truncate">Marketing Management</span>
                                     </div>
                                 </button>
-                                <button onclick="selectDepartment('dept_statistics')" class="w-full text-right p-2.5 rounded-xl hover:bg-amber-50 flex items-center gap-3 transition">
-                                    <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm">
+                                <button onclick="selectDepartment('dept_statistics')" class="w-full text-right p-2 sm:p-2.5 rounded-xl hover:bg-amber-50 flex items-center gap-2.5 transition">
+                                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-xs sm:text-sm shrink-0">
                                         <i class="fa-solid fa-chart-pie"></i>
                                     </div>
-                                    <div>
-                                        <span class="font-bold text-xs text-slate-800 block">بەشی ئامار و زانیاری</span>
-                                        <span class="text-[10px] text-slate-400">Statistics</span>
+                                    <div class="min-w-0">
+                                        <span class="font-bold text-xs text-slate-800 block truncate">بەشی ئامار و زانیاری</span>
+                                        <span class="text-[10px] text-slate-400 block truncate">Statistics</span>
                                     </div>
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    
-                    <a id="superAdminLinkBtn" href="super_admin.html" class="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black px-3.5 py-2 rounded-2xl text-xs sm:text-sm transition shadow-lg border border-amber-300">
-                        <i class="fa-solid fa-crown text-slate-950"></i>
+                    <a id="superAdminLinkBtn" href="super_admin.html" class="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl sm:rounded-2xl text-xs transition shadow-md border border-amber-300">
+                        <i class="fa-solid fa-crown text-slate-950 text-xs"></i>
                         <span class="hidden md:inline">سوپەر ئادمین</span>
-                        <i class="fa-solid fa-arrow-left text-xs opacity-70 mr-1"></i>
                     </a>
 
                     <!-- User indicator -->
@@ -233,9 +281,9 @@
                     </div>
 
                     <!-- Logout Button -->
-                    <button onclick="handleLogout()" class="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-600 text-rose-300 hover:text-white px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition border border-rose-500/30">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                        <span>دەرچوون</span>
+                    <button onclick="handleLogout()" title="دەرچوون لە هەژمار" class="flex items-center gap-1 bg-rose-500/20 hover:bg-rose-600 text-rose-300 hover:text-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl sm:rounded-2xl text-xs font-bold transition border border-rose-500/30">
+                        <i class="fa-solid fa-right-from-bracket text-xs"></i>
+                        <span class="hidden sm:inline">دەرچوون</span>
                     </button>
                 </div>
             </div>
@@ -263,29 +311,29 @@
     </div>
 
     <!-- DEPARTMENT SUB-NAVIGATION -->
-    <nav class="bg-white border-b border-slate-200 no-print sticky top-16 z-40 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-14">
-                <div class="flex space-x-1 space-x-reverse overflow-x-auto py-1">
-                    <button id="deptTabBtnDashboard" onclick="switchDeptTab('dashboard')" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200 transition shadow-sm">
-                        <i class="fa-solid fa-chart-pie"></i>
+    <nav class="bg-white/95 backdrop-blur-md border-b border-slate-200 no-print sticky top-14 sm:top-16 z-40 shadow-sm transition-all duration-200">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-12 sm:h-14">
+                <div class="flex space-x-1.5 space-x-reverse overflow-x-auto py-1.5 w-full md:w-auto scrollbar-none whitespace-nowrap scroll-smooth">
+                    <button id="deptTabBtnDashboard" onclick="switchDeptTab('dashboard')" class="shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200 transition shadow-sm">
+                        <i class="fa-solid fa-chart-pie text-xs sm:text-sm"></i>
                         <span>داشبۆردی بەش</span>
                     </button>
-                    <button id="deptTabBtnCourses" onclick="switchDeptTab('courses')" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 text-slate-600 hover:bg-slate-100 transition">
-                        <i class="fa-solid fa-chalkboard-user"></i>
-                        <span>مامۆستایان و وانەکان</span>
+                    <button id="deptTabBtnCourses" onclick="switchDeptTab('courses')" class="shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 text-slate-600 hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-chalkboard-user text-xs sm:text-sm"></i>
+                        <span>وانە و مامۆستایان</span>
                     </button>
-                    <button id="deptTabBtnStudents" onclick="switchDeptTab('students')" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 text-slate-600 hover:bg-slate-100 transition">
-                        <i class="fa-solid fa-users"></i>
+                    <button id="deptTabBtnStudents" onclick="switchDeptTab('students')" class="shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 text-slate-600 hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-users text-xs sm:text-sm"></i>
                         <span>خوێندکارانی بەش</span>
                     </button>
-                    <button id="deptTabBtnReports" onclick="switchDeptTab('reports')" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 text-slate-600 hover:bg-slate-100 transition">
-                        <i class="fa-solid fa-file-invoice"></i>
+                    <button id="deptTabBtnReports" onclick="switchDeptTab('reports')" class="shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 text-slate-600 hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-file-invoice text-xs sm:text-sm"></i>
                         <span>ئەرشیفی ڕاپۆرتەکان</span>
                     </button>
                 </div>
 
-                <div class="hidden sm:flex items-center gap-2 text-xs bg-slate-100 text-slate-700 px-3.5 py-1.5 rounded-xl border border-slate-200 font-bold">
+                <div class="hidden lg:flex items-center gap-2 text-xs bg-slate-100 text-slate-700 px-3.5 py-1.5 rounded-xl border border-slate-200 font-bold shrink-0">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span id="deptCurrentTitleBadge">بەشی ژمێریاری</span>
                 </div>
@@ -328,29 +376,29 @@
 
         <!-- TAB 1: DASHBOARD -->
         <section id="deptTabDashboard" class="space-y-6">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                    <p class="text-xs font-bold text-slate-400">کۆی خوێندکارانی بەش</p>
-                    <h3 id="deptStatTotalStudents" class="text-3xl font-black text-slate-800 mt-1">0</h3>
-                    <span class="text-xs text-slate-500 font-medium mt-1 inline-block">تەنها خوێندکارانی ئەم بەشە</span>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                <div class="bg-white rounded-2xl p-3.5 sm:p-5 shadow-sm border border-slate-200">
+                    <p class="text-[11px] sm:text-xs font-bold text-slate-400">کۆی خوێندکارانی بەش</p>
+                    <h3 id="deptStatTotalStudents" class="text-2xl sm:text-3xl font-black text-slate-800 mt-1">0</h3>
+                    <span class="text-[10px] sm:text-xs text-slate-500 font-medium mt-1 inline-block">تەنها ئەم بەشە</span>
                 </div>
 
-                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                    <p class="text-xs font-bold text-slate-400">ڕێژەی ئامادەبوونی بەشەکە</p>
-                    <h3 id="deptStatAttendanceRate" class="text-3xl font-black text-emerald-600 mt-1">0%</h3>
-                    <span class="text-xs text-emerald-700 font-medium mt-1 inline-block">تێکڕای پابەندبوونی بەشەکە</span>
+                <div class="bg-white rounded-2xl p-3.5 sm:p-5 shadow-sm border border-slate-200">
+                    <p class="text-[11px] sm:text-xs font-bold text-slate-400">ڕێژەی ئامادەبوون</p>
+                    <h3 id="deptStatAttendanceRate" class="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">0%</h3>
+                    <span class="text-[10px] sm:text-xs text-emerald-700 font-medium mt-1 inline-block">تێکڕای پابەندبوون</span>
                 </div>
 
-                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                    <p class="text-xs font-bold text-slate-400">کۆی کاتژمێری غیابات</p>
-                    <h3 id="deptStatTotalAbsences" class="text-3xl font-black text-rose-600 mt-1">0</h3>
-                    <span class="text-xs text-rose-700 font-medium mt-1 inline-block">تەنها لەم بەشەدا</span>
+                <div class="bg-white rounded-2xl p-3.5 sm:p-5 shadow-sm border border-slate-200">
+                    <p class="text-[11px] sm:text-xs font-bold text-slate-400">کۆی کاتژمێری نەهاتوو</p>
+                    <h3 id="deptStatTotalAbsences" class="text-2xl sm:text-3xl font-black text-rose-600 mt-1">0</h3>
+                    <span class="text-[10px] sm:text-xs text-rose-700 font-medium mt-1 inline-block">تەنها لەم بەشەدا</span>
                 </div>
 
-                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                    <p class="text-xs font-bold text-slate-400">خوێندکارانی مەترسیدار (> %10)</p>
-                    <h3 id="deptStatWarningStudents" class="text-3xl font-black text-amber-600 mt-1">0</h3>
-                    <span class="text-xs text-amber-700 font-medium mt-1 inline-block">پێویستیان بە ئاگادارکردنەوەیە</span>
+                <div class="bg-white rounded-2xl p-3.5 sm:p-5 shadow-sm border border-slate-200">
+                    <p class="text-[11px] sm:text-xs font-bold text-slate-400">خوێندکاری مەترسیدار (> %10)</p>
+                    <h3 id="deptStatWarningStudents" class="text-2xl sm:text-3xl font-black text-amber-600 mt-1">0</h3>
+                    <span class="text-[10px] sm:text-xs text-amber-700 font-medium mt-1 inline-block">پێویست بە ئاگاداری</span>
                 </div>
             </div>
 
@@ -668,19 +716,19 @@
     </main>
 
     <!-- MODAL: ADD / EDIT STUDENT -->
-    <div id="studentModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-150">
-            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h3 id="modalStudentTitle" class="font-black text-slate-800 text-lg flex items-center gap-2">
+    <div id="studentModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-150 max-h-[92vh] max-h-[92dvh] flex flex-col my-auto overflow-hidden">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+                <h3 id="modalStudentTitle" class="font-black text-slate-800 text-base sm:text-lg flex items-center gap-2">
                     <i class="fa-solid fa-user-plus text-emerald-600"></i>
                     <span>زیادکردنی خوێندکاری نوێ</span>
                 </h3>
-                <button onclick="closeStudentModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center">
+                <button onclick="closeStudentModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <form id="studentForm" onsubmit="handleSaveStudent(event)" class="mt-4 space-y-4">
+            <form id="studentForm" onsubmit="handleSaveStudent(event)" class="mt-4 space-y-4 overflow-y-auto flex-1 pr-1 pl-1">
                 <input type="hidden" id="modalStudentId">
 
                 <div>
@@ -734,11 +782,11 @@
                     </div>
                 </div>
 
-                <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
-                    <button type="button" onclick="closeStudentModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-sm transition">
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 sm:gap-3 shrink-0">
+                    <button type="button" onclick="closeStudentModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm transition">
                         پاشگەزبوونەوە
                     </button>
-                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-5 py-2 rounded-xl text-sm transition shadow-md">
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-5 py-2 rounded-xl text-xs sm:text-sm transition shadow-md">
                         پاشەکەوتکردن
                     </button>
                 </div>
@@ -747,16 +795,16 @@
     </div>
 
     <!-- COURSE / TEACHER MODAL -->
-    <div id="deptCourseModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full p-6">
-            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold">
+    <div id="deptCourseModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full p-4 sm:p-6 my-auto max-h-[92vh] max-h-[92dvh] flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+                <div class="flex items-center gap-2.5 sm:gap-3">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-base sm:text-lg font-bold shrink-0">
                         <i class="fa-solid fa-book-open"></i>
                     </div>
                     <div>
-                        <h3 id="courseModalTitle" class="font-black text-slate-900 text-base">دروستکردنی هەژماری وانەی نوێ</h3>
-                        <p class="text-xs text-slate-400">زانیارییەکانی وانە و هەژماری مامۆستا تۆمار بکە</p>
+                        <h3 id="courseModalTitle" class="font-black text-slate-900 text-sm sm:text-base">دروستکردنی هەژماری وانەی نوێ</h3>
+                        <p class="text-[11px] sm:text-xs text-slate-400">زانیارییەکانی وانە و هەژماری مامۆستا تۆمار بکە</p>
                     </div>
                 </div>
                 <button onclick="closeCourseModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition">
@@ -764,10 +812,10 @@
                 </button>
             </div>
 
-            <form onsubmit="saveCourseModal(event)" class="mt-4 space-y-4">
+            <form onsubmit="saveCourseModal(event)" class="mt-4 space-y-3.5 overflow-y-auto flex-1 pr-1 pl-1">
                 <input type="hidden" id="courseModalId">
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-bold text-slate-700 mb-1">ناوی وانە / بابەت <span class="text-rose-500">*</span></label>
                         <input type="text" id="courseSubjectInput" required placeholder="بۆ نموونە: بنەماکانی ژمێریاری" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3 py-2 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
@@ -807,16 +855,16 @@
                     </div>
                 </div>
 
-                <div class="text-[11px] text-slate-600 bg-indigo-50/70 p-3 rounded-xl border border-indigo-100 flex items-center gap-2">
+                <div class="text-[11px] text-slate-600 bg-indigo-50/70 p-2.5 sm:p-3 rounded-xl border border-indigo-100 flex items-center gap-2">
                     <i class="fa-solid fa-circle-info text-indigo-600 text-sm shrink-0"></i>
-                    <span>تۆتاڵ هاوەری وانەکە (All the contact hours during the semester) ڕاستەوخۆ دەبێتە بنەمای دابەشکردنی غیاباتی خوێندکار لە پەڕەی مامۆستا.</span>
+                    <span>تۆتاڵ هاوەری وانەکە ڕاستەوخۆ دەبێتە بنەمای دابەشکردنی غیاباتی خوێندکار لە پەڕەی مامۆستا.</span>
                 </div>
 
-                <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
-                    <button type="button" onclick="closeCourseModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-sm transition">
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 sm:gap-3 shrink-0">
+                    <button type="button" onclick="closeCourseModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm transition">
                         پاشگەزبوونەوە
                     </button>
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-5 py-2 rounded-xl text-sm transition shadow-md">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-5 py-2 rounded-xl text-xs sm:text-sm transition shadow-md">
                         پاشەکەوتکردنی هەژمار
                     </button>
                 </div>

@@ -108,6 +108,21 @@
         .dept-card {
             transition: all 0.25s ease-in-out;
         }
+        @media (max-width: 640px) {
+            input, select, textarea {
+                font-size: 16px !important;
+            }
+        }
+        @media (max-height: 500px) and (orientation: landscape) {
+            header {
+                padding-top: 0.5rem !important;
+                padding-bottom: 0.25rem !important;
+            }
+            .py-12 {
+                padding-top: 1rem !important;
+                padding-bottom: 1.5rem !important;
+            }
+        }
         .dept-card:hover {
             transform: translateY(-4px);
         }
