@@ -170,9 +170,7 @@
         try {
             db.collection('students').onSnapshot(snapshot => {
                 if (isQuotaExceeded) return;
-                
-                // If local is currently writing, don't self-overwrite immediately
-                if (isSyncing) return;
+                if (snapshot.metadata && snapshot.metadata.hasPendingWrites) return;
 
                 const remoteStudents = [];
                 snapshot.forEach(doc => {
@@ -203,7 +201,7 @@
             // Listen for Realtime Sessions changes
             db.collection('attendance_sessions').onSnapshot(snapshot => {
                 if (isQuotaExceeded) return;
-                if (isSyncing) return;
+                if (snapshot.metadata && snapshot.metadata.hasPendingWrites) return;
 
                 const remoteSessions = [];
                 snapshot.forEach(doc => {
@@ -236,7 +234,8 @@
             // Listen for Realtime Courses (Teachers/Subjects) changes
             db.collection('courses').onSnapshot(snapshot => {
                 if (isQuotaExceeded) return;
-                if (isSyncing) return;
+                if (snapshot.metadata && snapshot.metadata.hasPendingWrites) return;
+
                 const remoteCourses = [];
                 snapshot.forEach(doc => {
                     remoteCourses.push(doc.data());
@@ -244,13 +243,25 @@
 
                 if (remoteCourses.length > 0) {
                     const localRaw = localStorage.getItem('college_courses');
-                    const localCourses = localRaw ? JSON.parse(localRaw) : [];
-                    if (JSON.stringify(remoteCourses) !== JSON.stringify(localCourses)) {
-                        console.log('[Firebase] Realtime courses update received from cloud:', remoteCourses.length);
-                        localStorage.setItem('college_courses', JSON.stringify(remoteCourses));
-                        syncCoursesToAuthUsers(remoteCourses);
-                        notifyLocalApp('courses_updated', remoteCourses);
-                    }
+                    let localCourses = [];
+                    try { localCourses = JSON.parse(localRaw || '[]'); } catch(e) {}
+
+                    // Merge remote courses with local unsaved additions
+                    const courseMap = new Map();
+                    remoteCourses.forEach(c => {
+                        if (c && c.id) courseMap.set(c.id, c);
+                    });
+                    localCourses.forEach(c => {
+                        if (c && c.id && !courseMap.has(c.id)) {
+                            courseMap.set(c.id, c);
+                        }
+                    });
+
+                    const merged = Array.from(courseMap.values());
+                    console.log('[Firebase] Realtime courses update received from cloud:', merged.length);
+                    localStorage.setItem('college_courses', JSON.stringify(merged));
+                    syncCoursesToAuthUsers(merged);
+                    notifyLocalApp('courses_updated', merged);
                 }
             }, err => {
                 if (handleFirestoreError(err, 'courses')) return;
@@ -260,31 +271,29 @@
             // Listen for Realtime Users (Auth Accounts) changes
             db.collection('users').onSnapshot(snapshot => {
                 if (isQuotaExceeded) return;
-                if (isSyncing) return;
+                if (snapshot.metadata && snapshot.metadata.hasPendingWrites) return;
+
                 const remoteUsers = [];
                 snapshot.forEach(doc => {
                     remoteUsers.push(doc.data());
                 });
 
                 if (remoteUsers.length > 0) {
-                    let localUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
-                    let changed = false;
+                    let localUsers = [];
+                    try { localUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]'); } catch(e) {}
+                    const uMap = new Map();
+                    localUsers.forEach(u => {
+                        if (u && u.username) uMap.set(u.username.toLowerCase(), u);
+                    });
                     remoteUsers.forEach(ru => {
-                        const idx = localUsers.findIndex(u => u.username && u.username.toLowerCase() === (ru.username || '').toLowerCase());
-                        if (idx >= 0) {
-                            if (JSON.stringify(localUsers[idx]) !== JSON.stringify(ru)) {
-                                localUsers[idx] = Object.assign(localUsers[idx], ru);
-                                changed = true;
-                            }
-                        } else {
-                            localUsers.push(ru);
-                            changed = true;
+                        if (ru && ru.username) {
+                            const un = ru.username.toLowerCase();
+                            uMap.set(un, Object.assign(uMap.get(un) || {}, ru));
                         }
                     });
-                    if (changed) {
-                        localStorage.setItem('college_auth_users', JSON.stringify(localUsers));
-                        notifyLocalApp('users_updated', localUsers);
-                    }
+                    const merged = Array.from(uMap.values());
+                    localStorage.setItem('college_auth_users', JSON.stringify(merged));
+                    notifyLocalApp('users_updated', merged);
                 }
             }, err => {
                 if (handleFirestoreError(err, 'users')) return;
@@ -351,7 +360,22 @@
             const crsSnap = await db.collection('courses').get();
             if (!crsSnap.empty) {
                 const crsList = [];
-                crsSnap.forEach(d => crsList.push(d.data()));
+                const remoteIds = new Set();
+                crsSnap.forEach(d => {
+                    const c = d.data();
+                    crsList.push(c);
+                    if (c && c.id) remoteIds.add(c.id);
+                });
+
+                // Preserve local courses that may not have synced to cloud yet
+                let localCourses = [];
+                try { localCourses = JSON.parse(localStorage.getItem('college_courses') || '[]'); } catch(e) {}
+                localCourses.forEach(lc => {
+                    if (lc && lc.id && !remoteIds.has(lc.id)) {
+                        crsList.push(lc);
+                    }
+                });
+
                 localStorage.setItem('college_courses', JSON.stringify(crsList));
                 syncCoursesToAuthUsers(crsList);
                 notifyLocalApp('courses_updated', crsList);
@@ -587,7 +611,7 @@
         }
     }
 
-    function withTimeout(promise, ms = 6000) {
+    function withTimeout(promise, ms = 10000) {
         return Promise.race([
             promise,
             new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase network timeout')), ms))
@@ -598,60 +622,101 @@
     async function saveCourse(course) {
         if (!course || !course.id) return false;
         if (!db) initFirebase();
-        if (!db) return false;
-        try {
-            const idStr = String(course.id);
-            const deptKey = course.deptId || course.dept || 'dept_accounting';
-            const uName = (course.username || '').toLowerCase().trim();
-            const serverTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
-                ? firebase.firestore.FieldValue.serverTimestamp()
-                : new Date().toISOString();
 
-            const courseData = {
-                ...course,
-                id: idStr,
-                dept: deptKey,
-                deptId: deptKey,
-                stage: String(course.stage || '1'),
-                username: uName,
-                updatedAt: serverTs
-            };
-            await withTimeout(db.collection('courses').doc(idStr).set(courseData, { merge: true }), 6000);
-            console.log('[Firebase] ✅ Course document saved to "courses" collection:', course.subject);
-            
-            // Also immediately register in users collection so login succeeds anywhere
-            if (uName) {
-                const userObj = {
-                    username: uName,
-                    password: String(course.password || ''),
-                    name: course.teacherName || uName,
-                    role: 'teacher',
-                    deptId: deptKey,
-                    dept: deptKey,
-                    subject: course.subject,
-                    stage: String(course.stage || '1'),
-                    totalHours: parseInt(course.totalHours) || 60,
-                    avatarColor: 'indigo',
-                    updatedAt: serverTs
-                };
-                await withTimeout(db.collection('users').doc(uName).set(userObj, { merge: true }), 6000);
-                console.log('[Firebase] ✅ Teacher user account registered in "users" collection:', uName);
+        const idStr = String(course.id);
+        const deptKey = course.deptId || course.dept || 'dept_accounting';
+        const uName = (course.username || '').toLowerCase().trim();
+        const serverTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+            ? firebase.firestore.FieldValue.serverTimestamp()
+            : new Date().toISOString();
+
+        const courseData = {
+            ...course,
+            id: idStr,
+            dept: deptKey,
+            deptId: deptKey,
+            stage: String(course.stage || '1'),
+            username: uName,
+            updatedAt: serverTs
+        };
+
+        let courseSaved = false;
+
+        // 1. Try Firestore SDK
+        if (db && !isQuotaExceeded) {
+            try {
+                await withTimeout(db.collection('courses').doc(idStr).set(courseData, { merge: true }), 10000);
+                courseSaved = true;
+                console.log('[Firebase] ✅ Course saved via SDK:', course.subject);
+            } catch (e) {
+                console.warn('[Firebase] SDK saveCourse failed, trying REST fallback:', e.message);
+                handleFirestoreError(e, 'saveCourse');
             }
-            return true;
-        } catch (e) {
-            console.error('[Firebase] ❌ Error saving course/teacher to Firestore:', e);
-            handleFirestoreError(e, 'saveCourse');
-            return false;
         }
+
+        // 2. Direct REST Fallback
+        if (!courseSaved && firebaseConfig.apiKey && firebaseConfig.projectId) {
+            try {
+                const restUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/courses/${idStr}?key=${firebaseConfig.apiKey}`;
+                const restRes = await fetch(restUrl, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fields: {
+                            id: { stringValue: idStr },
+                            dept: { stringValue: deptKey },
+                            deptId: { stringValue: deptKey },
+                            subject: { stringValue: String(course.subject || '') },
+                            teacherName: { stringValue: String(course.teacherName || '') },
+                            stage: { stringValue: String(course.stage || '1') },
+                            totalHours: { integerValue: String(course.totalHours || 60) },
+                            username: { stringValue: uName },
+                            password: { stringValue: String(course.password || '') },
+                            updatedAt: { timestampValue: new Date().toISOString() }
+                        }
+                    })
+                });
+                if (restRes.ok) {
+                    courseSaved = true;
+                    console.log('[Firebase] ✅ Course saved via REST fallback:', course.subject);
+                }
+            } catch (restErr) {
+                console.warn('[Firebase] REST saveCourse fallback error:', restErr);
+            }
+        }
+
+        // Also register teacher account in users collection
+        if (uName) {
+            const userObj = {
+                username: uName,
+                password: String(course.password || ''),
+                name: course.teacherName || uName,
+                role: 'teacher',
+                deptId: deptKey,
+                dept: deptKey,
+                subject: course.subject,
+                stage: String(course.stage || '1'),
+                totalHours: parseInt(course.totalHours) || 60,
+                avatarColor: 'indigo'
+            };
+            await saveUser(userObj);
+        }
+
+        return courseSaved;
     }
 
     // Single course delete
     async function deleteCourse(courseId) {
         if (!courseId) return false;
         if (!db) initFirebase();
-        if (!db) return false;
         try {
-            await withTimeout(db.collection('courses').doc(String(courseId)).delete(), 6000);
+            if (db && !isQuotaExceeded) {
+                await withTimeout(db.collection('courses').doc(String(courseId)).delete(), 8000);
+            } else if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+                await fetch(`https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/courses/${courseId}?key=${firebaseConfig.apiKey}`, {
+                    method: 'DELETE'
+                });
+            }
             console.log('[Firebase] ✅ Course deleted from cloud:', courseId);
             return true;
         } catch (e) {
@@ -664,35 +729,75 @@
     async function saveUser(user) {
         if (!user || !user.username) return false;
         if (!db) initFirebase();
-        if (!db) return false;
-        try {
-            const uName = String(user.username).toLowerCase().trim();
-            const serverTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
-                ? firebase.firestore.FieldValue.serverTimestamp()
-                : new Date().toISOString();
 
-            const userPayload = {
-                username: uName,
-                password: String(user.password || ''),
-                name: user.name || user.teacherName || uName,
-                role: user.role || 'teacher',
-                stage: String(user.stage || '1'),
-                deptId: user.deptId || user.dept || null,
-                dept: user.deptId || user.dept || null,
-                deptName: user.deptName || '',
-                subject: user.subject || '',
-                totalHours: parseInt(user.totalHours) || 60,
-                avatarColor: user.avatarColor || 'indigo',
-                updatedAt: serverTs
-            };
-            await withTimeout(db.collection('users').doc(uName).set(userPayload, { merge: true }), 6000);
-            console.log('[Firebase] ✅ User account document saved to "users" collection:', uName, userPayload);
-            return true;
-        } catch (e) {
-            console.error('[Firebase] ❌ Error saving user to "users" collection:', e);
-            handleFirestoreError(e, 'saveUser');
-            return false;
+        const uName = String(user.username).toLowerCase().trim();
+        const serverTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+            ? firebase.firestore.FieldValue.serverTimestamp()
+            : new Date().toISOString();
+
+        const userPayload = {
+            username: uName,
+            password: String(user.password || ''),
+            name: user.name || user.teacherName || uName,
+            role: user.role || 'teacher',
+            stage: String(user.stage || '1'),
+            deptId: user.deptId || user.dept || null,
+            dept: user.deptId || user.dept || null,
+            deptName: user.deptName || '',
+            subject: user.subject || '',
+            totalHours: parseInt(user.totalHours) || 60,
+            avatarColor: user.avatarColor || 'indigo',
+            updatedAt: serverTs
+        };
+
+        let userSaved = false;
+
+        // 1. Try SDK
+        if (db && !isQuotaExceeded) {
+            try {
+                await withTimeout(db.collection('users').doc(uName).set(userPayload, { merge: true }), 10000);
+                userSaved = true;
+                console.log('[Firebase] ✅ User saved via SDK:', uName);
+            } catch (e) {
+                console.warn('[Firebase] SDK saveUser failed, trying REST fallback:', e.message);
+                handleFirestoreError(e, 'saveUser');
+            }
         }
+
+        // 2. Direct REST Fallback
+        if (!userSaved && firebaseConfig.apiKey && firebaseConfig.projectId) {
+            try {
+                const restUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/users/${uName}?key=${firebaseConfig.apiKey}`;
+                const restRes = await fetch(restUrl, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fields: {
+                            username: { stringValue: uName },
+                            password: { stringValue: String(user.password || '') },
+                            name: { stringValue: String(user.name || user.teacherName || uName) },
+                            role: { stringValue: String(user.role || 'teacher') },
+                            stage: { stringValue: String(user.stage || '1') },
+                            deptId: { stringValue: String(user.deptId || user.dept || '') },
+                            dept: { stringValue: String(user.deptId || user.dept || '') },
+                            deptName: { stringValue: String(user.deptName || '') },
+                            subject: { stringValue: String(user.subject || '') },
+                            totalHours: { integerValue: String(user.totalHours || 60) },
+                            avatarColor: { stringValue: String(user.avatarColor || 'indigo') },
+                            updatedAt: { timestampValue: new Date().toISOString() }
+                        }
+                    })
+                });
+                if (restRes.ok) {
+                    userSaved = true;
+                    console.log('[Firebase] ✅ User saved via REST fallback:', uName);
+                }
+            } catch (restErr) {
+                console.warn('[Firebase] REST saveUser fallback error:', restErr);
+            }
+        }
+
+        return userSaved;
     }
 
     // Single user delete
@@ -1007,26 +1112,7 @@
         });
     }
 
-    // Automatic Interceptor for localStorage
-    // When code calls localStorage.setItem('college_students', ...)
-    // it automatically queues a background cloud push!
-    let debounceTimer = null;
-    const originalSetItem = localStorage.setItem;
-    localStorage.setItem = function (key, value) {
-        originalSetItem.apply(this, arguments);
-
-        if (isSyncing) return;
-
-        if (['college_students', 'college_attendance_sessions', 'college_courses', 'college_audit_logs', 'college_auth_users'].includes(key)) {
-            if (debounceTimer) clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                if (db && !isSyncing) {
-                    console.log(`[Firebase AutoSync] Change detected in ${key}. Syncing to Firestore...`);
-                    pushAllLocalToCloud(false);
-                }
-            }, 2000);
-        }
-    };
+    // Removed automatic setItem interceptor to prevent quota exhaustion and duplicate cloud writes.
 
     function setSyncingState(syncing) {
         isSyncing = syncing;

@@ -481,6 +481,10 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button onclick="refreshCoursesFromCloud()" title="نوێکردنەوە و هاوکاتکردن لەگەڵ کلاود" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold px-3 py-2.5 rounded-xl transition flex items-center gap-1.5 border border-slate-200">
+                            <i id="refreshCoursesIcon" class="fa-solid fa-arrows-rotate text-indigo-600"></i>
+                            <span class="hidden sm:inline">نوێکردنەوە لە کلاود</span>
+                        </button>
                         <button onclick="openAddCourseModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-black px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-md shadow-indigo-600/20">
                             <i class="fa-solid fa-plus-circle"></i>
                             <span>دروستکردنی هەژماری وانەی نوێ</span>
@@ -1346,8 +1350,6 @@
                         } catch(e) {}
                     }
                     renderDepartmentView();
-                    // Auto-sync any local courses that may not be in cloud yet
-                    setTimeout(syncAllCoursesToCloud, 1200);
                 });
             }
         });
@@ -2108,6 +2110,38 @@
             });
         }
 
+        async function refreshCoursesFromCloud() {
+            const icon = document.getElementById('refreshCoursesIcon');
+            if (icon) icon.classList.add('animate-spin');
+            try {
+                if (window.FirebaseService && typeof window.FirebaseService.pullAllFromCloud === 'function') {
+                    await window.FirebaseService.pullAllFromCloud();
+                }
+                const crsRaw = localStorage.getItem('college_courses');
+                if (crsRaw) {
+                    courses = JSON.parse(crsRaw);
+                    syncAllCoursesToAuthUsers();
+                    renderDeptCoursesTable();
+                    renderDepartmentView();
+                }
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'نوێکرایەوە!',
+                        text: 'سەرجەم وانەکان و هەژمارەکان لە فایەربەیسەوە هاوکاتکران.',
+                        timer: 1500,
+                        showConfirmButton: false,
+                        background: '#0f172a',
+                        color: '#f8fafc'
+                    });
+                }
+            } catch(e) {
+                console.error('[Departments] Error refreshing courses from cloud:', e);
+            } finally {
+                if (icon) icon.classList.remove('animate-spin');
+            }
+        }
+
         function renderDeptCoursesTable() {
             const search = (document.getElementById('deptCourseSearchInput')?.value || '').trim().toLowerCase();
             const stageFilter = document.getElementById('deptCourseStageFilter')?.value || 'all';
@@ -2117,7 +2151,11 @@
             if (!tbody) return;
             tbody.innerHTML = '';
 
-            let filtered = courses.filter(c => c.dept === currentActiveDept);
+            let filtered = courses.filter(c => {
+                const cDept = String(c.deptId || c.dept || '').replace(/^dept_/, '').toLowerCase();
+                const aDept = String(currentActiveDept || '').replace(/^dept_/, '').toLowerCase();
+                return cDept === aDept || c.dept === currentActiveDept || c.deptId === currentActiveDept;
+            });
 
             if (stageFilter !== 'all') {
                 filtered = filtered.filter(c => String(c.stage) === String(stageFilter));
