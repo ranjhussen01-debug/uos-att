@@ -450,10 +450,11 @@
             const localSessions = JSON.parse(localStorage.getItem('college_attendance_sessions') || '[]');
             const localAudit = JSON.parse(localStorage.getItem('college_audit_logs') || '[]');
 
-            // Save students in batch
-            if (localStudents.length > 0) {
+            // Save students in batch (exclude dummy mock students IDs 1-28)
+            const validStudents = localStudents.filter(stu => stu && !/^[1-9]$|^[1-2][0-8]$/.test(String(stu.id)) && !/^(ACC|BUS|ECO|FIN|STA)-[1-4]0[1-4]$/.test(String(stu.code)));
+            if (validStudents.length > 0) {
                 const batch = db.batch();
-                localStudents.forEach(stu => {
+                validStudents.forEach(stu => {
                     const idStr = String(stu.id);
                     const ref = db.collection('students').doc(idStr);
                     batch.set(ref, {
@@ -499,11 +500,12 @@
                 await batchU.commit();
             }
 
-            // Save sessions
-            if (localSessions.length > 0) {
+            // Save sessions (exclude dummy sample sessions)
+            const validSessions = localSessions.filter(s => s && s.id && !s.id.startsWith('sess_acc_') && !s.id.startsWith('sess_bus_') && !s.id.startsWith('sess_eco_') && !s.id.startsWith('sess_fin_') && !s.id.startsWith('sess_sta_'));
+            if (validSessions.length > 0) {
                 const batchS = db.batch();
                 // Take latest 150 sessions if too large
-                localSessions.slice(0, 150).forEach(sess => {
+                validSessions.slice(0, 150).forEach(sess => {
                     const idStr = String(sess.id);
                     const ref = db.collection('attendance_sessions').doc(idStr);
                     batchS.set(ref, sess, { merge: true });
@@ -514,8 +516,8 @@
             // Update sync state
             await db.collection('system_meta').doc('sync_state').set({
                 lastSyncedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                studentCount: localStudents.length,
-                sessionCount: localSessions.length,
+                studentCount: validStudents.length,
+                sessionCount: validSessions.length,
                 syncedBy: (JSON.parse(localStorage.getItem('college_auth_user') || '{}').name) || 'سیستەم'
             }, { merge: true });
 

@@ -1112,42 +1112,7 @@
             { id: 'crs_26', deptId: 'dept_statistics', dept: 'dept_statistics', subject: 'زنجیرەی کاتی', teacherName: 'پ.د. عەلی ڕەزا', stage: '4', totalHours: 60, username: 'ali_stat', password: 'ali123' }
         ];
 
-        const DEFAULT_SESSIONS = [
-            // Accounting Sessions
-            { id: 'sess_acc_1', dept: 'dept_accounting', stage: '1', subject: 'بنەماکانی ژمێریاری', teacherName: 'م. کاروان ئەحمەد', date: '2026-10-14', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '1': { status: 'absent', note: 'غیاب لە وانە' }, '2': { status: 'present', note: '' }, '3': { status: 'absent', note: 'غیابی دووبارە' }, '4': { status: 'present', note: '' } } },
-            { id: 'sess_acc_2', dept: 'dept_accounting', stage: '1', subject: 'مافەکانی مرۆڤ', teacherName: 'م. شادان عوسمان', date: '2026-10-15', lectureHours: 2, totalCourseHours: 40, status: 'submitted', study: 'morning', records: { '1': { status: 'absent', note: 'غیاب' }, '2': { status: 'present', note: '' }, '3': { status: 'present', note: '' }, '4': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_acc_3', dept: 'dept_accounting', stage: '2', subject: 'ژمێریاری نەوت و گاز', teacherName: 'د. هێمن عومەر', date: '2026-10-13', lectureHours: 5, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '5': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_acc_4', dept: 'dept_accounting', stage: '3', subject: 'ژمێریاری پێشکەوتوو', teacherName: 'د. فەرهاد حەمە', date: '2026-10-12', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'evening', records: { '6': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_acc_5', dept: 'dept_accounting', stage: '4', subject: 'وردبینی و پێداچوونەوە', teacherName: 'پ.د. سەردار عەلی', date: '2026-10-11', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '7': { status: 'absent', note: 'غیاب' } } },
-
-            // Business Sessions
-            { id: 'sess_bus_1', dept: 'dept_business', stage: '1', subject: 'پڕەنسیپەکانی کارگێڕی', teacherName: 'م. ڕێبوار کەمال', date: '2026-10-14', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '8': { status: 'absent', note: 'غیاب' }, '9': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_bus_2', dept: 'dept_business', stage: '1', subject: 'زانستی کۆمپیوتەر', teacherName: 'م. هێرش جەمال', date: '2026-10-15', lectureHours: 2, totalCourseHours: 40, status: 'submitted', study: 'morning', records: { '8': { status: 'absent', note: 'غیاب دووەم' }, '9': { status: 'present', note: '' } } },
-            { id: 'sess_bus_3', dept: 'dept_business', stage: '2', subject: 'بەڕێوەبردنی سەرچاوە مرۆییەکان', teacherName: 'د. نەوزاد ساڵح', date: '2026-10-13', lectureHours: 7, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '10': { status: 'absent', note: 'غیاب' }, '11': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_bus_4', dept: 'dept_business', stage: '3', subject: 'کارگێڕی ستراتیژی', teacherName: 'د. ڕەوەند بەکر', date: '2026-10-12', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '12': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_bus_5', dept: 'dept_business', stage: '4', subject: 'کارگێڕی پرۆژەکان', teacherName: 'پ.د. ئاراس قادر', date: '2026-10-11', lectureHours: 5, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '13': { status: 'absent', note: 'غیاب' } } },
-
-            // Economics Sessions
-            { id: 'sess_eco_1', dept: 'dept_economics', stage: '1', subject: 'مایکرۆ ئابووری', teacherName: 'د. شوان عەلی', date: '2026-10-14', lectureHours: 3, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '14': { status: 'absent', note: 'غیاب' }, '15': { status: 'present', note: '' } } },
-            { id: 'sess_eco_2', dept: 'dept_economics', stage: '1', subject: 'بیرکاری بۆ ئابووریناسان', teacherName: 'م. ئامانج مەجید', date: '2026-10-15', lectureHours: 2, totalCourseHours: 40, status: 'submitted', study: 'morning', records: { '14': { status: 'absent', note: 'غیاب دووەم' }, '15': { status: 'present', note: '' } } },
-            { id: 'sess_eco_3', dept: 'dept_economics', stage: '2', subject: 'ماکرۆ ئابووری', teacherName: 'د. سەرکەوت حوسێن', date: '2026-10-13', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '16': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_eco_4', dept: 'dept_economics', stage: '3', subject: 'ئابووری نێودەوڵەتی', teacherName: 'م. بێستوون فوئاد', date: '2026-10-12', lectureHours: 7, totalCourseHours: 60, status: 'submitted', study: 'evening', records: { '17': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_eco_5', dept: 'dept_economics', stage: '4', subject: 'گەشەپێدانی ئابووری', teacherName: 'د. نەبەز عەبدوڵڵا', date: '2026-10-11', lectureHours: 3, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '18': { status: 'absent', note: 'غیاب' } } },
-
-            // Marketing Sessions
-            { id: 'sess_fin_1', dept: 'dept_finance', stage: '1', subject: 'بنەماکانی بەبازاڕکردن', teacherName: 'م. ئاری دارا', date: '2026-10-14', lectureHours: 3, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '19': { status: 'absent', note: 'غیاب' }, '20': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_fin_2', dept: 'dept_finance', stage: '1', subject: 'پەیوەندییە گشتییەکان', teacherName: 'م. جوانۆ تەها', date: '2026-10-15', lectureHours: 2, totalCourseHours: 40, status: 'submitted', study: 'morning', records: { '19': { status: 'absent', note: 'غیاب دووەم' }, '20': { status: 'present', note: '' } } },
-            { id: 'sess_fin_3', dept: 'dept_finance', stage: '2', subject: 'ڕەفتاری بەکاربەر', teacherName: 'د. لاوان نەریمان', date: '2026-10-13', lectureHours: 5, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '21': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_fin_4', dept: 'dept_finance', stage: '3', subject: 'بەبازاڕکردنی دیجیتاڵی', teacherName: 'م. دیلان تاریق', date: '2026-10-12', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '22': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_fin_5', dept: 'dept_finance', stage: '4', subject: 'ستراتیژی بەبازاڕکردن', teacherName: 'د. کاوە ئەحمەد', date: '2026-10-11', lectureHours: 6, totalCourseHours: 60, status: 'submitted', study: 'evening', records: { '23': { status: 'absent', note: 'غیاب' } } },
-
-            // Statistics Sessions
-            { id: 'sess_sta_1', dept: 'dept_statistics', stage: '1', subject: 'ئاماری سەرەتایی', teacherName: 'د. دانا جەمیل', date: '2026-10-14', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '24': { status: 'absent', note: 'غیاب' }, '25': { status: 'present', note: '' } } },
-            { id: 'sess_sta_2', dept: 'dept_statistics', stage: '1', subject: 'بیرکاری سەرەتایی', teacherName: 'م. دڵشاد فەتاح', date: '2026-10-15', lectureHours: 2, totalCourseHours: 40, status: 'submitted', study: 'morning', records: { '24': { status: 'absent', note: 'غیاب دووەم' }, '25': { status: 'present', note: '' } } },
-            { id: 'sess_sta_3', dept: 'dept_statistics', stage: '2', subject: 'ئەگەرو گریمانە', teacherName: 'م. زانا حامید', date: '2026-10-13', lectureHours: 4, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '26': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_sta_4', dept: 'dept_statistics', stage: '3', subject: 'شیکاری ئاماری پێشکەوتوو', teacherName: 'د. شێرکۆ کەریم', date: '2026-10-12', lectureHours: 3, totalCourseHours: 60, status: 'submitted', study: 'evening', records: { '27': { status: 'absent', note: 'غیاب' } } },
-            { id: 'sess_sta_5', dept: 'dept_statistics', stage: '4', subject: 'زنجیرەی کاتی', teacherName: 'پ.د. عەلی ڕەزا', date: '2026-10-11', lectureHours: 7, totalCourseHours: 60, status: 'submitted', study: 'morning', records: { '28': { status: 'absent', note: 'غیاب' } } }
-        ];
+        const DEFAULT_SESSIONS = [];
 
         let currentActiveDept = 'dept_accounting';
         let currentDeptTab = 'dashboard';
@@ -1299,20 +1264,11 @@
         });
 
         function initStorage() {
-            const DATA_VERSION = 'v3_rich_stages_absence';
-            if (localStorage.getItem('college_data_version') !== DATA_VERSION) {
-                if (!localStorage.getItem('college_students')) localStorage.setItem('college_students', JSON.stringify(DEFAULT_STUDENTS));
-                if (!localStorage.getItem('college_courses')) localStorage.setItem('college_courses', JSON.stringify(DEFAULT_COURSES));
-                if (!localStorage.getItem('college_attendance_sessions')) localStorage.setItem('college_attendance_sessions', JSON.stringify(DEFAULT_SESSIONS));
-                localStorage.setItem('college_data_version', DATA_VERSION);
-            }
-
             const savedStudents = localStorage.getItem('college_students');
             if (savedStudents) {
-                try { students = JSON.parse(savedStudents); } catch(e) { students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS)); }
+                try { students = JSON.parse(savedStudents); } catch(e) { students = []; }
             } else {
-                students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS));
-                localStorage.setItem('college_students', JSON.stringify(students));
+                students = [];
             }
 
             const savedCourses = localStorage.getItem('college_courses');
@@ -1328,11 +1284,14 @@
 
             const savedSessions = localStorage.getItem('college_attendance_sessions');
             if (savedSessions) {
-                attendanceSessions = JSON.parse(savedSessions);
+                try { attendanceSessions = JSON.parse(savedSessions); } catch(e) { attendanceSessions = []; }
             } else {
-                attendanceSessions = JSON.parse(JSON.stringify(DEFAULT_SESSIONS));
-                localStorage.setItem('college_attendance_sessions', JSON.stringify(attendanceSessions));
+                attendanceSessions = [];
             }
+
+            // Clean out old dummy sample sessions if any exist in local storage
+            attendanceSessions = attendanceSessions.filter(s => s && s.id && !s.id.startsWith('sess_acc_') && !s.id.startsWith('sess_bus_') && !s.id.startsWith('sess_eco_') && !s.id.startsWith('sess_fin_') && !s.id.startsWith('sess_sta_'));
+            localStorage.setItem('college_attendance_sessions', JSON.stringify(attendanceSessions));
         }
 
         function reloadSampleAbsenceData() {
@@ -1541,32 +1500,6 @@
                                 stage: String(s.stage),
                                 study: s.study,
                                 group: s.group,
-                                subject: item.subject,
-                                absentHours: item.absentHours,
-                                totalHours: totalHours,
-                                percentage: pct
-                            });
-                        }
-                    });
-                }
-            });
-
-            // Catch any session students of targetDept not in local array
-            Object.keys(studentCourseMap).forEach(stKey => {
-                const s = deptStudents.find(stu => stu.id === stKey || stu.code === stKey);
-                if (!s) {
-                    Object.values(studentCourseMap[stKey]).forEach(item => {
-                        if (item.absentHours > 0) {
-                            const totalHours = item.totalHours || 60;
-                            const pct = totalHours > 0 ? ((item.absentHours / totalHours) * 100) : 0;
-                            list.push({
-                                studentId: stKey,
-                                studentCode: stKey,
-                                studentName: item.studentName || stKey,
-                                dept: targetDept,
-                                stage: String(item.stage || '1'),
-                                study: item.study || 'morning',
-                                group: item.group || 'A',
                                 subject: item.subject,
                                 absentHours: item.absentHours,
                                 totalHours: totalHours,
