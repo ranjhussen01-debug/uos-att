@@ -383,6 +383,19 @@
                 notifyLocalApp('sessions_updated', []);
             }
 
+            // Pull custom departments meta
+            try {
+                const deptsSnap = await db.collection('departments_meta').get();
+                if (!deptsSnap.empty) {
+                    const customDepts = {};
+                    deptsSnap.forEach(d => {
+                        customDepts[d.id] = d.data();
+                    });
+                    localStorage.setItem('college_custom_departments', JSON.stringify(customDepts));
+                    notifyLocalApp('departments_updated', customDepts);
+                }
+            } catch (e) {}
+
             // Pull audit logs
             const auditSnap = await db.collection('audit_logs').limit(100).get();
             if (!auditSnap.empty) {
@@ -694,6 +707,22 @@
             return true;
         } catch (e) {
             handleFirestoreError(e, 'deleteUser');
+            return false;
+        }
+    }
+
+    // Save custom department meta (such as adminName)
+    async function saveCustomDepartment(deptKey, data) {
+        if (!deptKey) return false;
+        if (!db) initFirebase();
+        if (!db) return false;
+        try {
+            await withTimeout(db.collection('departments_meta').doc(deptKey).set(data, { merge: true }), 6000);
+            console.log('[Firebase] ✅ Department meta saved to cloud:', deptKey, data);
+            return true;
+        } catch (e) {
+            console.warn('[Firebase] ❌ Error saving department meta:', e);
+            handleFirestoreError(e, 'saveCustomDepartment');
             return false;
         }
     }
@@ -1148,6 +1177,7 @@
         deleteCourse,
         saveUser,
         deleteUser,
+        saveCustomDepartment,
         wipeAllStudents,
         saveAttendanceSession,
         wipeAllAttendanceSessions,

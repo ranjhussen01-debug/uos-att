@@ -1236,6 +1236,7 @@
         });
 
         function initStorage() {
+            syncCustomDeptNames();
             const savedStudents = localStorage.getItem('college_students');
             if (savedStudents) {
                 try { students = JSON.parse(savedStudents); } catch(e) { students = []; }
@@ -1317,6 +1318,31 @@
             'dept_finance'    : 'finance',
             'dept_statistics' : 'statistics'
         };
+
+        function syncCustomDeptNames() {
+            let custom = {};
+            try {
+                custom = JSON.parse(localStorage.getItem('college_custom_departments') || '{}');
+            } catch(e) { custom = {}; }
+
+            let authUsers = [];
+            try {
+                authUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+            } catch(e) { authUsers = []; }
+
+            Object.keys(DEPARTMENTS).forEach(deptKey => {
+                if (custom[deptKey] && custom[deptKey].adminName) {
+                    DEPARTMENTS[deptKey].adminName = custom[deptKey].adminName;
+                } else {
+                    const uKey = DEPT_HEAD_KEYS[deptKey];
+                    const u = authUsers.find(x => x.username === uKey || x.deptId === deptKey);
+                    if (u && u.name) {
+                        const cleaned = u.name.replace(/^بەڕێوەبەری\s+/, '').trim();
+                        if (cleaned) DEPARTMENTS[deptKey].adminName = cleaned;
+                    }
+                }
+            });
+        }
 
         function getDeptHeads() {
             try {
@@ -1459,11 +1485,30 @@
                     if (uObj) window.FirebaseService.saveUser(uObj);
                 }
                 DEPARTMENTS[deptKey].adminName = name;
+
+                let custom = {};
+                try {
+                    custom = JSON.parse(localStorage.getItem('college_custom_departments') || '{}');
+                } catch(e) { custom = {}; }
+                if (!custom[deptKey]) custom[deptKey] = {};
+                custom[deptKey].adminName = name;
+                custom[deptKey].name = dept.name;
+                custom[deptKey].updatedAt = new Date().toISOString();
+                localStorage.setItem('college_custom_departments', JSON.stringify(custom));
+
+                if (window.FirebaseService && typeof window.FirebaseService.saveCustomDepartment === 'function') {
+                    window.FirebaseService.saveCustomDepartment(deptKey, {
+                        adminName: name,
+                        name: dept.name,
+                        updatedAt: new Date().toISOString()
+                    }).catch(e => console.warn('[FB Dept Meta Save]', e));
+                }
+
                 renderHeadsTable();
                 renderSuperAdminView();
                 Swal.fire({
                     toast: true, position: 'top-start', icon: 'success',
-                    title: `زانیاری سەرۆکی ${dept.name} نوێکرایەوە`,
+                    title: `زانیاری سەرۆکی ${dept.name} نوێکرایەوە و پاشەکەوت کرا`,
                     showConfirmButton: false, timer: 2000
                 });
             });

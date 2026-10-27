@@ -305,9 +305,9 @@
                         <span id="deptHeroBadge">پانێڵی تایبەتی بەشەکە</span>
                     </div>
                     <h1 id="deptHeroTitle" class="text-2xl sm:text-3xl font-black">بەشی ژمێریاری</h1>
-                    <p id="deptHeroDesc" class="text-slate-300 text-xs sm:text-sm mt-1 max-w-xl">
-                        سەرپەرشتیاری بەش: م. ئاراس کەریم | بەڕێوەبردنی خوێندکاران، ئامارەکان و ڕاپۆرتەکانی ئەم بەشە بە سەربەخۆیی.
-                    </p>
+                    <div id="deptHeroDesc" class="mt-2 text-slate-300 text-xs sm:text-sm">
+                        <!-- Rendered by renderDepartmentView() -->
+                    </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <button onclick="switchDeptTab('courses'); openAddCourseModal();" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2">
@@ -1034,6 +1034,39 @@
             'dept_statistics': 'STA'
         };
 
+        const DEPT_HEAD_KEYS = {
+            'dept_accounting': 'accounting',
+            'dept_business': 'business',
+            'dept_economics': 'economics',
+            'dept_finance': 'finance',
+            'dept_statistics': 'statistics'
+        };
+
+        function syncCustomDeptNames() {
+            let custom = {};
+            try {
+                custom = JSON.parse(localStorage.getItem('college_custom_departments') || '{}');
+            } catch(e) { custom = {}; }
+
+            let authUsers = [];
+            try {
+                authUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+            } catch(e) { authUsers = []; }
+
+            Object.keys(DEPARTMENTS).forEach(deptKey => {
+                if (custom[deptKey] && custom[deptKey].adminName) {
+                    DEPARTMENTS[deptKey].adminName = custom[deptKey].adminName;
+                } else {
+                    const uKey = DEPT_HEAD_KEYS[deptKey];
+                    const u = authUsers.find(x => x.username === uKey || x.deptId === deptKey);
+                    if (u && u.name) {
+                        const cleaned = u.name.replace(/^بەڕێوەبەری\s+/, '').trim();
+                        if (cleaned) DEPARTMENTS[deptKey].adminName = cleaned;
+                    }
+                }
+            });
+        }
+
         const DEFAULT_STUDENTS = [
             // بەشی ژمێریاری (Accounting)
             { id: '1', code: 'ACC-101', name: 'ئاری ڕەحمان حەمەسەعید', dept: 'dept_accounting', stage: '1', study: 'morning', group: 'A', totalHours: 60, absentHours: 4 },
@@ -1197,6 +1230,9 @@
                         attendanceSessions = data;
                         renderDepartmentView();
                         if (typeof renderDeptReportsList === 'function') renderDeptReportsList();
+                    } else if (eventType === 'departments_updated') {
+                        syncCustomDeptNames();
+                        renderDepartmentView();
                     }
                 });
             }
@@ -1217,12 +1253,16 @@
                     attendanceSessions = data;
                     renderDepartmentView();
                     if (typeof renderDeptReportsList === 'function') renderDeptReportsList();
+                } else if (eventType === 'departments_updated') {
+                    syncCustomDeptNames();
+                    renderDepartmentView();
                 }
             });
 
             // Automatically pull all latest cloud data (courses, users, students, sessions) from Firebase
             if (window.FirebaseService && typeof window.FirebaseService.pullAllFromCloud === 'function') {
                 window.FirebaseService.pullAllFromCloud().then(() => {
+                    syncCustomDeptNames();
                     const crsRaw = localStorage.getItem('college_courses');
                     if (crsRaw) {
                         try {
@@ -1257,6 +1297,7 @@
                             }
                         } catch(e) {}
                     }
+                    renderDepartmentView();
                     // Auto-sync any local courses that may not be in cloud yet
                     setTimeout(syncAllCoursesToCloud, 1200);
                 });
@@ -1264,6 +1305,7 @@
         });
 
         function initStorage() {
+            syncCustomDeptNames();
             const savedStudents = localStorage.getItem('college_students');
             if (savedStudents) {
                 try { students = JSON.parse(savedStudents); } catch(e) { students = []; }
@@ -1402,13 +1444,153 @@
 
             // Banner Info
             document.getElementById('deptHeroTitle').textContent = dept.name;
-            document.getElementById('deptHeroDesc').textContent = `سەرپەرشتیاری بەش: ${dept.adminName} | بەڕێوەبردنی خوێندکاران، ئامارەکان و ڕاپۆرتەکانی ئەم بەشە بە سەربەخۆیی.`;
+            const heroDescEl = document.getElementById('deptHeroDesc');
+            if (heroDescEl) {
+                heroDescEl.innerHTML = `
+                    <div class="flex flex-wrap items-center gap-2.5 mt-2">
+                        <span class="inline-flex items-center gap-2 bg-slate-800/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-slate-700 shadow-sm text-xs sm:text-sm">
+                            <i class="fa-solid fa-user-tie text-amber-400"></i>
+                            <span class="text-slate-300">سەرپەرشتیاری بەش: <strong class="text-white font-black tracking-wide">${dept.adminName || 'دیاری نەکراوە'}</strong></span>
+                        </span>
+                        <button type="button" onclick="openEditDeptAdminModal('${currentActiveDept}')" title="گۆڕینی ناوی سەرپەرشتیاری بەش"
+                            class="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-xs transition-all duration-200 shadow-md flex items-center gap-1.5 cursor-pointer border border-amber-300 hover:scale-105 active:scale-95">
+                            <i class="fa-solid fa-pen-to-square text-xs"></i>
+                            <span>گۆڕینی ناو</span>
+                        </button>
+                        <span class="text-slate-400 text-xs hidden md:inline">| بەڕێوەبردنی خوێندکاران، ئامارەکان و ڕاپۆرتەکانی ئەم بەشە بە سەربەخۆیی.</span>
+                    </div>
+                `;
+            }
             document.getElementById('deptHeroBadge').textContent = `پانێڵی تایبەتی: ${dept.name}`;
 
             const banner = document.getElementById('deptHeroBanner');
             banner.className = `relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl transition-all duration-300 bg-gradient-to-l from-${dept.color}-900 via-slate-900 to-slate-950 border border-slate-700`;
 
             switchDeptTab(currentDeptTab);
+        }
+
+        function openEditDeptAdminModal(deptKey) {
+            const targetDept = deptKey || currentActiveDept;
+            const dept = DEPARTMENTS[targetDept];
+            if (!dept) return;
+
+            Swal.fire({
+                title: `<div class="text-right text-base font-black text-slate-100 flex items-center gap-2" dir="rtl"><i class="fa-solid fa-user-pen text-amber-400"></i> گۆڕینی ناوی سەرپەرشتیاری ${dept.name}</div>`,
+                html: `
+                    <div class="text-right space-y-3 mt-3" dir="rtl">
+                        <p class="text-xs text-slate-300 font-medium">دەتوانیت ناوی سەرۆک یا سەرپەرشتیاری بەش بنووسیت و ڕاستەوخۆ لە فایەربەیس و سەرجەم پەڕەکان نوێ دەبێتەوە.</p>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 mb-1">ناوی نوێی سەرپەرشتیار / سەرۆک بەش <span class="text-amber-400">*</span></label>
+                            <input id="swal_deptAdminName" type="text" value="${dept.adminName || ''}"
+                                class="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-sm font-bold focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none"
+                                placeholder="بۆ نموونە: م. نەبەز عەلی">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa-solid fa-check ml-1"></i> پاشەکەوتکردن',
+                cancelButtonText: 'پاشگەزبوونەوە',
+                confirmButtonColor: '#f59e0b',
+                cancelButtonColor: '#475569',
+                background: '#0f172a',
+                color: '#f8fafc',
+                width: 440,
+                didOpen: () => {
+                    const inp = document.getElementById('swal_deptAdminName');
+                    if (inp) { inp.focus(); inp.select(); }
+                },
+                preConfirm: () => {
+                    const newName = (document.getElementById('swal_deptAdminName').value || '').trim();
+                    if (!newName) {
+                        Swal.showValidationMessage('تکایە ناوی سەرپەرشتیار بنووسە');
+                        return false;
+                    }
+                    return newName;
+                }
+            }).then(async (result) => {
+                if (!result.isConfirmed || !result.value) return;
+                const newName = result.value;
+                await saveDeptAdminName(targetDept, newName);
+            });
+        }
+
+        async function saveDeptAdminName(deptKey, newName) {
+            if (!DEPARTMENTS[deptKey]) return;
+            DEPARTMENTS[deptKey].adminName = newName;
+
+            // 1) Update college_custom_departments in localStorage
+            let custom = {};
+            try {
+                custom = JSON.parse(localStorage.getItem('college_custom_departments') || '{}');
+            } catch(e) { custom = {}; }
+            if (!custom[deptKey]) custom[deptKey] = {};
+            custom[deptKey].adminName = newName;
+            custom[deptKey].name = DEPARTMENTS[deptKey].name;
+            custom[deptKey].updatedAt = new Date().toISOString();
+            localStorage.setItem('college_custom_departments', JSON.stringify(custom));
+
+            // 2) Update in college_auth_users & saveUser
+            const loginUser = DEPT_HEAD_KEYS[deptKey];
+            let users = [];
+            try {
+                users = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+            } catch(e) { users = []; }
+            const uIdx = users.findIndex(u => u.username === loginUser || u.deptId === deptKey);
+            let targetUser = null;
+            if (uIdx >= 0) {
+                users[uIdx].name = 'بەڕێوەبەری ' + newName;
+                targetUser = users[uIdx];
+            } else if (loginUser) {
+                targetUser = {
+                    username: loginUser,
+                    password: '1234',
+                    name: 'بەڕێوەبەری ' + newName,
+                    role: 'department',
+                    deptId: deptKey,
+                    deptName: DEPARTMENTS[deptKey].name
+                };
+                users.push(targetUser);
+            }
+            localStorage.setItem('college_auth_users', JSON.stringify(users));
+
+            // Also update logged-in user in session if it matches
+            try {
+                let auth = JSON.parse(localStorage.getItem('college_auth_user') || 'null');
+                if (auth && (auth.deptId === deptKey || auth.username === loginUser)) {
+                    auth.name = 'بەڕێوەبەری ' + newName;
+                    localStorage.setItem('college_auth_user', JSON.stringify(auth));
+                    const userNameElem = document.getElementById('authUserName');
+                    if (userNameElem) userNameElem.textContent = auth.name;
+                }
+            } catch(e) {}
+
+            // 3) Sync to Firebase
+            if (window.FirebaseService) {
+                if (targetUser && typeof window.FirebaseService.saveUser === 'function') {
+                    window.FirebaseService.saveUser(targetUser).catch(err => console.warn('[FB User Save]', err));
+                }
+                if (typeof window.FirebaseService.saveCustomDepartment === 'function') {
+                    window.FirebaseService.saveCustomDepartment(deptKey, {
+                        adminName: newName,
+                        name: DEPARTMENTS[deptKey].name,
+                        updatedAt: new Date().toISOString()
+                    }).catch(err => console.warn('[FB Dept Meta Save]', err));
+                }
+            }
+
+            // 4) Re-render department view
+            renderDepartmentView();
+
+            Swal.fire({
+                toast: true,
+                position: 'top-start',
+                icon: 'success',
+                title: 'ناوی سەرپەرشتیاری بەش بە سەرکەوتوویی نوێکرایەوە و پاشەکەوت کرا',
+                showConfirmButton: false,
+                timer: 3000,
+                background: '#0f172a',
+                color: '#f8fafc'
+            });
         }
 
         function getDeptDetailedCourseAbsenceList(deptKey) {
