@@ -89,20 +89,29 @@ function fromFirestoreFields(fields) {
 
 // REST Client functions for Firestore
 async function getFirestoreDocuments(collectionName) {
-    const url = `${FIRESTORE_BASE_URL}/${collectionName}?key=${FIREBASE_CONFIG.apiKey}&pageSize=300`;
-    const res = await fetch(url);
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Firestore GET failed [${res.status}]: ${text}`);
-    }
-    const data = await res.json();
-    if (!data.documents) return [];
-    return data.documents.map(doc => {
-        const item = fromFirestoreFields(doc.fields);
-        const nameParts = doc.name.split('/');
-        item._id = nameParts[nameParts.length - 1];
-        return item;
-    });
+    let allDocs = [];
+    let pageToken = '';
+    do {
+        let url = `${FIRESTORE_BASE_URL}/${collectionName}?key=${FIREBASE_CONFIG.apiKey}&pageSize=300`;
+        if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Firestore GET failed [${res.status}]: ${text}`);
+        }
+        const data = await res.json();
+        if (data.documents && data.documents.length) {
+            const items = data.documents.map(doc => {
+                const item = fromFirestoreFields(doc.fields);
+                const nameParts = doc.name.split('/');
+                item._id = nameParts[nameParts.length - 1];
+                return item;
+            });
+            allDocs = allDocs.concat(items);
+        }
+        pageToken = data.nextPageToken || '';
+    } while (pageToken);
+    return allDocs;
 }
 
 async function setFirestoreDocument(collectionName, docId, data) {

@@ -379,15 +379,23 @@
             </div>
 
             <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
                             <i class="fa-solid fa-triangle-exclamation"></i>
                         </div>
                         <div>
-                            <h3 class="font-extrabold text-slate-800">خوێندکارانی مەترسیداری ئەم بەشە</h3>
-                            <p class="text-xs text-slate-400">ئەو خوێندکارانەی غیاباتیان لە بەشەکە گەیشتووەتە سنووری دەرکردن</p>
+                            <h3 class="font-extrabold text-slate-800">خوێندکارانی خاوەن غیابات و ئاگادارکراوەی بەش</h3>
+                            <p class="text-xs text-slate-400">ڕێژەی غیابات بەپێی کاتژمێری فەرمی هەر وانەیەک دەردەچێت و ئاستی مەترسی دیاری دەکرێت</p>
                         </div>
+                    </div>
+                    <div>
+                        <select id="deptWarningLevelFilter" onchange="renderDeptWarningTable()" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 font-bold focus:outline-none">
+                            <option value="all_absent">سەرجەم تۆمارەکانی غیابات</option>
+                            <option value="warning_5">ئاگاداری یەکەم و زیاتر (≥ ٥٪)</option>
+                            <option value="warning_7">ئاگاداری دووەم و دەرکردن (≥ ٧٪)</option>
+                            <option value="danger_10">دەرکردن و مەترسیدار (≥ ١٠٪)</option>
+                        </select>
                     </div>
                 </div>
 
@@ -1444,13 +1452,144 @@
             switchDeptTab(currentDeptTab);
         }
 
+        function getDeptDetailedCourseAbsenceList(deptKey) {
+            const targetDept = deptKey || currentActiveDept;
+            let allCourses = [];
+            try {
+                allCourses = JSON.parse(localStorage.getItem('college_courses') || '[]');
+            } catch(e) { allCourses = []; }
+            if (!allCourses || allCourses.length === 0) {
+                allCourses = courses || [];
+            }
+
+            const studentCourseMap = {};
+
+            // 1) Extract absences from attendanceSessions for this department
+            if (attendanceSessions && attendanceSessions.length > 0) {
+                attendanceSessions.forEach(sess => {
+                    if (sess.dept !== targetDept || sess.status === 'draft') return;
+                    const subName = sess.subject || 'محازەرە';
+                    const lecHours = Number(sess.lectureHours) || 1;
+                    let totalHrs = Number(sess.totalCourseHours);
+                    if (!totalHrs || totalHrs <= 0) {
+                        const matched = allCourses.find(c => c.subject === subName || ((c.deptId === sess.dept || c.dept === sess.dept) && String(c.stage) === String(sess.stage)));
+                        totalHrs = matched && matched.totalHours ? Number(matched.totalHours) : 60;
+                    }
+
+                    if (sess.records) {
+                        Object.keys(sess.records).forEach(stId => {
+                            const rec = sess.records[stId];
+                            if (rec && rec.status === 'absent') {
+                                if (!studentCourseMap[stId]) studentCourseMap[stId] = {};
+                                if (!studentCourseMap[stId][subName]) {
+                                    studentCourseMap[stId][subName] = {
+                                        subject: subName,
+                                        absentHours: 0,
+                                        totalHours: totalHrs,
+                                        stage: sess.stage,
+                                        study: sess.study
+                                    };
+                                }
+                                studentCourseMap[stId][subName].absentHours += lecHours;
+                            }
+                        });
+                    }
+                });
+            }
+
+            // 2) Also check if students have absentHours > 0 on student record
+            const deptStudents = students.filter(s => s.dept === targetDept);
+            deptStudents.forEach(s => {
+                const sAbs = Number(s.absentHours) || 0;
+                if (sAbs > 0) {
+                    if (!studentCourseMap[s.id] || Object.keys(studentCourseMap[s.id]).length === 0) {
+                        let subName = s.subject || 'وانەی سەرەکی';
+                        let totHrs = Number(s.totalHours);
+                        const matched = allCourses.find(c => (c.deptId === s.dept || c.dept === s.dept) && String(c.stage) === String(s.stage));
+                        if (matched) {
+                            subName = matched.subject;
+                            if (!totHrs || totHrs <= 0) totHrs = Number(matched.totalHours);
+                        }
+                        if (!totHrs || totHrs <= 0) totHrs = 60;
+                        studentCourseMap[s.id] = {
+                            [subName]: {
+                                subject: subName,
+                                absentHours: sAbs,
+                                totalHours: totHrs,
+                                stage: s.stage,
+                                study: s.study
+                            }
+                        };
+                    }
+                }
+            });
+
+            // 3) Build flattened list
+            const list = [];
+            deptStudents.forEach(s => {
+                const coursesForStudent = studentCourseMap[s.id] || studentCourseMap[s.code];
+                if (coursesForStudent) {
+                    Object.values(coursesForStudent).forEach(item => {
+                        if (item.absentHours > 0) {
+                            const totalHours = item.totalHours || s.totalHours || 60;
+                            const pct = totalHours > 0 ? ((item.absentHours / totalHours) * 100) : 0;
+                            list.push({
+                                studentId: s.id,
+                                studentCode: s.code,
+                                studentName: s.name,
+                                dept: s.dept,
+                                stage: String(s.stage),
+                                study: s.study,
+                                group: s.group,
+                                subject: item.subject,
+                                absentHours: item.absentHours,
+                                totalHours: totalHours,
+                                percentage: pct
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Catch any session students of targetDept not in local array
+            Object.keys(studentCourseMap).forEach(stKey => {
+                const s = deptStudents.find(stu => stu.id === stKey || stu.code === stKey);
+                if (!s) {
+                    Object.values(studentCourseMap[stKey]).forEach(item => {
+                        if (item.absentHours > 0) {
+                            const totalHours = item.totalHours || 60;
+                            const pct = totalHours > 0 ? ((item.absentHours / totalHours) * 100) : 0;
+                            list.push({
+                                studentId: stKey,
+                                studentCode: stKey,
+                                studentName: item.studentName || stKey,
+                                dept: targetDept,
+                                stage: String(item.stage || '1'),
+                                study: item.study || 'morning',
+                                group: item.group || 'A',
+                                subject: item.subject,
+                                absentHours: item.absentHours,
+                                totalHours: totalHours,
+                                percentage: pct
+                            });
+                        }
+                    });
+                }
+            });
+
+            return list;
+        }
+
         function renderDeptDashboard() {
             const deptStus = students.filter(s => s.dept === currentActiveDept);
             const count = deptStus.length;
             const absHours = deptStus.reduce((acc, s) => acc + (s.absentHours || 0), 0);
             const avgAbs = count > 0 ? ((absHours / (count * 40)) * 100).toFixed(1) : 0;
             const attRate = (100 - avgAbs).toFixed(1);
-            const warningCount = deptStus.filter(s => (s.absentHours / 40) >= 0.10).length;
+
+            const deptAbsList = getDeptDetailedCourseAbsenceList(currentActiveDept);
+            const warningAbsRecords = deptAbsList.filter(i => (i.percentage / 100) >= 0.05);
+            const warningCount = new Set(warningAbsRecords.map(i => i.studentId)).size;
 
             document.getElementById('deptStatTotalStudents').textContent = count;
             document.getElementById('deptStatAttendanceRate').textContent = `${attRate}%`;
@@ -1458,7 +1597,7 @@
             document.getElementById('deptStatWarningStudents').textContent = warningCount;
 
             renderDeptStagesChart(deptStus);
-            renderDeptWarningTable(deptStus.filter(s => (s.absentHours / 40) >= 0.10));
+            renderDeptWarningTable();
         }
 
         function renderDeptStagesChart(deptStus) {
@@ -1516,40 +1655,96 @@
             });
         }
 
-        function renderDeptWarningTable(warningStudents) {
+        function renderDeptWarningTable() {
             const tbody = document.getElementById('deptWarningTableBody');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
-            if (warningStudents.length === 0) {
+            const filterLevel = document.getElementById('deptWarningLevelFilter')?.value || 'all_absent';
+            const list = getDeptDetailedCourseAbsenceList(currentActiveDept);
+
+            let filtered = list.filter(item => {
+                const rate = item.percentage / 100;
+                if (filterLevel === 'warning_5' && rate < 0.05) return false;
+                if (filterLevel === 'warning_7' && rate < 0.07) return false;
+                if (filterLevel === 'danger_10' && rate < 0.10) return false;
+                return true;
+            });
+
+            filtered.sort((a, b) => b.percentage - a.percentage);
+
+            if (filtered.length === 0) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="6" class="py-6 text-center text-slate-400 text-xs font-bold">
                             <i class="fa-solid fa-circle-check text-emerald-500 text-base mb-1 block"></i>
-                            هیچ خوێندکارێکی ئەم بەشە لە سنووری مەترسیداردا نییە.
+                            هیچ خوێندکارێکی ئەم بەشە لەم فلتەرەدا تۆمار نەکراوە.
                         </td>
                     </tr>
                 `;
                 return;
             }
 
-            warningStudents.forEach(s => {
-                const percentage = Math.round(((s.absentHours || 0) / (s.totalHours || 40)) * 100);
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-slate-50 transition';
-                tr.innerHTML = `
-                    <td class="py-3 px-4 font-mono font-bold text-xs text-slate-600">${s.code}</td>
-                    <td class="py-3 px-4 font-bold text-slate-800">${s.name}</td>
-                    <td class="py-3 px-4 text-xs font-semibold">قۆناغی ${getStageArabic(s.stage)}</td>
-                    <td class="py-3 px-4 text-center font-bold text-rose-600 font-mono">${s.absentHours} کاتژمێر</td>
-                    <td class="py-3 px-4 text-center">
-                        <span class="inline-block bg-rose-100 text-rose-800 text-xs px-2.5 py-0.5 rounded-full font-black">
-                            %${percentage}
+            filtered.forEach(item => {
+                const pctFormatted = item.percentage % 1 === 0 ? item.percentage.toFixed(0) : item.percentage.toFixed(1);
+
+                let pctBadge = '';
+                let statusBadge = '';
+
+                if (item.percentage >= 10) {
+                    pctBadge = `<span class="inline-flex items-center gap-1 bg-rose-600 text-white text-xs px-2.5 py-0.5 rounded-full font-black shadow-sm">%${pctFormatted}</span>`;
+                    statusBadge = `
+                        <span class="text-xs font-bold text-rose-600 flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                            دەرکردن (١٠٪)
                         </span>
+                    `;
+                } else if (item.percentage >= 7) {
+                    pctBadge = `<span class="inline-flex items-center gap-1 bg-amber-500 text-slate-950 text-xs px-2.5 py-0.5 rounded-full font-black shadow-sm">%${pctFormatted}</span>`;
+                    statusBadge = `
+                        <span class="text-xs font-bold text-amber-600 flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            ئاگاداری دووەم (٧٪)
+                        </span>
+                    `;
+                } else if (item.percentage >= 5) {
+                    pctBadge = `<span class="inline-flex items-center gap-1 bg-yellow-400 text-slate-900 text-xs px-2.5 py-0.5 rounded-full font-bold shadow-sm">%${pctFormatted}</span>`;
+                    statusBadge = `
+                        <span class="text-xs font-bold text-yellow-600 flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            ئاگاداری یەکەم (٥٪)
+                        </span>
+                    `;
+                } else {
+                    pctBadge = `<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs px-2.5 py-0.5 rounded-full font-bold border border-emerald-200 shadow-sm">%${pctFormatted}</span>`;
+                    statusBadge = `
+                        <span class="text-xs font-bold text-emerald-600 flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-circle-check"></i>
+                            ئاسایی (&lt; ٥٪)
+                        </span>
+                    `;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-bold text-xs text-slate-600">${item.studentCode}</td>
+                    <td class="py-3 px-4 font-bold text-slate-800">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span>${item.studentName}</span>
+                            <span class="inline-flex items-center gap-1.5 font-extrabold text-indigo-900 bg-indigo-50/90 px-2 py-0.5 rounded-lg border border-indigo-200 text-xs shadow-xs">
+                                <i class="fa-solid fa-book-bookmark text-indigo-500 text-[10px]"></i>
+                                <span>${item.subject}</span>
+                            </span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-xs font-semibold">قۆناغی ${getStageArabic(item.stage)}</td>
+                    <td class="py-3 px-4 text-center font-bold text-rose-600 font-mono">${item.absentHours} کاتژمێر</td>
+                    <td class="py-3 px-4 text-center">
+                        ${pctBadge}
                     </td>
                     <td class="py-3 px-4 text-center">
-                        <span class="text-xs font-bold text-rose-600 flex items-center justify-center gap-1">
-                            <i class="fa-solid fa-triangle-exclamation"></i> ئاگاداری
-                        </span>
+                        ${statusBadge}
                     </td>
                 `;
                 tbody.appendChild(tr);

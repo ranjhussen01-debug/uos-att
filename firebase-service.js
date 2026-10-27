@@ -170,7 +170,6 @@
         try {
             db.collection('students').onSnapshot(snapshot => {
                 if (isQuotaExceeded) return;
-                if (snapshot.empty && !localStorage.getItem('college_students')) return;
                 
                 // If local is currently writing, don't self-overwrite immediately
                 if (isSyncing) return;
@@ -180,16 +179,19 @@
                     remoteStudents.push(doc.data());
                 });
 
+                const localRaw = localStorage.getItem('college_students');
+                const localStudents = localRaw ? JSON.parse(localRaw) : [];
+
                 if (remoteStudents.length > 0) {
-                    const localRaw = localStorage.getItem('college_students');
-                    const localStudents = localRaw ? JSON.parse(localRaw) : [];
-                    
-                    // Simple check if remote is different
                     if (JSON.stringify(remoteStudents) !== JSON.stringify(localStudents)) {
                         console.log('[Firebase] Realtime students update received from cloud:', remoteStudents.length);
                         localStorage.setItem('college_students', JSON.stringify(remoteStudents));
                         notifyLocalApp('students_updated', remoteStudents);
                     }
+                } else if (snapshot.empty && localStudents.length > 0) {
+                    console.log('[Firebase] Cloud students collection is empty. Clearing local students...');
+                    localStorage.setItem('college_students', JSON.stringify([]));
+                    notifyLocalApp('students_updated', []);
                 }
                 lastSyncTime = new Date();
                 updateBadgeTooltip();
@@ -208,10 +210,10 @@
                     remoteSessions.push(doc.data());
                 });
 
-                if (remoteSessions.length > 0) {
-                    const localRaw = localStorage.getItem('college_attendance_sessions');
-                    const localSessions = localRaw ? JSON.parse(localRaw) : [];
+                const localRaw = localStorage.getItem('college_attendance_sessions');
+                const localSessions = localRaw ? JSON.parse(localRaw) : [];
 
+                if (remoteSessions.length > 0) {
                     if (JSON.stringify(remoteSessions) !== JSON.stringify(localSessions)) {
                         console.log('[Firebase] Realtime sessions update received from cloud:', remoteSessions.length);
                         // Sort sessions by date/createdAt desc
@@ -219,6 +221,10 @@
                         localStorage.setItem('college_attendance_sessions', JSON.stringify(remoteSessions));
                         notifyLocalApp('sessions_updated', remoteSessions);
                     }
+                } else if (snapshot.empty && localSessions.length > 0) {
+                    console.log('[Firebase] Cloud sessions collection is empty. Clearing local sessions...');
+                    localStorage.setItem('college_attendance_sessions', JSON.stringify([]));
+                    notifyLocalApp('sessions_updated', []);
                 }
                 lastSyncTime = new Date();
                 updateBadgeTooltip();
@@ -336,6 +342,9 @@
                 stuSnap.forEach(d => stuList.push(d.data()));
                 localStorage.setItem('college_students', JSON.stringify(stuList));
                 notifyLocalApp('students_updated', stuList);
+            } else {
+                localStorage.setItem('college_students', JSON.stringify([]));
+                notifyLocalApp('students_updated', []);
             }
 
             // Pull courses
@@ -369,6 +378,9 @@
                 sessList.sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
                 localStorage.setItem('college_attendance_sessions', JSON.stringify(sessList));
                 notifyLocalApp('sessions_updated', sessList);
+            } else {
+                localStorage.setItem('college_attendance_sessions', JSON.stringify([]));
+                notifyLocalApp('sessions_updated', []);
             }
 
             // Pull audit logs
@@ -684,21 +696,140 @@
         }
     }
 
+    // Direct Firestore REST API batch wipe (bypasses SDK, local server, and quota issues)
+    async function wipeAllStudentsREST() {
+        try {
+            const apiKey = firebaseConfig.apiKey;
+            const projectId = firebaseConfig.projectId;
+            let pageToken = '';
+            let allDocNames = [];
+
+            do {
+                let url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/students?pageSize=300&key=${apiKey}`;
+                if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+                const res = await fetch(url);
+                if (!res.ok) break;
+                const data = await res.json();
+                if (data.documents && data.documents.length) {
+                    allDocNames = allDocNames.concat(data.documents.map(d => d.name));
+                }
+                pageToken = data.nextPageToken || '';
+            } while (pageToken);
+
+            if (allDocNames.length > 0) {
+                const chunkSize = 200;
+                for (let i = 0; i < allDocNames.length; i += chunkSize) {
+                    const chunk = allDocNames.slice(i, i + chunkSize);
+                    const commitPayload = {
+                        writes: chunk.map(docName => ({ delete: docName }))
+                    };
+                    await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(commitPayload)
+                    });
+                }
+            }
+
+            // Update sync_state metadata in cloud
+            const metaUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/system_meta/sync_state?key=${apiKey}&updateMask.fieldPaths=studentCount&updateMask.fieldPaths=lastSyncedAt`;
+            await fetch(metaUrl, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fields: {
+                        studentCount: { integerValue: '0' },
+                        lastSyncedAt: { timestampValue: new Date().toISOString() }
+                    }
+                })
+            });
+            return true;
+        } catch (e) {
+            console.warn('[Firebase] REST wipe students warning:', e);
+            return false;
+        }
+    }
+
+    async function wipeAllAttendanceSessionsREST() {
+        try {
+            const apiKey = firebaseConfig.apiKey;
+            const projectId = firebaseConfig.projectId;
+            let pageToken = '';
+            let allDocNames = [];
+
+            do {
+                let url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/attendance_sessions?pageSize=300&key=${apiKey}`;
+                if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+                const res = await fetch(url);
+                if (!res.ok) break;
+                const data = await res.json();
+                if (data.documents && data.documents.length) {
+                    allDocNames = allDocNames.concat(data.documents.map(d => d.name));
+                }
+                pageToken = data.nextPageToken || '';
+            } while (pageToken);
+
+            if (allDocNames.length > 0) {
+                const chunkSize = 200;
+                for (let i = 0; i < allDocNames.length; i += chunkSize) {
+                    const chunk = allDocNames.slice(i, i + chunkSize);
+                    const commitPayload = {
+                        writes: chunk.map(docName => ({ delete: docName }))
+                    };
+                    await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(commitPayload)
+                    });
+                }
+            }
+            return true;
+        } catch (e) {
+            console.warn('[Firebase] REST wipe sessions warning:', e);
+            return false;
+        }
+    }
+
     // Wipe all students in cloud (used for End of Academic Year)
     async function wipeAllStudents() {
-        if (!db) return;
+        if (!db) initFirebase();
         try {
             setSyncingState(true);
-            const snapshot = await db.collection('students').get();
-            const batch = db.batch();
-            snapshot.forEach(doc => {
-                batch.delete(doc.ref);
-            });
-            await batch.commit();
+            if (db) {
+                try {
+                    const snapshot = await db.collection('students').get();
+                    if (!snapshot.empty) {
+                        const docs = snapshot.docs;
+                        const chunkSize = 400;
+                        for (let i = 0; i < docs.length; i += chunkSize) {
+                            const chunk = docs.slice(i, i + chunkSize);
+                            const batch = db.batch();
+                            chunk.forEach(doc => {
+                                batch.delete(doc.ref);
+                            });
+                            await batch.commit();
+                        }
+                    }
+                } catch (sdkErr) {
+                    console.warn('[Firebase] SDK batch delete warning, falling back to direct REST:', sdkErr);
+                }
+            }
+
+            // Always execute direct Google REST API wipe for 100% cloud certainty
+            await wipeAllStudentsREST();
+
+            // Local Node server wipe if running
+            try {
+                await fetch('/api/students', { method: 'DELETE' });
+            } catch (restErr) {}
+
             console.log('[Firebase] All students wiped in cloud for End of Academic Year.');
             renderStatusBadge('connected', 'تەواوی خوێندکاران سڕانەوە');
+            return true;
         } catch (e) {
             console.error('[Firebase] Error wiping students:', e);
+            await wipeAllStudentsREST();
+            return false;
         } finally {
             setSyncingState(false);
         }
@@ -734,18 +865,42 @@
 
     // Wipe attendance sessions in cloud (used for End of Semester / Year)
     async function wipeAllAttendanceSessions() {
-        if (!db) return;
+        if (!db) initFirebase();
         try {
             setSyncingState(true);
-            const snapshot = await db.collection('attendance_sessions').get();
-            const batch = db.batch();
-            snapshot.forEach(doc => {
-                batch.delete(doc.ref);
-            });
-            await batch.commit();
+            if (db) {
+                try {
+                    const snapshot = await db.collection('attendance_sessions').get();
+                    if (!snapshot.empty) {
+                        const docs = snapshot.docs;
+                        const chunkSize = 400;
+                        for (let i = 0; i < docs.length; i += chunkSize) {
+                            const chunk = docs.slice(i, i + chunkSize);
+                            const batch = db.batch();
+                            chunk.forEach(doc => {
+                                batch.delete(doc.ref);
+                            });
+                            await batch.commit();
+                        }
+                    }
+                } catch (sdkErr) {
+                    console.warn('[Firebase] SDK batch delete sessions warning:', sdkErr);
+                }
+            }
+
+            // Always execute direct REST wipe
+            await wipeAllAttendanceSessionsREST();
+
+            try {
+                await fetch('/api/sessions', { method: 'DELETE' });
+            } catch (restErr) {}
+
             console.log('[Firebase] Attendance sessions wiped in cloud.');
+            return true;
         } catch (e) {
             console.error('[Firebase] Error wiping sessions:', e);
+            await wipeAllAttendanceSessionsREST();
+            return false;
         } finally {
             setSyncingState(false);
         }
