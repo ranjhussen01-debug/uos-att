@@ -926,6 +926,104 @@
         }
     }
 
+    // Reset all student absentHours to 0 in cloud (used for End of Semester)
+    async function resetAllStudentAbsences() {
+        if (!db) initFirebase();
+        try {
+            setSyncingState(true);
+
+            // 1. SDK batch update if active
+            if (db && !isQuotaExceeded) {
+                try {
+                    const snap = await db.collection('students').get();
+                    if (!snap.empty) {
+                        const docs = snap.docs;
+                        const chunkSize = 300;
+                        for (let i = 0; i < docs.length; i += chunkSize) {
+                            const chunk = docs.slice(i, i + chunkSize);
+                            const batch = db.batch();
+                            chunk.forEach(doc => {
+                                batch.update(doc.ref, {
+                                    absentHours: 0,
+                                    updatedAt: (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+                                        ? firebase.firestore.FieldValue.serverTimestamp()
+                                        : new Date().toISOString()
+                                });
+                            });
+                            await batch.commit();
+                        }
+                    }
+                } catch (sdkErr) {
+                    console.warn('[Firebase] SDK resetStudentAbsences error, trying REST fallback:', sdkErr);
+                }
+            }
+
+            // 2. Direct REST fallback
+            try {
+                const apiKey = firebaseConfig.apiKey;
+                const projectId = firebaseConfig.projectId;
+                let pageToken = '';
+                let allDocs = [];
+
+                do {
+                    let url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/students?pageSize=300&key=${apiKey}`;
+                    if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+                    const res = await fetch(url);
+                    if (!res.ok) break;
+                    const data = await res.json();
+                    if (data.documents && data.documents.length) {
+                        allDocs = allDocs.concat(data.documents);
+                    }
+                    pageToken = data.nextPageToken || '';
+                } while (pageToken);
+
+                if (allDocs.length > 0) {
+                    const chunkSize = 200;
+                    for (let i = 0; i < allDocs.length; i += chunkSize) {
+                        const chunk = allDocs.slice(i, i + chunkSize);
+                        const commitPayload = {
+                            writes: chunk.map(doc => ({
+                                update: {
+                                    name: doc.name,
+                                    fields: {
+                                        ...(doc.fields || {}),
+                                        absentHours: { integerValue: '0' },
+                                        updatedAt: { timestampValue: new Date().toISOString() }
+                                    }
+                                },
+                                updateMask: { fieldPaths: ["absentHours", "updatedAt"] }
+                            }))
+                        };
+                        await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit?key=${apiKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(commitPayload)
+                        });
+                    }
+                }
+            } catch (restErr) {
+                console.warn('[Firebase] REST resetStudentAbsences error:', restErr);
+            }
+
+            // 3. Update local storage and notify local UI
+            let localStudents = [];
+            try {
+                localStudents = JSON.parse(localStorage.getItem('college_students') || '[]');
+                localStudents.forEach(s => s.absentHours = 0);
+                localStorage.setItem('college_students', JSON.stringify(localStudents));
+                notifyLocalApp('students_updated', localStudents);
+            } catch(e) {}
+
+            console.log('[Firebase] ✅ All student absences reset to 0 in cloud.');
+            return true;
+        } catch (e) {
+            console.error('[Firebase] Error resetting student absences:', e);
+            return false;
+        } finally {
+            setSyncingState(false);
+        }
+    }
+
     // Wipe all students in cloud (used for End of Academic Year)
     async function wipeAllStudents() {
         if (!db) initFirebase();
@@ -958,6 +1056,12 @@
             try {
                 await fetch('/api/students', { method: 'DELETE' });
             } catch (restErr) {}
+
+            // Update local memory and notify app
+            try {
+                localStorage.setItem('college_students', JSON.stringify([]));
+                notifyLocalApp('students_updated', []);
+            } catch (e) {}
 
             console.log('[Firebase] All students wiped in cloud for End of Academic Year.');
             renderStatusBadge('connected', 'تەواوی خوێندکاران سڕانەوە');
@@ -1030,6 +1134,12 @@
             try {
                 await fetch('/api/sessions', { method: 'DELETE' });
             } catch (restErr) {}
+
+            // Update local storage and notify app
+            try {
+                localStorage.setItem('college_attendance_sessions', JSON.stringify([]));
+                notifyLocalApp('sessions_updated', []);
+            } catch (e) {}
 
             console.log('[Firebase] Attendance sessions wiped in cloud.');
             return true;
@@ -1265,6 +1375,8 @@
         deleteUser,
         saveCustomDepartment,
         wipeAllStudents,
+        resetStudentAbsences: resetAllStudentAbsences,
+        resetAllStudentAbsences,
         saveAttendanceSession,
         wipeAllAttendanceSessions,
         logAudit,
