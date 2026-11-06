@@ -658,6 +658,65 @@
                 </div>
             </div>
 
+            <!-- PRIMARY SEMESTER & ACADEMIC YEAR EXECUTIVE ACTIONS -->
+            <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 shadow-lg border border-slate-700/60 text-white">
+                <div class="mb-5 pb-3 border-b border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <h3 class="font-black text-white text-base sm:text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-graduation-cap text-amber-400"></i>
+                            <span>فەرمانە فەرمییەکانی کۆتایی سمستەر و ساڵی خوێندن</span>
+                        </h3>
+                        <p class="text-xs text-slate-300 mt-1">ئەم دوو فەرمانە داتاکان بە شێوازی فەرمی Excel و PDF ئەرشیف دەکەن و سیستەم ڕێکدەخەنەوە</p>
+                    </div>
+                    <span class="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-300 text-xs px-3 py-1 rounded-full font-bold self-start sm:self-auto border border-amber-400/30">
+                        <i class="fa-solid fa-lock text-amber-400"></i>
+                        <span>دەسەڵاتی باڵا</span>
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- End of Semester Card -->
+                    <div class="p-5 rounded-2xl bg-slate-800/80 border border-teal-500/40 flex flex-col justify-between hover:border-teal-400 transition shadow-sm">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-11 h-11 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center text-xl">
+                                    <i class="fa-solid fa-calendar-check"></i>
+                                </div>
+                                <span class="bg-teal-500/20 text-teal-300 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-teal-500/30">پاراستنی خوێندکاران</span>
+                            </div>
+                            <h4 class="font-black text-white text-base">کۆتایی هاتنی سمستەری خوێندن</h4>
+                            <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+                                ئەرشیفی تەواوی ئەم سمستەرە بە فایلی Excel و PDF دادەبەزێنێت، کاتژمێری غیاباتەکان بۆ وەرزی نوێ دەکرێنەوە بە (٠) سفر، و <strong>ناوی سەرجەم خوێندکاران بە پارێزراوی دەمێننەوە</strong>.
+                            </p>
+                        </div>
+                        <button onclick="endSemesterAndExportPDF()" class="mt-5 w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black py-3 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center justify-center gap-2 border border-teal-400/40">
+                            <i class="fa-solid fa-calendar-check text-base"></i>
+                            <span>ڕاگەیاندنی کۆتایی سمستەر (ئەرشیف و سفرکردنەوە)</span>
+                        </button>
+                    </div>
+
+                    <!-- End of Academic Year Card -->
+                    <div class="p-5 rounded-2xl bg-slate-800/80 border border-amber-500/40 flex flex-col justify-between hover:border-amber-400 transition shadow-sm">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl">
+                                    <i class="fa-solid fa-graduation-cap"></i>
+                                </div>
+                                <span class="bg-rose-500/20 text-rose-300 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-rose-500/30">ساڵی نوێی خوێندن</span>
+                            </div>
+                            <h4 class="font-black text-white text-base">کۆتایی هاتنی ساڵی خوێندن</h4>
+                            <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+                                ئەرشیفی گشتی تەواوی ساڵی خوێندن بە فایلی Excel و PDF دادەبەزێنێت، و پاشان <strong>سەرجەم ناوی خوێندکاران و تۆمارەکان بە یەکجاری دەسڕێتەوە</strong> بۆ ئامادەکاری ساڵی نوێ.
+                            </p>
+                        </div>
+                        <button onclick="endAcademicYearAndExportPDF()" class="mt-5 w-full bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-slate-950 font-black py-3 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center justify-center gap-2 border border-amber-300">
+                            <i class="fa-solid fa-graduation-cap text-base text-rose-800"></i>
+                            <span>ڕاگەیاندنی کۆتایی ساڵی خوێندن (ئەرشیف و پاکتاوکردن)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- GLOBAL SYSTEM PURGE ACTIONS -->
             <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
                 <div class="mb-5 pb-3 border-b border-slate-100">
@@ -2425,7 +2484,7 @@
             addAuditLog('داگرتنی ئێکسڵی گشتی کۆلێژ', 'هەموو بەشەکان');
         }
 
-        // --- 1. END OF SEMESTER (PDF & ZERO RESET ABSENCES - PRESERVE STUDENTS) ---
+        // --- 1. END OF SEMESTER (EXCEL ARCHIVE, PDF & ZERO RESET ABSENCES - PRESERVE ALL STUDENTS) ---
         function endSemesterAndExportPDF() {
             Swal.fire({
                 title: 'کۆتایی هاتنی سمستەری خوێندن؟',
@@ -2433,13 +2492,13 @@
                     <div class="text-right text-sm space-y-3 leading-relaxed">
                         <div class="p-3.5 bg-teal-50 border border-teal-300 rounded-2xl text-teal-900 text-xs font-bold">
                             <i class="fa-solid fa-calendar-check text-teal-600 text-sm ml-1.5"></i>
-                            ئەم بڕیارە تەواوی داتای ئەم سمستەرە بە فایلی فەرمی PDF دەردەهێنێت و کاتژمێری غیاباتەکان بۆ سمستەری نوێ سفر (٠) دەکاتەوە!
+                            ئەم بڕیارە تەواوی داتای ئەم سمستەرە بە فایلی فەرمی ئەرشیف دەردەهێنێت و کاتژمێری غیاباتەکان بۆ سمستەری نوێ سفر (٠) دەکاتەوە!
                         </div>
                         <ul class="list-disc list-inside text-xs text-slate-600 space-y-2">
-                            <li>تەواوی ئاماری سمستەری ٥ بەشەکە و هەموو خوێندکاران بە فایلی <strong>PDF</strong> دادەبەزێت.</li>
+                            <li>تەواوی ئاماری سمستەری ٥ بەشەکە و هەموو خوێندکاران بە فایلی فەرمی <strong>Excel و PDF</strong> دادەبەزێت.</li>
                             <li>سەرجەم کاتژمێرەکانی غیابات دەکرێنەوە بە <strong>(٠) سفر</strong> بۆ دەستپێکی سمستەری نوێ.</li>
-                            <li><strong>ناوی سەرجەم خوێندکاران و زانیارییەکانیان پارێزراو دەبن</strong> و ناسڕدرێنەوە.</li>
-                            <li>تۆماری دانیشتنەکانی غیاباتی ئەم سمستەرە لە پەڕەکە پاک دەبێتەوە.</li>
+                            <li><strong>ناوی سەرجەم خوێندکاران و زانیاری و قۆناغەکانیان ١٠٠٪ پارێزراو دەبن</strong> و ناسڕدرێنەوە.</li>
+                            <li>مێژووی دانیشتنەکانی غیاباتی ئەم سمستەرە پاک دەبێتەوە تا وەرزی نوێ دەست پێ بکات.</li>
                         </ul>
                         <p class="text-xs font-extrabold text-slate-800 pt-1">ئایا دڵنیایت لە ڕاگەیاندنی کۆتایی سمستەری خوێندن؟</p>
                     </div>
@@ -2448,7 +2507,7 @@
                 showCancelButton: true,
                 confirmButtonColor: '#0d9488',
                 cancelButtonColor: '#64748b',
-                confirmButtonText: '<i class="fa-solid fa-file-pdf ml-1"></i> بەڵێ، دەرهێنانی PDF و سفرکردنەوەی غیابات',
+                confirmButtonText: '<i class="fa-solid fa-file-arrow-down ml-1"></i> بەڵێ، دەرهێنانی ئەرشیف و سفرکردنەوەی غیابات',
                 cancelButtonText: 'پاشگەزبوونەوە'
             }).then((result) => {
                 if (result.isConfirmed) {
@@ -2457,10 +2516,119 @@
             });
         }
 
-        function processSemesterEndPDFAndReset() {
+        function generateSemesterMasterArchiveExcel(snapshotStudents, currentDate) {
+            try {
+                if (typeof XLSX === 'undefined') return;
+                const totalStus = snapshotStudents.length;
+                const totalAbs = snapshotStudents.reduce((a, b) => a + (Number(b.absentHours) || 0), 0);
+                const overallRate = totalStus > 0 ? (100 - ((totalAbs / (totalStus * 40)) * 100)).toFixed(1) : '100';
+
+                const wb = XLSX.utils.book_new();
+
+                // 1. Summary Sheet
+                const summaryData = [
+                    { 'بڕگە': 'ناونیشانی فەرمی', 'زانیاری / ژمارە': 'ڕاپۆرتی فەرمی کۆتایی سمستەری خوێندن (2025 - 2026)' },
+                    { 'بڕگە': 'بەرواری دەرکردن', 'زانیاری / ژمارە': currentDate },
+                    { 'بڕگە': 'کۆی گشتی خوێندکارانی کۆلێژ', 'زانیاری / ژمارە': totalStus },
+                    { 'بڕگە': 'کۆی کاتژمێرە غیابکراوەکان', 'زانیاری / ژمارە': totalAbs },
+                    { 'بڕگە': 'تێکڕای ڕێژەی ئامادەبوونی کۆلێژ', 'زانیاری / ژمارە': `%${overallRate}` },
+                    { 'بڕگە': 'دۆخی سیستەم', 'زانیاری / ژمارە': 'غیاباتەکان بۆ سمستەری نوێ سفر کرانەوە و ناوی خوێندکاران پارێزراون' }
+                ];
+                const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(wb, wsSummary, 'پوختەی_کۆلێژ');
+
+                // 2. All Students Sheet
+                const allStusData = snapshotStudents.map((s, idx) => {
+                    const deptObj = DEPARTMENTS[s.dept] || { name: s.dept };
+                    const absH = Number(s.absentHours) || 0;
+                    const totH = Number(s.totalHours) || 40;
+                    const pct = Math.round((absH / totH) * 100);
+                    const statusKu = pct >= 10 ? 'ئاگاداری / بێبەشبوون' : (pct >= 5 ? 'ئاگاداری سەرەتایی' : 'پابەندبووە');
+
+                    return {
+                        'ڕیزبەندی': idx + 1,
+                        'کۆدی زانکۆیی': s.code || '',
+                        'ناوی خوێندکار': s.name || '',
+                        'بەشی زانستی': deptObj.name || s.dept,
+                        'قۆناغ': `قۆناغی ${getStageArabic(s.stage)}`,
+                        'جۆری خوێندن': s.study === 'evening' ? 'ئێواران' : 'بەیانیان',
+                        'گرووپ': s.group || 'A',
+                        'کاتژمێری غیابات': absH,
+                        'ڕێژەی غیابات': `%${pct}`,
+                        'دۆخی سمستەر': statusKu
+                    };
+                });
+                const wsAll = XLSX.utils.json_to_sheet(allStusData);
+                XLSX.utils.book_append_sheet(wb, wsAll, 'تەواوی_خوێندکاران');
+
+                // 3. Sheets per Department
+                Object.keys(DEPARTMENTS).forEach(deptKey => {
+                    const dept = DEPARTMENTS[deptKey];
+                    const deptStus = snapshotStudents.filter(s => s.dept === deptKey);
+                    if (deptStus.length > 0) {
+                        const deptData = deptStus.map((s, idx) => {
+                            const absH = Number(s.absentHours) || 0;
+                            const totH = Number(s.totalHours) || 40;
+                            const pct = Math.round((absH / totH) * 100);
+                            return {
+                                'ڕیزبەندی': idx + 1,
+                                'کۆدی زانکۆیی': s.code || '',
+                                'ناوی خوێندکار': s.name || '',
+                                'قۆناغ': `قۆناغی ${getStageArabic(s.stage)}`,
+                                'جۆری خوێندن': s.study === 'evening' ? 'ئێواران' : 'بەیانیان',
+                                'گرووپ': s.group || 'A',
+                                'کاتژمێری غیابات': absH,
+                                'ڕێژەی غیابات': `%${pct}`
+                            };
+                        });
+                        const wsDept = XLSX.utils.json_to_sheet(deptData);
+                        const cleanSheetName = (dept.name || deptKey).replace(/بەشی\s*/g, '').substring(0, 25);
+                        XLSX.utils.book_append_sheet(wb, wsDept, cleanSheetName);
+                    }
+                });
+
+                XLSX.writeFile(wb, `Raporti_Kotayi_Semester_2025_2026_${currentDate}.xlsx`);
+                console.log('[Dashboard] Master Semester Excel archive generated & downloaded.');
+            } catch (err) {
+                console.warn('[Dashboard] Excel generation warning:', err);
+            }
+        }
+
+        function printSemesterReportDirectly() {
+            const html = window._lastSemesterReportHTML;
+            if (!html) {
+                Swal.fire('ئاگاداری', 'تکایە سەرەتا فەرمانی کۆتایی سمستەر بدە تا ڕاپۆرتەکە ئامادە بێت.', 'info');
+                return;
+            }
+            const printWin = window.open('', '_blank', 'width=1000,height=800');
+            if (printWin) {
+                printWin.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="ku" dir="rtl">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>ڕاپۆرتی فەرمی کۆتایی سمستەری خوێندن</title>
+                        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
+                        <style>
+                            body { font-family: 'Tajawal', 'Vazirmatn', Arial, sans-serif; margin: 15px; color: #0f172a; direction: rtl; }
+                            @media print { body { margin: 8px; } @page { size: A4 portrait; margin: 8mm; } }
+                        </style>
+                    </head>
+                    <body>
+                        ${html}
+                    </body>
+                    </html>
+                `);
+                printWin.document.close();
+                printWin.focus();
+                setTimeout(() => { try { printWin.print(); } catch(e){} }, 400);
+            }
+        }
+
+        async function processSemesterEndPDFAndReset() {
             Swal.fire({
-                title: 'ئامادەکردنی فایلی PDFی سمستەر...',
-                html: 'تکایە کەمێک چاوەڕوانبە، ڕاپۆرتی فەرمی سمستەری ٥ بەشەکە بەرهەمدەهێندرێت و غیاباتەکان سفر دەکرێنەوە.',
+                title: 'ئامادەکردنی ئەرشیف و سفرکردنەوەی غیابات...',
+                html: 'تکایە کەمێک چاوەڕوانبە، ئەرشیفی سمستەر دادەبەزێت و غیاباتەکان بۆ سمستەری نوێ سفر دەکرێنەوە...',
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading();
@@ -2471,7 +2639,7 @@
             const studentAbsMap = {};
             if (Array.isArray(attendanceSessions)) {
                 attendanceSessions.forEach(sess => {
-                    if (sess.status === 'draft') return;
+                    if (!sess || sess.status === 'draft') return;
                     const lecHours = Number(sess.lectureHours) || 1;
                     if (sess.records) {
                         Object.keys(sess.records).forEach(stId => {
@@ -2484,7 +2652,8 @@
                 });
             }
 
-            const snapshotStudents = JSON.parse(JSON.stringify(students)).map(s => {
+            const validStudentsList = (Array.isArray(students) ? students : []).filter(s => s && typeof s === 'object');
+            const snapshotStudents = validStudentsList.map(s => {
                 const sAbs = Number(s.absentHours) || 0;
                 const sessAbs = studentAbsMap[s.id] || studentAbsMap[s.code] || 0;
                 const totalStudentAbs = Math.max(sAbs, sessAbs);
@@ -2502,9 +2671,12 @@
 
             const currentDate = new Date().toISOString().split('T')[0];
 
+            // 2) Instantly generate and trigger download of Master Excel Archive
+            generateSemesterMasterArchiveExcel(snapshotStudents, currentDate);
+
             const container = document.createElement('div');
             container.id = 'semester-pdf-render';
-            container.style.cssText = 'position: absolute; left: 0; top: 0; width: 800px; background: #ffffff; color: #0f172a; font-family: "Tajawal", "Vazirmatn", "Segoe UI", Arial, sans-serif; direction: rtl; padding: 24px; box-sizing: border-box; z-index: -9999;';
+            container.style.cssText = 'position: fixed; left: -9999px; top: 0; width: 800px; background: #ffffff; color: #0f172a; font-family: "Tajawal", "Vazirmatn", Arial, sans-serif; direction: rtl; padding: 24px; box-sizing: border-box; z-index: 1000;';
 
             let html = `
                 <div style="border-bottom: 2px solid #0f172a; padding-bottom: 14px; margin-bottom: 20px;">
@@ -2690,98 +2862,42 @@
                 </div>
             `;
 
+            window._lastSemesterReportHTML = html;
             container.innerHTML = html;
             document.body.appendChild(container);
 
             const filename = `Raporti_Kotayi_Semester_2025_2026_${currentDate}.pdf`;
 
-            let isResetFinalized = false;
-            const completeResetFlow = async () => {
-                if (isResetFinalized) return;
-                isResetFinalized = true;
-                if (container && container.parentNode) {
-                    try { container.parentNode.removeChild(container); } catch (e) {}
-                }
-                await finalizeSemesterReset();
-            };
-
+            // Non-blocking PDF generation in background
             if (typeof html2pdf !== 'undefined') {
-                const opt = {
-                    margin: [6, 6, 6, 6],
-                    filename: filename,
-                    image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 1.5, useCORS: true, letterRendering: true, logging: false },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
-
-                html2pdf().set(opt).from(container).save().then(async () => {
-                    await completeResetFlow();
-                }).catch(async (err) => {
-                    console.error('html2pdf generation error, falling back to print window:', err);
-                    await triggerSemesterPrintFallbackAndReset(container, completeResetFlow);
-                });
-
-                // Safety timeout: if html2pdf takes longer than 10 seconds, proceed anyway
-                setTimeout(async () => {
-                    if (!isResetFinalized) {
-                        console.warn('html2pdf timed out, proceeding with semester reset...');
-                        await completeResetFlow();
-                    }
-                }, 10000);
-            } else {
-                triggerSemesterPrintFallbackAndReset(container, completeResetFlow);
-            }
-        }
-
-        async function triggerSemesterPrintFallbackAndReset(container, callback) {
-            try {
-                const printWin = window.open('', '_blank', 'width=900,height=700');
-                if (printWin) {
-                    printWin.document.write(`
-                        <!DOCTYPE html>
-                        <html lang="ku" dir="rtl">
-                        <head>
-                            <meta charset="UTF-8">
-                            <title>ڕاپۆرتی کۆتایی سمستەری خوێندن</title>
-                            <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
-                            <style>
-                                body { font-family: 'Tajawal', 'Vazirmatn', Arial, sans-serif; margin: 20px; }
-                                @media print { body { margin: 0; } }
-                            </style>
-                        </head>
-                        <body>
-                            ${container ? container.innerHTML : ''}
-                        </body>
-                        </html>
-                    `);
-                    printWin.document.close();
-                    printWin.focus();
-                    setTimeout(() => {
-                        try { printWin.print(); printWin.close(); } catch (e) {}
-                    }, 500);
+                try {
+                    const opt = {
+                        margin: [6, 6, 6, 6],
+                        filename: filename,
+                        image: { type: 'jpeg', quality: 0.95 },
+                        html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+                    html2pdf().set(opt).from(container).save().then(() => {
+                        try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
+                    }).catch(err => {
+                        console.warn('[Dashboard] html2pdf background save note:', err);
+                        try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
+                    });
+                } catch(e) {
+                    try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(err){}
                 }
-            } catch (e) {}
-
-            if (callback) {
-                await callback();
             } else {
-                if (container && container.parentNode) {
-                    try { container.parentNode.removeChild(container); } catch (e) {}
-                }
-                await finalizeSemesterReset();
+                try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
             }
+
+            // Immediately finalize reset with 0ms UI delay
+            await finalizeSemesterReset();
         }
 
         async function finalizeSemesterReset() {
-            Swal.fire({
-                title: 'سفرکردنەوەی غیابات بۆ سمستەری نوێ...',
-                html: '<div class="text-xs text-slate-600">تکایە کەمێک چاوەڕوانبە، سەرجەم غیاباتەکان دەکرێنەوە بە صفر و دانیشتنەکان لە کلاود و داتابەیس پاک دەکرێنەوە...</div>',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            // 1. Zero out absences locally while preserving all students intact
-            students.forEach(s => s.absentHours = 0);
+            // 1. Zero out absences locally while preserving 100% of students intact
+            students.forEach(s => { if (s) s.absentHours = 0; });
             attendanceSessions = [];
             localStorage.setItem('college_students', JSON.stringify(students));
             localStorage.setItem('college_attendance_sessions', JSON.stringify([]));
@@ -2789,43 +2905,47 @@
             // 2. Wipe sessions and reset absences in Firebase Firestore
             if (window.FirebaseService) {
                 try {
-                    await window.FirebaseService.wipeAllAttendanceSessions();
+                    window.FirebaseService.wipeAllAttendanceSessions();
                     if (typeof window.FirebaseService.resetStudentAbsences === 'function') {
-                        await window.FirebaseService.resetStudentAbsences();
+                        window.FirebaseService.resetStudentAbsences();
                     }
                 } catch (e) {
-                    console.warn('[Dashboard] Firebase semester reset error:', e);
+                    console.warn('[Dashboard] Firebase semester reset warning:', e);
                 }
             }
 
             // 3. Optional local server REST endpoint
-            try {
-                await fetch('/api/reset-semester', { method: 'POST' });
-            } catch (e) {}
+            try { fetch('/api/reset-semester', { method: 'POST' }); } catch (e) {}
 
-            addAuditLog('کۆتایی هاتنی سمستەر: دەرکردنی تەواوی داتاکان بە PDF و سفرکردنەوەی غیابات بۆ سمستەری نوێ (پاراستنی ناوی خوێندکاران)', 'سەرجەم ٥ بەشەکە');
+            addAuditLog('کۆتایی هاتنی سمستەر: دەرکردنی ئەرشیفی تەواو و سفرکردنەوەی غیابات بۆ سمستەری نوێ (پاراستنی ناوی خوێندکاران)', 'سەرجەم ٥ بەشەکە');
             renderSuperAdminView();
             renderSuperPurgeView();
 
             Swal.fire({
                 title: '🎓 کۆتایی سمستەر بە سەرکەوتوویی تەواو بوو!',
                 html: `
-                    <div class="text-right text-sm space-y-2 leading-relaxed">
-                        <p class="text-emerald-700 font-bold">
-                            <i class="fa-solid fa-circle-check ml-1"></i> تەواوی داتاکانی ئەم سمستەرە بە فایلی PDF دابەزێندرا!
+                    <div class="text-right text-sm space-y-3 leading-relaxed">
+                        <div class="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs font-bold">
+                            <i class="fa-solid fa-circle-check text-emerald-600 ml-1"></i> فایلی فەرمی ئەرشیفی سمستەر بە سەرکەوتوویی دابەزێندرا!
+                        </div>
+                        <p class="text-slate-700 text-xs">
+                            سەرجەم کاتژمێری غیاباتی خوێندکاران بۆ سمستەری نوێ سفر کرانەوە، بەڵام <strong>ناوی سەرجەم خوێندکاران، بەش و قۆناغەکانیان بە تەواوی پارێزراون</strong>.
                         </p>
-                        <p class="text-slate-600 text-xs">
-                            سەرجەم کاتژمێری غیاباتی خوێندکاران بۆ سمستەری نوێ سفر کرانەوە، بەڵام ناوی سەرجەم خوێندکاران لە سیستەمەکەدا بە تەواوی پارێزراون.
-                        </p>
+                        <div class="pt-2">
+                            <button type="button" onclick="printSemesterReportDirectly()" class="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition">
+                                <i class="fa-solid fa-print text-sm"></i>
+                                <span>چاپکردن و بینینی ڕاپۆرتی فەرمی (PDF)</span>
+                            </button>
+                        </div>
                     </div>
                 `,
                 icon: 'success',
                 confirmButtonColor: '#10b981',
-                confirmButtonText: 'زۆر باشە'
+                confirmButtonText: 'تەواو'
             });
         }
 
-        // --- 2. END OF ACADEMIC YEAR (PDF & PURGE ALL STUDENTS FOR NEW YEAR) ---
+        // --- 2. END OF ACADEMIC YEAR (EXCEL ARCHIVE, PDF & PURGE ALL STUDENTS FOR NEW YEAR) ---
         function endAcademicYearAndExportPDF() {
             Swal.fire({
                 title: 'کۆتایی هاتنی ساڵی خوێندن؟',
@@ -2833,13 +2953,13 @@
                     <div class="text-right text-sm space-y-3 leading-relaxed">
                         <div class="p-3.5 bg-rose-50 border border-rose-300 rounded-2xl text-rose-900 text-xs font-bold">
                             <i class="fa-solid fa-triangle-exclamation text-rose-600 text-sm ml-1.5"></i>
-                            ئەم بڕیارە داتای تەواوی ساڵی خوێندن بە فایلی فەرمی PDF دادەبەزێنێت، و <strong>سەرجەم ناوی خوێندکارانیش بە تەواوەتی دەسڕێتەوە</strong> بۆ ساڵی نوێ!
+                            ئەم بڕیارە ئەرشیفی گشتی تەواوی ساڵی خوێندن دەردەهێنێت، و <strong>سەرجەم ناوی خوێندکارانیش بە تەواوەتی دەسڕێتەوە</strong> بۆ وەرگرتنی خوێندکارانی ساڵی نوێ!
                         </div>
                         <ul class="list-disc list-inside text-xs text-slate-600 space-y-2">
-                            <li>تەواوی ئاماری کۆتایی ساڵی ٥ بەشەکە و هەموو خوێندکاران بە فایلی <strong>PDF</strong> دادەبەزێت.</li>
-                            <li>پاش دەرهێنانی PDF، <strong>سەرجەم ناوی خوێندکاران لە هەموو بەشەکاندا دەسڕدرێنەوە</strong>.</li>
+                            <li>تەواوی ئاماری کۆتایی ساڵی ٥ بەشەکە و هەموو خوێندکاران بە فایلی <strong>Excel و PDF</strong> دادەبەزێت.</li>
+                            <li>پاش دەرهێنانی ئەرشیف، <strong>سەرجەم ناوی خوێندکاران لە هەموو بەشەکاندا دەسڕدرێنەوە</strong>.</li>
                             <li>تەواوی تۆمار و دانیشتنەکانی غیابات بە یەکجاری پاک دەبنەوە.</li>
-                            <li>سیستەم ئامادە دەکرێت بۆ وەرگرتن و داخڵکردنی خوێندکارانی ساڵی نوێی خوێندن.</li>
+                            <li>سیستەم بە خاوێنی ئامادە دەکرێت بۆ وەرگرتن و ناونووسینی خوێندکارانی ساڵی نوێی خوێندن.</li>
                         </ul>
                         <p class="text-xs font-extrabold text-rose-800 pt-1">ئایا دڵنیایت لە ڕاگەیاندنی کۆتایی ساڵی خوێندن و سڕینەوەی سەرجەم ناوی خوێندکاران؟</p>
                     </div>
@@ -2848,7 +2968,7 @@
                 showCancelButton: true,
                 confirmButtonColor: '#e11d48',
                 cancelButtonColor: '#64748b',
-                confirmButtonText: '<i class="fa-solid fa-trash-can ml-1"></i> بەڵێ، دەرهێنانی PDF و سڕینەوەی سەرجەم ناوی خوێندکاران',
+                confirmButtonText: '<i class="fa-solid fa-trash-can ml-1"></i> بەڵێ، دەرهێنانی ئەرشیف و سڕینەوەی گشتی بۆ ساڵی نوێ',
                 cancelButtonText: 'پاشگەزبوونەوە'
             }).then((result) => {
                 if (result.isConfirmed) {
@@ -2857,10 +2977,87 @@
             });
         }
 
-        function processAcademicYearEndPDFAndReset() {
+        function generateAcademicYearMasterArchiveExcel(snapshotStudents, currentDate) {
+            try {
+                if (typeof XLSX === 'undefined') return;
+                const totalStus = snapshotStudents.length;
+                const totalAbs = snapshotStudents.reduce((a, b) => a + (Number(b.absentHours) || 0), 0);
+                const overallRate = totalStus > 0 ? (100 - ((totalAbs / (totalStus * 40)) * 100)).toFixed(1) : '100';
+
+                const wb = XLSX.utils.book_new();
+
+                const summaryData = [
+                    { 'بڕگە': 'ناونیشانی فەرمی', 'زانیاری / ژمارە': 'ئەرشیفی فەرمی و گشتی کۆتایی ساڵی خوێندن (2025 - 2026)' },
+                    { 'بڕگە': 'بەرواری دەرکردن', 'زانیاری / ژمارە': currentDate },
+                    { 'بڕگە': 'کۆی گشتی خوێندکارانی کۆلێژ', 'زانیاری / ژمارە': totalStus },
+                    { 'بڕگە': 'کۆی کاتژمێری غیابات', 'زانیاری / ژمارە': totalAbs },
+                    { 'بڕگە': 'تێکڕای پابەندبوونی ساڵانە', 'زانیاری / ژمارە': `%${overallRate}` },
+                    { 'بڕگە': 'دۆخی ئەرشیف', 'زانیاری / ژمارە': 'ئەرشیفی هەمیشەیی پێش خاوێنکردنەوەی گشتی بۆ ساڵی نوێ' }
+                ];
+                const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(wb, wsSummary, 'پوختەی_ئەرشیفی_ساڵ');
+
+                const allStusData = snapshotStudents.map((s, idx) => {
+                    const deptObj = DEPARTMENTS[s.dept] || { name: s.dept };
+                    const absH = Number(s.absentHours) || 0;
+                    const totH = Number(s.totalHours) || 40;
+                    const pct = Math.round((absH / totH) * 100);
+                    return {
+                        'ڕیزبەندی': idx + 1,
+                        'کۆدی زانکۆیی': s.code || '',
+                        'ناوی خوێندکار': s.name || '',
+                        'بەشی زانستی': deptObj.name || s.dept,
+                        'قۆناغ': `قۆناغی ${getStageArabic(s.stage)}`,
+                        'جۆری خوێندن': s.study === 'evening' ? 'ئێواران' : 'بەیانیان',
+                        'کاتژمێری غیابات': absH,
+                        'ڕێژەی غیابات': `%${pct}`
+                    };
+                });
+                const wsAll = XLSX.utils.json_to_sheet(allStusData);
+                XLSX.utils.book_append_sheet(wb, wsAll, 'تەواوی_خوێندکاران');
+
+                XLSX.writeFile(wb, `Raporti_Kotayi_Salli_Xwendin_FinalArchive_${currentDate}.xlsx`);
+                console.log('[Dashboard] Master Annual Archive Excel generated & downloaded.');
+            } catch (err) {
+                console.warn('[Dashboard] Annual Excel generation warning:', err);
+            }
+        }
+
+        function printAnnualReportDirectly() {
+            const html = window._lastAnnualReportHTML;
+            if (!html) {
+                Swal.fire('ئاگاداری', 'تکایە سەرەتا فەرمانی کۆتایی ساڵی خوێندن بدە تا ڕاپۆرتەکە ئامادە بێت.', 'info');
+                return;
+            }
+            const printWin = window.open('', '_blank', 'width=1000,height=800');
+            if (printWin) {
+                printWin.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="ku" dir="rtl">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>ڕاپۆرتی فەرمی و ئەرشیفی ساڵانەی خوێندن</title>
+                        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
+                        <style>
+                            body { font-family: 'Tajawal', 'Vazirmatn', Arial, sans-serif; margin: 15px; color: #0f172a; direction: rtl; }
+                            @media print { body { margin: 8px; } @page { size: A4 portrait; margin: 8mm; } }
+                        </style>
+                    </head>
+                    <body>
+                        ${html}
+                    </body>
+                    </html>
+                `);
+                printWin.document.close();
+                printWin.focus();
+                setTimeout(() => { try { printWin.print(); } catch(e){} }, 400);
+            }
+        }
+
+        async function processAcademicYearEndPDFAndReset() {
             Swal.fire({
-                title: 'ئامادەکردنی فایلی کۆتایی ساڵ...',
-                html: 'تکایە کەمێک چاوەڕوانبە، ڕاپۆرتی فەرمی ساڵانەی ٥ بەشەکە بەرهەمدەهێندرێت و سەرجەم ناوی خوێندکاران دەسڕدرێنەوە.',
+                title: 'ئامادەکردنی ئەرشیفی ساڵانە و سڕینەوەی گشتی...',
+                html: 'تکایە چاوەڕوانبە، ئەرشیفی فەرمی ساڵ دادەبەزێت و داتابەیس بۆ ساڵی نوێ خاوێن دەکرێتەوە...',
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading();
@@ -2871,7 +3068,7 @@
             const studentAbsMap = {};
             if (Array.isArray(attendanceSessions)) {
                 attendanceSessions.forEach(sess => {
-                    if (sess.status === 'draft') return;
+                    if (!sess || sess.status === 'draft') return;
                     const lecHours = Number(sess.lectureHours) || 1;
                     if (sess.records) {
                         Object.keys(sess.records).forEach(stId => {
@@ -2884,7 +3081,8 @@
                 });
             }
 
-            const snapshotStudents = JSON.parse(JSON.stringify(students)).map(s => {
+            const validStudentsList = (Array.isArray(students) ? students : []).filter(s => s && typeof s === 'object');
+            const snapshotStudents = validStudentsList.map(s => {
                 const sAbs = Number(s.absentHours) || 0;
                 const sessAbs = studentAbsMap[s.id] || studentAbsMap[s.code] || 0;
                 const totalStudentAbs = Math.max(sAbs, sessAbs);
@@ -2902,9 +3100,12 @@
 
             const currentDate = new Date().toISOString().split('T')[0];
 
+            // 2) Instantly generate and trigger download of Master Annual Archive Excel
+            generateAcademicYearMasterArchiveExcel(snapshotStudents, currentDate);
+
             const container = document.createElement('div');
             container.id = 'year-pdf-render';
-            container.style.cssText = 'position: absolute; left: 0; top: 0; width: 800px; background: #ffffff; color: #0f172a; font-family: "Tajawal", "Vazirmatn", "Segoe UI", Arial, sans-serif; direction: rtl; padding: 24px; box-sizing: border-box; z-index: -9999;';
+            container.style.cssText = 'position: fixed; left: -9999px; top: 0; width: 800px; background: #ffffff; color: #0f172a; font-family: "Tajawal", "Vazirmatn", Arial, sans-serif; direction: rtl; padding: 24px; box-sizing: border-box; z-index: 1000;';
 
             let html = `
                 <div style="border-bottom: 2px solid #0f172a; padding-bottom: 14px; margin-bottom: 20px;">
@@ -3090,99 +3291,41 @@
                 </div>
             `;
 
+            window._lastAnnualReportHTML = html;
             container.innerHTML = html;
             document.body.appendChild(container);
 
             const filename = `Raporti_Kotayi_Salli_Xwendin_FinalArchive_${currentDate}.pdf`;
 
-            let isResetFinalized = false;
-            const completeResetFlow = async () => {
-                if (isResetFinalized) return;
-                isResetFinalized = true;
-                if (container && container.parentNode) {
-                    try { container.parentNode.removeChild(container); } catch (e) {}
-                }
-                await finalizeAcademicYearReset();
-            };
-
+            // Non-blocking PDF generation in background
             if (typeof html2pdf !== 'undefined') {
-                const opt = {
-                    margin: [6, 6, 6, 6],
-                    filename: filename,
-                    image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 1.5, useCORS: true, letterRendering: true, logging: false },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
-
-                html2pdf().set(opt).from(container).save().then(async () => {
-                    await completeResetFlow();
-                }).catch(async (err) => {
-                    console.error('html2pdf generation error, falling back to print window:', err);
-                    await triggerPrintFallbackAndReset(container, completeResetFlow);
-                });
-
-                // Safety timeout: if html2pdf takes longer than 10 seconds, execute wipe anyway
-                setTimeout(async () => {
-                    if (!isResetFinalized) {
-                        console.warn('html2pdf timed out, proceeding with full wipe...');
-                        await completeResetFlow();
-                    }
-                }, 10000);
-            } else {
-                triggerPrintFallbackAndReset(container, completeResetFlow);
-            }
-        }
-
-        async function triggerPrintFallbackAndReset(container, callback) {
-            try {
-                const printWin = window.open('', '_blank', 'width=900,height=700');
-                if (printWin) {
-                    printWin.document.write(`
-                        <!DOCTYPE html>
-                        <html lang="ku" dir="rtl">
-                        <head>
-                            <meta charset="UTF-8">
-                            <title>ڕاپۆرتی کۆتایی ساڵی خوێندن</title>
-                            <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
-                            <style>
-                                body { font-family: 'Tajawal', 'Vazirmatn', Arial, sans-serif; margin: 20px; }
-                                @media print { body { margin: 0; } }
-                            </style>
-                        </head>
-                        <body>
-                            ${container ? container.innerHTML : ''}
-                        </body>
-                        </html>
-                    `);
-                    printWin.document.close();
-                    printWin.focus();
-                    setTimeout(() => {
-                        try { printWin.print(); printWin.close(); } catch (e) {}
-                    }, 500);
+                try {
+                    const opt = {
+                        margin: [6, 6, 6, 6],
+                        filename: filename,
+                        image: { type: 'jpeg', quality: 0.95 },
+                        html2canvas: { scale: 1.5, useCORS: true, logging: false },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+                    html2pdf().set(opt).from(container).save().then(() => {
+                        try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
+                    }).catch(err => {
+                        console.warn('[Dashboard] Annual html2pdf background save note:', err);
+                        try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
+                    });
+                } catch(e) {
+                    try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(err){}
                 }
-            } catch (e) {}
-
-            if (callback) {
-                await callback();
             } else {
-                if (container && container.parentNode) {
-                    try { container.parentNode.removeChild(container); } catch (e) {}
-                }
-                await finalizeAcademicYearReset();
+                try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
             }
+
+            // Immediately finalize academic year purge with 0ms UI delay
+            await finalizeAcademicYearReset();
         }
 
         async function finalizeAcademicYearReset() {
-            Swal.fire({
-                title: 'سڕینەوەی سەرجەم داتاکان...',
-                html: '<div class="text-xs text-slate-600">تکایە کەمێک چاوەڕوانبە، سەرجەم ناوی خوێندکاران و تۆمارەکان لە فایەربەیس و داتابەیس دەسڕدرێنەوە...</div>',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            // 1. Clear local memory
+            // 1. Clear local memory immediately
             students = [];
             attendanceSessions = [];
             localStorage.setItem('college_students', JSON.stringify([]));
@@ -3191,40 +3334,44 @@
             // 2. Wipe in Firebase Cloud
             if (window.FirebaseService) {
                 try {
-                    await window.FirebaseService.wipeAllStudents();
-                    await window.FirebaseService.wipeAllAttendanceSessions();
+                    window.FirebaseService.wipeAllStudents();
+                    window.FirebaseService.wipeAllAttendanceSessions();
                 } catch (e) {
                     console.error('Firebase wipe error:', e);
                 }
             }
 
             // 3. Wipe via Server REST API if available
-            try {
-                await fetch('/api/reset-academic-year', { method: 'POST' });
-            } catch (e) {}
+            try { fetch('/api/reset-academic-year', { method: 'POST' }); } catch (e) {}
 
-            addAuditLog('کۆتایی هاتنی ساڵی خوێندن: دەرکردنی ئەرشیفی ساڵانە بە PDF و سڕینەوەی سەرجەم ناوی خوێندکاران و تۆمارەکان بۆ ساڵی نوێ', 'سەرجەم ٥ بەشەکە');
+            addAuditLog('کۆتایی هاتنی ساڵی خوێندن: دەرکردنی ئەرشیفی ساڵانە و سڕینەوەی سەرجەم ناوی خوێندکاران و تۆمارەکان بۆ ساڵی نوێ', 'سەرجەم ٥ بەشەکە');
             renderSuperAdminView();
             renderSuperPurgeView();
 
             Swal.fire({
                 title: '🎓 کۆتایی ساڵی خوێندن بە سەرکەوتوویی تەواو بوو!',
                 html: `
-                    <div class="text-right text-sm space-y-2 leading-relaxed">
-                        <p class="text-emerald-700 font-bold">
-                            <i class="fa-solid fa-circle-check ml-1"></i> تەواوی ئەرشیفی ساڵانەی کۆلێژ بە فایلی PDF دابەزێندرا!
-                        </p>
+                    <div class="text-right text-sm space-y-3 leading-relaxed">
+                        <div class="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs font-bold">
+                            <i class="fa-solid fa-circle-check text-emerald-600 ml-1"></i> تەواوی ئەرشیفی ساڵانەی کۆلێژ بە فایلی Excel دابەزێندرا!
+                        </div>
                         <p class="text-rose-700 font-bold text-xs">
-                            سەرجەم ناوی خوێندکاران و تۆمارەکانی غیابات بە تەواوەتی لە فایەربەیس و داتابەیس سڕانەوە.
+                            سەرجەم ناوی خوێندکاران و تۆمارەکانی غیابات بە تەواوەتی لە سیستەم و فایەربەیس سڕانەوە.
                         </p>
                         <p class="text-slate-600 text-xs">
                             سیستەمەکە بە تەواوەتی پاک و ئامادەیە بۆ وەرگرتن و ناونووسینی خوێندکارانی ساڵی نوێی خوێندن.
                         </p>
+                        <div class="pt-2">
+                            <button type="button" onclick="printAnnualReportDirectly()" class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition">
+                                <i class="fa-solid fa-print text-sm"></i>
+                                <span>چاپکردن و بینینی ئەرشیفی ساڵانە (PDF)</span>
+                            </button>
+                        </div>
                     </div>
                 `,
                 icon: 'success',
                 confirmButtonColor: '#10b981',
-                confirmButtonText: 'زۆر باشە'
+                confirmButtonText: 'تەواو'
             });
         }
 

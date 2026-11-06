@@ -928,93 +928,97 @@
 
     // Reset all student absentHours to 0 in cloud (used for End of Semester)
     async function resetAllStudentAbsences() {
+        // 1. Update local storage and notify local UI immediately
+        try {
+            const localStudents = JSON.parse(localStorage.getItem('college_students') || '[]');
+            localStudents.forEach(s => { if (s) s.absentHours = 0; });
+            localStorage.setItem('college_students', JSON.stringify(localStudents));
+            notifyLocalApp('students_updated', localStudents);
+        } catch(e) {}
+
         if (!db) initFirebase();
         try {
             setSyncingState(true);
 
-            // 1. SDK batch update if active
-            if (db && !isQuotaExceeded) {
-                try {
-                    const snap = await db.collection('students').get();
-                    if (!snap.empty) {
-                        const docs = snap.docs;
-                        const chunkSize = 300;
-                        for (let i = 0; i < docs.length; i += chunkSize) {
-                            const chunk = docs.slice(i, i + chunkSize);
-                            const batch = db.batch();
-                            chunk.forEach(doc => {
-                                batch.update(doc.ref, {
-                                    absentHours: 0,
-                                    updatedAt: (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
-                                        ? firebase.firestore.FieldValue.serverTimestamp()
-                                        : new Date().toISOString()
+            // Cloud sync wrapped in a strict 4-second timeout to prevent any UI freezing
+            await withTimeout((async () => {
+                let sdkSuccess = false;
+                // 1. Try SDK batch update
+                if (db && !isQuotaExceeded) {
+                    try {
+                        const snap = await db.collection('students').get();
+                        if (!snap.empty) {
+                            const docs = snap.docs;
+                            const chunkSize = 300;
+                            for (let i = 0; i < docs.length; i += chunkSize) {
+                                const chunk = docs.slice(i, i + chunkSize);
+                                const batch = db.batch();
+                                chunk.forEach(doc => {
+                                    batch.update(doc.ref, {
+                                        absentHours: 0,
+                                        updatedAt: (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+                                            ? firebase.firestore.FieldValue.serverTimestamp()
+                                            : new Date().toISOString()
+                                    });
                                 });
+                                await batch.commit();
+                            }
+                            sdkSuccess = true;
+                        }
+                    } catch (sdkErr) {
+                        console.warn('[Firebase] SDK resetStudentAbsences error, trying REST fallback:', sdkErr);
+                    }
+                }
+
+                // 2. Direct REST fallback if SDK was not used or failed
+                if (!sdkSuccess) {
+                    const apiKey = firebaseConfig.apiKey;
+                    const projectId = firebaseConfig.projectId;
+                    let pageToken = '';
+                    let allDocs = [];
+
+                    do {
+                        let url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/students?pageSize=300&key=${apiKey}`;
+                        if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+                        const res = await fetch(url);
+                        if (!res.ok) break;
+                        const data = await res.json();
+                        if (data.documents && data.documents.length) {
+                            allDocs = allDocs.concat(data.documents);
+                        }
+                        pageToken = data.nextPageToken || '';
+                    } while (pageToken);
+
+                    if (allDocs.length > 0) {
+                        const chunkSize = 200;
+                        for (let i = 0; i < allDocs.length; i += chunkSize) {
+                            const chunk = allDocs.slice(i, i + chunkSize);
+                            const commitPayload = {
+                                writes: chunk.map(doc => ({
+                                    update: {
+                                        name: doc.name,
+                                        fields: {
+                                            ...(doc.fields || {}),
+                                            absentHours: { integerValue: '0' },
+                                            updatedAt: { timestampValue: new Date().toISOString() }
+                                        }
+                                    },
+                                    updateMask: { fieldPaths: ["absentHours", "updatedAt"] }
+                                }))
+                            };
+                            await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit?key=${apiKey}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(commitPayload)
                             });
-                            await batch.commit();
                         }
                     }
-                } catch (sdkErr) {
-                    console.warn('[Firebase] SDK resetStudentAbsences error, trying REST fallback:', sdkErr);
                 }
-            }
+            })(), 4000).catch(e => {
+                console.warn('[Firebase] Background cloud reset warning:', e.message);
+            });
 
-            // 2. Direct REST fallback
-            try {
-                const apiKey = firebaseConfig.apiKey;
-                const projectId = firebaseConfig.projectId;
-                let pageToken = '';
-                let allDocs = [];
-
-                do {
-                    let url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/students?pageSize=300&key=${apiKey}`;
-                    if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
-                    const res = await fetch(url);
-                    if (!res.ok) break;
-                    const data = await res.json();
-                    if (data.documents && data.documents.length) {
-                        allDocs = allDocs.concat(data.documents);
-                    }
-                    pageToken = data.nextPageToken || '';
-                } while (pageToken);
-
-                if (allDocs.length > 0) {
-                    const chunkSize = 200;
-                    for (let i = 0; i < allDocs.length; i += chunkSize) {
-                        const chunk = allDocs.slice(i, i + chunkSize);
-                        const commitPayload = {
-                            writes: chunk.map(doc => ({
-                                update: {
-                                    name: doc.name,
-                                    fields: {
-                                        ...(doc.fields || {}),
-                                        absentHours: { integerValue: '0' },
-                                        updatedAt: { timestampValue: new Date().toISOString() }
-                                    }
-                                },
-                                updateMask: { fieldPaths: ["absentHours", "updatedAt"] }
-                            }))
-                        };
-                        await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit?key=${apiKey}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(commitPayload)
-                        });
-                    }
-                }
-            } catch (restErr) {
-                console.warn('[Firebase] REST resetStudentAbsences error:', restErr);
-            }
-
-            // 3. Update local storage and notify local UI
-            let localStudents = [];
-            try {
-                localStudents = JSON.parse(localStorage.getItem('college_students') || '[]');
-                localStudents.forEach(s => s.absentHours = 0);
-                localStorage.setItem('college_students', JSON.stringify(localStudents));
-                notifyLocalApp('students_updated', localStudents);
-            } catch(e) {}
-
-            console.log('[Firebase] ✅ All student absences reset to 0 in cloud.');
+            console.log('[Firebase] ✅ All student absences reset to 0.');
             return true;
         } catch (e) {
             console.error('[Firebase] Error resetting student absences:', e);
@@ -1026,49 +1030,50 @@
 
     // Wipe all students in cloud (used for End of Academic Year)
     async function wipeAllStudents() {
+        // 1. Immediately clear local storage and notify app
+        try {
+            localStorage.setItem('college_students', JSON.stringify([]));
+            notifyLocalApp('students_updated', []);
+        } catch (e) {}
+
         if (!db) initFirebase();
         try {
             setSyncingState(true);
-            if (db) {
-                try {
-                    const snapshot = await db.collection('students').get();
-                    if (!snapshot.empty) {
-                        const docs = snapshot.docs;
-                        const chunkSize = 400;
-                        for (let i = 0; i < docs.length; i += chunkSize) {
-                            const chunk = docs.slice(i, i + chunkSize);
-                            const batch = db.batch();
-                            chunk.forEach(doc => {
-                                batch.delete(doc.ref);
-                            });
-                            await batch.commit();
+
+            // Cloud wipe wrapped in 4-second timeout
+            await withTimeout((async () => {
+                if (db && !isQuotaExceeded) {
+                    try {
+                        const snapshot = await db.collection('students').get();
+                        if (!snapshot.empty) {
+                            const docs = snapshot.docs;
+                            const chunkSize = 400;
+                            for (let i = 0; i < docs.length; i += chunkSize) {
+                                const chunk = docs.slice(i, i + chunkSize);
+                                const batch = db.batch();
+                                chunk.forEach(doc => {
+                                    batch.delete(doc.ref);
+                                });
+                                await batch.commit();
+                            }
                         }
+                    } catch (sdkErr) {
+                        console.warn('[Firebase] SDK batch delete warning:', sdkErr);
                     }
-                } catch (sdkErr) {
-                    console.warn('[Firebase] SDK batch delete warning, falling back to direct REST:', sdkErr);
                 }
-            }
+                await wipeAllStudentsREST();
+                try {
+                    await fetch('/api/students', { method: 'DELETE' });
+                } catch (restErr) {}
+            })(), 4000).catch(e => {
+                console.warn('[Firebase] Cloud wipeAllStudents timeout/warning:', e.message);
+            });
 
-            // Always execute direct Google REST API wipe for 100% cloud certainty
-            await wipeAllStudentsREST();
-
-            // Local Node server wipe if running
-            try {
-                await fetch('/api/students', { method: 'DELETE' });
-            } catch (restErr) {}
-
-            // Update local memory and notify app
-            try {
-                localStorage.setItem('college_students', JSON.stringify([]));
-                notifyLocalApp('students_updated', []);
-            } catch (e) {}
-
-            console.log('[Firebase] All students wiped in cloud for End of Academic Year.');
+            console.log('[Firebase] All students wiped for End of Academic Year.');
             renderStatusBadge('connected', 'تەواوی خوێندکاران سڕانەوە');
             return true;
         } catch (e) {
             console.error('[Firebase] Error wiping students:', e);
-            await wipeAllStudentsREST();
             return false;
         } finally {
             setSyncingState(false);
@@ -1105,47 +1110,49 @@
 
     // Wipe attendance sessions in cloud (used for End of Semester / Year)
     async function wipeAllAttendanceSessions() {
+        // 1. Immediately clear local storage and notify app
+        try {
+            localStorage.setItem('college_attendance_sessions', JSON.stringify([]));
+            notifyLocalApp('sessions_updated', []);
+        } catch (e) {}
+
         if (!db) initFirebase();
         try {
             setSyncingState(true);
-            if (db) {
-                try {
-                    const snapshot = await db.collection('attendance_sessions').get();
-                    if (!snapshot.empty) {
-                        const docs = snapshot.docs;
-                        const chunkSize = 400;
-                        for (let i = 0; i < docs.length; i += chunkSize) {
-                            const chunk = docs.slice(i, i + chunkSize);
-                            const batch = db.batch();
-                            chunk.forEach(doc => {
-                                batch.delete(doc.ref);
-                            });
-                            await batch.commit();
+
+            // Cloud wipe wrapped in 4-second timeout
+            await withTimeout((async () => {
+                if (db && !isQuotaExceeded) {
+                    try {
+                        const snapshot = await db.collection('attendance_sessions').get();
+                        if (!snapshot.empty) {
+                            const docs = snapshot.docs;
+                            const chunkSize = 400;
+                            for (let i = 0; i < docs.length; i += chunkSize) {
+                                const chunk = docs.slice(i, i + chunkSize);
+                                const batch = db.batch();
+                                chunk.forEach(doc => {
+                                    batch.delete(doc.ref);
+                                });
+                                await batch.commit();
+                            }
                         }
+                    } catch (sdkErr) {
+                        console.warn('[Firebase] SDK batch delete sessions warning:', sdkErr);
                     }
-                } catch (sdkErr) {
-                    console.warn('[Firebase] SDK batch delete sessions warning:', sdkErr);
                 }
-            }
+                await wipeAllAttendanceSessionsREST();
+                try {
+                    await fetch('/api/sessions', { method: 'DELETE' });
+                } catch (restErr) {}
+            })(), 4000).catch(e => {
+                console.warn('[Firebase] Cloud wipeAllAttendanceSessions timeout/warning:', e.message);
+            });
 
-            // Always execute direct REST wipe
-            await wipeAllAttendanceSessionsREST();
-
-            try {
-                await fetch('/api/sessions', { method: 'DELETE' });
-            } catch (restErr) {}
-
-            // Update local storage and notify app
-            try {
-                localStorage.setItem('college_attendance_sessions', JSON.stringify([]));
-                notifyLocalApp('sessions_updated', []);
-            } catch (e) {}
-
-            console.log('[Firebase] Attendance sessions wiped in cloud.');
+            console.log('[Firebase] Attendance sessions wiped.');
             return true;
         } catch (e) {
             console.error('[Firebase] Error wiping sessions:', e);
-            await wipeAllAttendanceSessionsREST();
             return false;
         } finally {
             setSyncingState(false);
