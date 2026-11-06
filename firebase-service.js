@@ -172,10 +172,32 @@
                 if (isQuotaExceeded) return;
                 if (snapshot.metadata && snapshot.metadata.hasPendingWrites) return;
 
+                const isYearResetActive = (typeof window !== 'undefined' && window._uosYearResetInProgress) || sessionStorage.getItem('uos_year_reset') === 'true';
+                const isSemesterResetActive = (typeof window !== 'undefined' && window._uosSemesterResetInProgress) || sessionStorage.getItem('uos_semester_reset') === 'true';
+
+                if (isYearResetActive) {
+                    if (snapshot.empty) {
+                        sessionStorage.removeItem('uos_year_reset');
+                        if (typeof window !== 'undefined') window._uosYearResetInProgress = false;
+                        localStorage.setItem('college_students', JSON.stringify([]));
+                        notifyLocalApp('students_updated', []);
+                    }
+                    return;
+                }
+
                 const remoteStudents = [];
                 snapshot.forEach(doc => {
-                    remoteStudents.push(doc.data());
+                    const data = doc.data();
+                    if (isSemesterResetActive) {
+                        data.absentHours = 0;
+                    }
+                    remoteStudents.push(data);
                 });
+
+                if (isSemesterResetActive && remoteStudents.every(s => (Number(s.absentHours) || 0) === 0)) {
+                    sessionStorage.removeItem('uos_semester_reset');
+                    if (typeof window !== 'undefined') window._uosSemesterResetInProgress = false;
+                }
 
                 const localRaw = localStorage.getItem('college_students');
                 const localStudents = localRaw ? JSON.parse(localRaw) : [];
@@ -202,6 +224,18 @@
             db.collection('attendance_sessions').onSnapshot(snapshot => {
                 if (isQuotaExceeded) return;
                 if (snapshot.metadata && snapshot.metadata.hasPendingWrites) return;
+
+                const isResetActive = (typeof window !== 'undefined' && (window._uosSemesterResetInProgress || window._uosYearResetInProgress)) ||
+                    sessionStorage.getItem('uos_semester_reset') === 'true' ||
+                    sessionStorage.getItem('uos_year_reset') === 'true';
+
+                if (isResetActive) {
+                    if (snapshot.empty) {
+                        localStorage.setItem('college_attendance_sessions', JSON.stringify([]));
+                        notifyLocalApp('sessions_updated', []);
+                    }
+                    return; // Ignore stale sessions until cloud is cleanly purged
+                }
 
                 const remoteSessions = [];
                 snapshot.forEach(doc => {
@@ -340,20 +374,30 @@
 
     // Pull all data from cloud to local
     async function pullAllCloudToLocal() {
+        if (!db) initFirebase();
         if (!db || isQuotaExceeded) return;
         try {
             setSyncingState(true);
 
+            const isYearResetActive = (typeof window !== 'undefined' && window._uosYearResetInProgress) || sessionStorage.getItem('uos_year_reset') === 'true';
+            const isSemesterResetActive = (typeof window !== 'undefined' && window._uosSemesterResetInProgress) || sessionStorage.getItem('uos_semester_reset') === 'true';
+
             // Pull students
-            const stuSnap = await db.collection('students').get();
-            if (!stuSnap.empty) {
-                const stuList = [];
-                stuSnap.forEach(d => stuList.push(d.data()));
-                localStorage.setItem('college_students', JSON.stringify(stuList));
-                notifyLocalApp('students_updated', stuList);
-            } else {
-                localStorage.setItem('college_students', JSON.stringify([]));
-                notifyLocalApp('students_updated', []);
+            if (!isYearResetActive) {
+                const stuSnap = await db.collection('students').get();
+                if (!stuSnap.empty) {
+                    const stuList = [];
+                    stuSnap.forEach(d => {
+                        const sData = d.data();
+                        if (isSemesterResetActive) sData.absentHours = 0;
+                        stuList.push(sData);
+                    });
+                    localStorage.setItem('college_students', JSON.stringify(stuList));
+                    notifyLocalApp('students_updated', stuList);
+                } else {
+                    localStorage.setItem('college_students', JSON.stringify([]));
+                    notifyLocalApp('students_updated', []);
+                }
             }
 
             // Pull courses
@@ -395,13 +439,18 @@
             }
 
             // Pull sessions
-            const sessSnap = await db.collection('attendance_sessions').get();
-            if (!sessSnap.empty) {
-                const sessList = [];
-                sessSnap.forEach(d => sessList.push(d.data()));
-                sessList.sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
-                localStorage.setItem('college_attendance_sessions', JSON.stringify(sessList));
-                notifyLocalApp('sessions_updated', sessList);
+            if (!isYearResetActive && !isSemesterResetActive) {
+                const sessSnap = await db.collection('attendance_sessions').get();
+                if (!sessSnap.empty) {
+                    const sessList = [];
+                    sessSnap.forEach(d => sessList.push(d.data()));
+                    sessList.sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+                    localStorage.setItem('college_attendance_sessions', JSON.stringify(sessList));
+                    notifyLocalApp('sessions_updated', sessList);
+                } else {
+                    localStorage.setItem('college_attendance_sessions', JSON.stringify([]));
+                    notifyLocalApp('sessions_updated', []);
+                }
             } else {
                 localStorage.setItem('college_attendance_sessions', JSON.stringify([]));
                 notifyLocalApp('sessions_updated', []);
@@ -928,6 +977,8 @@
 
     // Reset all student absentHours to 0 in cloud (used for End of Semester)
     async function resetAllStudentAbsences() {
+        if (typeof window !== 'undefined') window._uosSemesterResetInProgress = true;
+        sessionStorage.setItem('uos_semester_reset', 'true');
         // 1. Update local storage and notify local UI immediately
         try {
             const localStudents = JSON.parse(localStorage.getItem('college_students') || '[]');
@@ -1030,6 +1081,8 @@
 
     // Wipe all students in cloud (used for End of Academic Year)
     async function wipeAllStudents() {
+        if (typeof window !== 'undefined') window._uosYearResetInProgress = true;
+        sessionStorage.setItem('uos_year_reset', 'true');
         // 1. Immediately clear local storage and notify app
         try {
             localStorage.setItem('college_students', JSON.stringify([]));
