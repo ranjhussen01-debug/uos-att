@@ -172,12 +172,17 @@
                 if (isQuotaExceeded) return;
                 if (snapshot.metadata && snapshot.metadata.hasPendingWrites) return;
 
-                const isYearResetActive = (typeof window !== 'undefined' && window._uosYearResetInProgress) || sessionStorage.getItem('uos_year_reset') === 'true';
-                const isSemesterResetActive = (typeof window !== 'undefined' && window._uosSemesterResetInProgress) || sessionStorage.getItem('uos_semester_reset') === 'true';
+                const isYearResetActive = (typeof window !== 'undefined' && window._uosYearResetInProgress) ||
+                    sessionStorage.getItem('uos_year_reset') === 'true' ||
+                    localStorage.getItem('college_year_reset_done') === 'true';
+                const isSemesterResetActive = (typeof window !== 'undefined' && window._uosSemesterResetInProgress) ||
+                    sessionStorage.getItem('uos_semester_reset') === 'true' ||
+                    localStorage.getItem('college_semester_reset_done') === 'true';
 
                 if (isYearResetActive) {
                     if (snapshot.empty) {
                         sessionStorage.removeItem('uos_year_reset');
+                        localStorage.removeItem('college_year_reset_done');
                         if (typeof window !== 'undefined') window._uosYearResetInProgress = false;
                         localStorage.setItem('college_students', JSON.stringify([]));
                         notifyLocalApp('students_updated', []);
@@ -194,8 +199,9 @@
                     remoteStudents.push(data);
                 });
 
-                if (isSemesterResetActive && remoteStudents.every(s => (Number(s.absentHours) || 0) === 0)) {
+                if (isSemesterResetActive && remoteStudents.length > 0 && remoteStudents.every(s => (Number(s.absentHours) || 0) === 0)) {
                     sessionStorage.removeItem('uos_semester_reset');
+                    localStorage.removeItem('college_semester_reset_done');
                     if (typeof window !== 'undefined') window._uosSemesterResetInProgress = false;
                 }
 
@@ -227,7 +233,9 @@
 
                 const isResetActive = (typeof window !== 'undefined' && (window._uosSemesterResetInProgress || window._uosYearResetInProgress)) ||
                     sessionStorage.getItem('uos_semester_reset') === 'true' ||
-                    sessionStorage.getItem('uos_year_reset') === 'true';
+                    sessionStorage.getItem('uos_year_reset') === 'true' ||
+                    localStorage.getItem('college_semester_reset_done') === 'true' ||
+                    localStorage.getItem('college_year_reset_done') === 'true';
 
                 if (isResetActive) {
                     if (snapshot.empty) {
@@ -379,8 +387,12 @@
         try {
             setSyncingState(true);
 
-            const isYearResetActive = (typeof window !== 'undefined' && window._uosYearResetInProgress) || sessionStorage.getItem('uos_year_reset') === 'true';
-            const isSemesterResetActive = (typeof window !== 'undefined' && window._uosSemesterResetInProgress) || sessionStorage.getItem('uos_semester_reset') === 'true';
+            const isYearResetActive = (typeof window !== 'undefined' && window._uosYearResetInProgress) ||
+                sessionStorage.getItem('uos_year_reset') === 'true' ||
+                localStorage.getItem('college_year_reset_done') === 'true';
+            const isSemesterResetActive = (typeof window !== 'undefined' && window._uosSemesterResetInProgress) ||
+                sessionStorage.getItem('uos_semester_reset') === 'true' ||
+                localStorage.getItem('college_semester_reset_done') === 'true';
 
             // Pull students
             if (!isYearResetActive) {
@@ -979,6 +991,7 @@
     async function resetAllStudentAbsences() {
         if (typeof window !== 'undefined') window._uosSemesterResetInProgress = true;
         sessionStorage.setItem('uos_semester_reset', 'true');
+        localStorage.setItem('college_semester_reset_done', 'true');
         // 1. Update local storage and notify local UI immediately
         try {
             const localStudents = JSON.parse(localStorage.getItem('college_students') || '[]');
@@ -991,7 +1004,7 @@
         try {
             setSyncingState(true);
 
-            // Cloud sync wrapped in a strict 4-second timeout to prevent any UI freezing
+            // Cloud sync with 20-second timeout to ensure all 94+ students are committed to Firestore
             await withTimeout((async () => {
                 let sdkSuccess = false;
                 // 1. Try SDK batch update
@@ -1065,11 +1078,11 @@
                         }
                     }
                 }
-            })(), 4000).catch(e => {
+            })(), 20000).catch(e => {
                 console.warn('[Firebase] Background cloud reset warning:', e.message);
             });
 
-            console.log('[Firebase] ✅ All student absences reset to 0.');
+            console.log('[Firebase] ✅ All student absences reset to 0 in cloud.');
             return true;
         } catch (e) {
             console.error('[Firebase] Error resetting student absences:', e);
@@ -1079,10 +1092,20 @@
         }
     }
 
-    // Wipe all students in cloud (used for End of Academic Year)
+    // Helper to match department keys (handles e.g. 'dept_accounting' and 'accounting')
+    function matchesDept(val, deptKey) {
+        if (!val || !deptKey) return false;
+        const v = String(val).toLowerCase().trim();
+        const k = String(deptKey).toLowerCase().trim();
+        const shortK = k.replace(/^dept_/, '');
+        return v === k || v === shortK || v === ('dept_' + shortK);
+    }
+
+    // Wipe all students in cloud (used for End of Academic Year & Full Purge)
     async function wipeAllStudents() {
         if (typeof window !== 'undefined') window._uosYearResetInProgress = true;
         sessionStorage.setItem('uos_year_reset', 'true');
+        localStorage.setItem('college_year_reset_done', 'true');
         // 1. Immediately clear local storage and notify app
         try {
             localStorage.setItem('college_students', JSON.stringify([]));
@@ -1093,7 +1116,7 @@
         try {
             setSyncingState(true);
 
-            // Cloud wipe wrapped in 4-second timeout
+            // Cloud wipe wrapped in 20-second timeout
             await withTimeout((async () => {
                 if (db && !isQuotaExceeded) {
                     try {
@@ -1118,7 +1141,7 @@
                 try {
                     await fetch('/api/students', { method: 'DELETE' });
                 } catch (restErr) {}
-            })(), 4000).catch(e => {
+            })(), 20000).catch(e => {
                 console.warn('[Firebase] Cloud wipeAllStudents timeout/warning:', e.message);
             });
 
@@ -1166,6 +1189,7 @@
         // 1. Immediately clear local storage and notify app
         try {
             localStorage.setItem('college_attendance_sessions', JSON.stringify([]));
+            localStorage.setItem('college_semester_reset_done', 'true');
             notifyLocalApp('sessions_updated', []);
         } catch (e) {}
 
@@ -1173,7 +1197,7 @@
         try {
             setSyncingState(true);
 
-            // Cloud wipe wrapped in 4-second timeout
+            // Cloud wipe wrapped in 20-second timeout
             await withTimeout((async () => {
                 if (db && !isQuotaExceeded) {
                     try {
@@ -1198,7 +1222,7 @@
                 try {
                     await fetch('/api/sessions', { method: 'DELETE' });
                 } catch (restErr) {}
-            })(), 4000).catch(e => {
+            })(), 20000).catch(e => {
                 console.warn('[Firebase] Cloud wipeAllAttendanceSessions timeout/warning:', e.message);
             });
 
@@ -1206,6 +1230,288 @@
             return true;
         } catch (e) {
             console.error('[Firebase] Error wiping sessions:', e);
+            return false;
+        } finally {
+            setSyncingState(false);
+        }
+    }
+
+    // Purge single department attendance sessions in Cloud + Local
+    async function purgeDeptAttendance(deptKey) {
+        if (!deptKey) return false;
+        try {
+            let sessions = JSON.parse(localStorage.getItem('college_attendance_sessions') || '[]');
+            sessions = sessions.filter(s => !matchesDept(s.dept || s.deptId, deptKey));
+            localStorage.setItem('college_attendance_sessions', JSON.stringify(sessions));
+            notifyLocalApp('sessions_updated', sessions);
+        } catch(e) {}
+
+        if (!db) initFirebase();
+        try {
+            setSyncingState(true);
+            await withTimeout((async () => {
+                // 1. SDK batch delete
+                if (db && !isQuotaExceeded) {
+                    try {
+                        const snap = await db.collection('attendance_sessions').get();
+                        if (!snap.empty) {
+                            const batch = db.batch();
+                            let count = 0;
+                            snap.docs.forEach(doc => {
+                                const data = doc.data() || {};
+                                if (matchesDept(data.dept || data.deptId, deptKey)) {
+                                    batch.delete(doc.ref);
+                                    count++;
+                                }
+                            });
+                            if (count > 0) await batch.commit();
+                        }
+                    } catch(err) {
+                        console.warn('[Firebase] SDK purgeDeptAttendance warning:', err);
+                    }
+                }
+
+                // 2. REST API delete
+                const apiKey = firebaseConfig.apiKey;
+                const projectId = firebaseConfig.projectId;
+                let pageToken = '';
+                let matchingDocNames = [];
+                do {
+                    let url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/attendance_sessions?pageSize=300&key=${apiKey}`;
+                    if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+                    const res = await fetch(url);
+                    if (!res.ok) break;
+                    const data = await res.json();
+                    if (data.documents && data.documents.length) {
+                        data.documents.forEach(doc => {
+                            const f = doc.fields || {};
+                            const deptVal = f.dept?.stringValue || f.deptId?.stringValue;
+                            if (matchesDept(deptVal, deptKey)) {
+                                matchingDocNames.push(doc.name);
+                            }
+                        });
+                    }
+                    pageToken = data.nextPageToken || '';
+                } while (pageToken);
+
+                if (matchingDocNames.length > 0) {
+                    const chunkSize = 200;
+                    for (let i = 0; i < matchingDocNames.length; i += chunkSize) {
+                        const chunk = matchingDocNames.slice(i, i + chunkSize);
+                        const commitPayload = {
+                            writes: chunk.map(docName => ({ delete: docName }))
+                        };
+                        await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit?key=${apiKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(commitPayload)
+                        });
+                    }
+                }
+            })(), 20000).catch(e => {
+                console.warn('[Firebase] purgeDeptAttendance warning:', e.message);
+            });
+            console.log('[Firebase] ✅ Attendance purged for department:', deptKey);
+            return true;
+        } catch(e) {
+            console.error('[Firebase] Error purging dept attendance:', e);
+            return false;
+        } finally {
+            setSyncingState(false);
+        }
+    }
+
+    // Reset single department student absentHours to 0 in Cloud + Local
+    async function resetDeptAbsences(deptKey) {
+        if (!deptKey) return false;
+        try {
+            let studentsList = JSON.parse(localStorage.getItem('college_students') || '[]');
+            studentsList.forEach(s => {
+                if (matchesDept(s.dept || s.deptId, deptKey)) {
+                    s.absentHours = 0;
+                }
+            });
+            localStorage.setItem('college_students', JSON.stringify(studentsList));
+            notifyLocalApp('students_updated', studentsList);
+        } catch(e) {}
+
+        if (!db) initFirebase();
+        try {
+            setSyncingState(true);
+            await withTimeout((async () => {
+                // 1. SDK batch update
+                if (db && !isQuotaExceeded) {
+                    try {
+                        const snap = await db.collection('students').get();
+                        if (!snap.empty) {
+                            const batch = db.batch();
+                            let count = 0;
+                            snap.docs.forEach(doc => {
+                                const data = doc.data() || {};
+                                if (matchesDept(data.dept || data.deptId, deptKey)) {
+                                    batch.update(doc.ref, {
+                                        absentHours: 0,
+                                        updatedAt: (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+                                            ? firebase.firestore.FieldValue.serverTimestamp()
+                                            : new Date().toISOString()
+                                    });
+                                    count++;
+                                }
+                            });
+                            if (count > 0) await batch.commit();
+                        }
+                    } catch(err) {
+                        console.warn('[Firebase] SDK resetDeptAbsences warning:', err);
+                    }
+                }
+
+                // 2. REST API commit update
+                const apiKey = firebaseConfig.apiKey;
+                const projectId = firebaseConfig.projectId;
+                let pageToken = '';
+                let matchingDocs = [];
+                do {
+                    let url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/students?pageSize=300&key=${apiKey}`;
+                    if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+                    const res = await fetch(url);
+                    if (!res.ok) break;
+                    const data = await res.json();
+                    if (data.documents && data.documents.length) {
+                        data.documents.forEach(doc => {
+                            const f = doc.fields || {};
+                            const deptVal = f.dept?.stringValue || f.deptId?.stringValue;
+                            if (matchesDept(deptVal, deptKey)) {
+                                matchingDocs.push(doc);
+                            }
+                        });
+                    }
+                    pageToken = data.nextPageToken || '';
+                } while (pageToken);
+
+                if (matchingDocs.length > 0) {
+                    const chunkSize = 200;
+                    for (let i = 0; i < matchingDocs.length; i += chunkSize) {
+                        const chunk = matchingDocs.slice(i, i + chunkSize);
+                        const commitPayload = {
+                            writes: chunk.map(doc => ({
+                                update: {
+                                    name: doc.name,
+                                    fields: {
+                                        ...(doc.fields || {}),
+                                        absentHours: { integerValue: '0' },
+                                        updatedAt: { timestampValue: new Date().toISOString() }
+                                    }
+                                },
+                                updateMask: { fieldPaths: ["absentHours", "updatedAt"] }
+                            }))
+                        };
+                        await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit?key=${apiKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(commitPayload)
+                        });
+                    }
+                }
+            })(), 20000).catch(e => {
+                console.warn('[Firebase] resetDeptAbsences warning:', e.message);
+            });
+            console.log('[Firebase] ✅ Absence hours reset to 0 for department:', deptKey);
+            return true;
+        } catch(e) {
+            console.error('[Firebase] Error resetting dept absences:', e);
+            return false;
+        } finally {
+            setSyncingState(false);
+        }
+    }
+
+    // Delete all students belonging to single department in Cloud + Local
+    async function deleteDeptStudents(deptKey) {
+        if (!deptKey) return false;
+        try {
+            let studentsList = JSON.parse(localStorage.getItem('college_students') || '[]');
+            studentsList = studentsList.filter(s => !matchesDept(s.dept || s.deptId, deptKey));
+            localStorage.setItem('college_students', JSON.stringify(studentsList));
+            notifyLocalApp('students_updated', studentsList);
+
+            let sessions = JSON.parse(localStorage.getItem('college_attendance_sessions') || '[]');
+            sessions = sessions.filter(s => !matchesDept(s.dept || s.deptId, deptKey));
+            localStorage.setItem('college_attendance_sessions', JSON.stringify(sessions));
+            notifyLocalApp('sessions_updated', sessions);
+        } catch(e) {}
+
+        if (!db) initFirebase();
+        try {
+            setSyncingState(true);
+            await withTimeout((async () => {
+                // 1. SDK batch delete students
+                if (db && !isQuotaExceeded) {
+                    try {
+                        const snap = await db.collection('students').get();
+                        if (!snap.empty) {
+                            const batch = db.batch();
+                            let count = 0;
+                            snap.docs.forEach(doc => {
+                                const data = doc.data() || {};
+                                if (matchesDept(data.dept || data.deptId, deptKey)) {
+                                    batch.delete(doc.ref);
+                                    count++;
+                                }
+                            });
+                            if (count > 0) await batch.commit();
+                        }
+                    } catch(err) {
+                        console.warn('[Firebase] SDK deleteDeptStudents warning:', err);
+                    }
+                }
+
+                // 2. REST API delete students
+                const apiKey = firebaseConfig.apiKey;
+                const projectId = firebaseConfig.projectId;
+                let pageToken = '';
+                let matchingDocNames = [];
+                do {
+                    let url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/students?pageSize=300&key=${apiKey}`;
+                    if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+                    const res = await fetch(url);
+                    if (!res.ok) break;
+                    const data = await res.json();
+                    if (data.documents && data.documents.length) {
+                        data.documents.forEach(doc => {
+                            const f = doc.fields || {};
+                            const deptVal = f.dept?.stringValue || f.deptId?.stringValue;
+                            if (matchesDept(deptVal, deptKey)) {
+                                matchingDocNames.push(doc.name);
+                            }
+                        });
+                    }
+                    pageToken = data.nextPageToken || '';
+                } while (pageToken);
+
+                if (matchingDocNames.length > 0) {
+                    const chunkSize = 200;
+                    for (let i = 0; i < matchingDocNames.length; i += chunkSize) {
+                        const chunk = matchingDocNames.slice(i, i + chunkSize);
+                        const commitPayload = {
+                            writes: chunk.map(docName => ({ delete: docName }))
+                        };
+                        await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit?key=${apiKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(commitPayload)
+                        });
+                    }
+                }
+
+                // 3. Also purge this dept's attendance sessions
+                await purgeDeptAttendance(deptKey);
+            })(), 20000).catch(e => {
+                console.warn('[Firebase] deleteDeptStudents warning:', e.message);
+            });
+            console.log('[Firebase] ✅ Students deleted for department:', deptKey);
+            return true;
+        } catch(e) {
+            console.error('[Firebase] Error deleting dept students:', e);
             return false;
         } finally {
             setSyncingState(false);
@@ -1439,6 +1745,9 @@
         resetAllStudentAbsences,
         saveAttendanceSession,
         wipeAllAttendanceSessions,
+        purgeDeptAttendance,
+        resetDeptAbsences,
+        deleteDeptStudents,
         logAudit,
         showSyncModal,
         onSync: (fn) => syncListeners.push(fn)
