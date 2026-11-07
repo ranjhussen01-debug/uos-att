@@ -2900,52 +2900,98 @@
                 </div>
 
                 <div class="pdf-page-break" style="page-break-before: always; break-before: page; margin-top: 25px; margin-bottom: 24px;">
-                    <h3 style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; border-right: 4px solid #059669; padding-right: 8px;">
-                        ٢. تۆماری وردی غیاباتی سەرجەم خوێندکاران لە کۆتایی سمستەردا:
+                    <h3 style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0 0 14px 0; border-right: 4px solid #059669; padding-right: 8px;">
+                        ٢. تۆماری وردی ناوی خوێندکاران و ڕێژەی غیابات بەپێی ڕیزبەندی ٥ بەشەکە:
                     </h3>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 9px; text-align: right; border: 1px solid #cbd5e1;">
-                        <thead>
-                            <tr style="background: #1e293b; color: #ffffff;">
-                                <th style="padding: 6px 6px; border: 1px solid #334155; text-align: center; width: 30px;">#</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; width: 85px;">کۆدی زانکۆیی</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155;">ناوی سیانی خوێندکار</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; width: 110px;">بەشی زانستی</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; text-align: center; width: 65px;">قۆناغ</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; text-align: center; width: 85px;">غیابات (کاتژمێر)</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; text-align: center; width: 65px;">ڕێژە</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; text-align: center; width: 85px;">دۆخی سمستەر</th>
-                            </tr>
-                        </thead>
-                        <tbody>
             `;
 
-            snapshotStudents.forEach((student, sIdx) => {
-                const deptName = DEPARTMENTS[student.dept]?.name || student.dept;
-                const percentage = Math.round(((Number(student.absentHours) || 0) / (Number(student.totalHours) || 40)) * 100);
-                const isRisk = percentage >= 10;
-                const statusLabel = isRisk ? '<span style="color: #be123c; font-weight: bold;">ئاگاداری / بێبەشبوون</span>'
-                    : (percentage >= 5 ? '<span style="color: #b45309; font-weight: bold;">ئاگاداری سەرەتایی</span>'
-                    : '<span style="color: #15803d; font-weight: bold;">پابەندبووە ✓</span>');
+            const semesterDeptOrder = ['dept_accounting', 'dept_business', 'dept_economics', 'dept_finance', 'dept_statistics'];
+            semesterDeptOrder.forEach((deptKey, dIdx) => {
+                const dept = DEPARTMENTS[deptKey] || { name: deptKey, adminName: 'سەرۆک بەش' };
+                const deptStudents = snapshotStudents.filter(s => s && (s.dept === deptKey || s.deptId === deptKey));
+                deptStudents.sort((a, b) => {
+                    const stgA = String(a.stage || '1');
+                    const stgB = String(b.stage || '1');
+                    if (stgA !== stgB) return stgA.localeCompare(stgB);
+                    return String(a.name || '').localeCompare(String(b.name || ''), 'ku');
+                });
 
-                const bgRow = sIdx % 2 === 0 ? '#f8fafc' : '#ffffff';
+                const deptTotalAbs = deptStudents.reduce((acc, s) => acc + (Number(s.absentHours) || 0), 0);
+                const deptPossible = deptStudents.length * 40;
+                const deptAttRate = deptPossible > 0 ? (100 - ((deptTotalAbs / deptPossible) * 100)).toFixed(1) : '100';
 
                 html += `
-                    <tr style="background: ${bgRow}; page-break-inside: avoid; break-inside: avoid;">
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #64748b;">${sIdx + 1}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; font-family: monospace; font-weight: bold; color: #334155;">${student.code}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">${student.name}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; color: #475569;">${deptName}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; text-align: center;">قۆناغی ${getStageArabic(student.stage)}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${isRisk ? '#be123c' : '#0f172a'};">${student.absentHours || 0}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${isRisk ? '#be123c' : '#15803d'};">%${percentage}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; text-align: center;">${statusLabel}</td>
-                    </tr>
+                    <div style="margin-top: 14px; margin-bottom: 20px; page-break-inside: avoid;">
+                        <div style="background: #1e293b; color: #ffffff; padding: 7px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: 11px; font-weight: 800;">
+                                <span>${dIdx + 1}. ${dept.name}</span>
+                                <span style="font-size: 10px; font-weight: normal; color: #cbd5e1; margin-right: 8px;">(سەرپەرشتیار: ${dept.adminName || 'سەرۆک بەش'})</span>
+                            </div>
+                            <div style="font-size: 10px; color: #94a3b8;">
+                                <span style="color: #ffffff; font-weight: bold;">ژمارەی خوێندکار: ${deptStudents.length}</span> | 
+                                <span style="color: #38bdf8;">ئامادەبوون: %${deptAttRate}</span> | 
+                                <span style="color: #f87171;">غیابات: ${deptTotalAbs} کاتژمێر</span>
+                            </div>
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 9px; text-align: right; border: 1px solid #cbd5e1;">
+                            <thead>
+                                <tr style="background: #334155; color: #ffffff;">
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 30px;">#</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; width: 85px;">کۆدی خوێندکار</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569;">ناوی چواری / سیانی خوێندکار</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 65px;">خوێندن</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 65px;">قۆناغ</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 80px;">غیابات (کاتژمێر)</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 65px;">ڕێژە %</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 90px;">دۆخی سمستەر</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                if (deptStudents.length === 0) {
+                    html += `
+                        <tr>
+                            <td colspan="8" style="padding: 8px; text-align: center; color: #64748b; font-size: 10px; background: #f8fafc;">
+                                هیچ خوێندکارێک لەم بەشەدا تۆمار نەکراوە
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    deptStudents.forEach((student, sIdx) => {
+                        const absentHours = Number(student.absentHours) || 0;
+                        const totalHours = Number(student.totalHours) || 40;
+                        const percentage = Math.round((absentHours / totalHours) * 100);
+                        const isRisk = percentage >= 10;
+                        const statusLabel = isRisk ? '<span style="color: #be123c; font-weight: bold;">ئاگاداری / بێبەشبوون</span>'
+                            : (percentage >= 5 ? '<span style="color: #b45309; font-weight: bold;">ئاگاداری سەرەتایی</span>'
+                            : '<span style="color: #15803d; font-weight: bold;">پابەندبووە ✓</span>');
+                        const studyLabel = student.study === 'evening' ? 'ئێواران' : 'بەیانیان';
+                        const bgRow = sIdx % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+                        html += `
+                            <tr style="background: ${bgRow}; page-break-inside: avoid; break-inside: avoid;">
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #64748b;">${sIdx + 1}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-family: monospace; font-weight: bold; color: #334155;">${student.code || '-'}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">${student.name}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; color: #475569;">${studyLabel}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center;">قۆناغی ${getStageArabic(student.stage)}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${isRisk ? '#be123c' : '#0f172a'};">${absentHours}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${isRisk ? '#be123c' : '#15803d'};">%${percentage}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center;">${statusLabel}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
                 `;
             });
 
             html += `
-                        </tbody>
-                    </table>
                 </div>
 
                 <div style="border-top: 2px dashed #94a3b8; padding-top: 15px; margin-top: 25px;">
@@ -2995,14 +3041,11 @@
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                         pagebreak: { mode: ['css', 'legacy'], before: '.pdf-page-break', avoid: ['tr'] }
                     };
-                    html2pdf().set(opt).from(container).save().then(() => {
-                        try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
-                    }).catch(err => {
-                        console.warn('[Dashboard] html2pdf background save note:', err);
-                        try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
-                    });
-                } catch(e) {
-                    try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(err){}
+                    await html2pdf().set(opt).from(container).save();
+                } catch(err) {
+                    console.warn('[Dashboard] html2pdf save note:', err);
+                } finally {
+                    try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
                 }
             } else {
                 try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
@@ -3353,52 +3396,98 @@
                 </div>
 
                 <div class="pdf-page-break" style="page-break-before: always; break-before: page; margin-top: 25px; margin-bottom: 24px;">
-                    <h3 style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; border-right: 4px solid #059669; padding-right: 8px;">
-                        ٢. تۆماری سەرجەم خوێندکاران بەپێی ٥ بەشەکە (پێش سڕینەوەی گشتی):
+                    <h3 style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0 0 14px 0; border-right: 4px solid #059669; padding-right: 8px;">
+                        ٢. تۆماری وردی ناوی سەرجەم خوێندکاران بەپێی ٥ بەشەکە (پێش سڕینەوەی گشتی):
                     </h3>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 9px; text-align: right; border: 1px solid #cbd5e1;">
-                        <thead>
-                            <tr style="background: #1e293b; color: #ffffff;">
-                                <th style="padding: 6px 6px; border: 1px solid #334155; text-align: center; width: 30px;">#</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; width: 85px;">کۆدی زانکۆیی</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155;">ناوی سیانی خوێندکار</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; width: 110px;">بەشی زانستی</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; text-align: center; width: 65px;">قۆناغ</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; text-align: center; width: 85px;">غیابات (کاتژمێر)</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; text-align: center; width: 65px;">ڕێژە</th>
-                                <th style="padding: 6px 6px; border: 1px solid #334155; text-align: center; width: 85px;">دۆخی ساڵانە</th>
-                            </tr>
-                        </thead>
-                        <tbody>
             `;
 
-            snapshotStudents.forEach((student, sIdx) => {
-                const deptName = DEPARTMENTS[student.dept]?.name || student.dept;
-                const percentage = Math.round(((Number(student.absentHours) || 0) / (Number(student.totalHours) || 40)) * 100);
-                const isRisk = percentage >= 10;
-                const statusLabel = isRisk ? '<span style="color: #be123c; font-weight: bold;">ئاگاداری / دەرکردن</span>'
-                    : (percentage >= 5 ? '<span style="color: #b45309; font-weight: bold;">ئاگاداری سەرەتایی</span>'
-                    : '<span style="color: #15803d; font-weight: bold;">پابەندبووە ✓</span>');
+            const yearDeptOrder = ['dept_accounting', 'dept_business', 'dept_economics', 'dept_finance', 'dept_statistics'];
+            yearDeptOrder.forEach((deptKey, dIdx) => {
+                const dept = DEPARTMENTS[deptKey] || { name: deptKey, adminName: 'سەرۆک بەش' };
+                const deptStudents = snapshotStudents.filter(s => s && (s.dept === deptKey || s.deptId === deptKey));
+                deptStudents.sort((a, b) => {
+                    const stgA = String(a.stage || '1');
+                    const stgB = String(b.stage || '1');
+                    if (stgA !== stgB) return stgA.localeCompare(stgB);
+                    return String(a.name || '').localeCompare(String(b.name || ''), 'ku');
+                });
 
-                const bgRow = sIdx % 2 === 0 ? '#f8fafc' : '#ffffff';
+                const deptTotalAbs = deptStudents.reduce((acc, s) => acc + (Number(s.absentHours) || 0), 0);
+                const deptPossible = deptStudents.length * 40;
+                const deptAttRate = deptPossible > 0 ? (100 - ((deptTotalAbs / deptPossible) * 100)).toFixed(1) : '100';
 
                 html += `
-                    <tr style="background: ${bgRow}; page-break-inside: avoid; break-inside: avoid;">
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #64748b;">${sIdx + 1}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; font-family: monospace; font-weight: bold; color: #334155;">${student.code}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">${student.name}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; color: #475569;">${deptName}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; text-align: center;">قۆناغی ${getStageArabic(student.stage)}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${isRisk ? '#be123c' : '#0f172a'};">${student.absentHours || 0}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${isRisk ? '#be123c' : '#15803d'};">%${percentage}</td>
-                        <td style="padding: 5px 6px; border: 1px solid #cbd5e1; text-align: center;">${statusLabel}</td>
-                    </tr>
+                    <div style="margin-top: 14px; margin-bottom: 20px; page-break-inside: avoid;">
+                        <div style="background: #1e293b; color: #ffffff; padding: 7px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: 11px; font-weight: 800;">
+                                <span>${dIdx + 1}. ${dept.name}</span>
+                                <span style="font-size: 10px; font-weight: normal; color: #cbd5e1; margin-right: 8px;">(سەرپەرشتیار: ${dept.adminName || 'سەرۆک بەش'})</span>
+                            </div>
+                            <div style="font-size: 10px; color: #94a3b8;">
+                                <span style="color: #ffffff; font-weight: bold;">ژمارەی خوێندکار: ${deptStudents.length}</span> | 
+                                <span style="color: #38bdf8;">ئامادەبوون: %${deptAttRate}</span> | 
+                                <span style="color: #f87171;">غیابات: ${deptTotalAbs} کاتژمێر</span>
+                            </div>
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 9px; text-align: right; border: 1px solid #cbd5e1;">
+                            <thead>
+                                <tr style="background: #334155; color: #ffffff;">
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 30px;">#</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; width: 85px;">کۆدی خوێندکار</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569;">ناوی چواری / سیانی خوێندکار</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 65px;">خوێندن</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 65px;">قۆناغ</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 80px;">غیابات (کاتژمێر)</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 65px;">ڕێژە %</th>
+                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 90px;">دۆخی ساڵانە</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                if (deptStudents.length === 0) {
+                    html += `
+                        <tr>
+                            <td colspan="8" style="padding: 8px; text-align: center; color: #64748b; font-size: 10px; background: #f8fafc;">
+                                هیچ خوێندکارێک لەم بەشەدا تۆمار نەکراوە
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    deptStudents.forEach((student, sIdx) => {
+                        const absentHours = Number(student.absentHours) || 0;
+                        const totalHours = Number(student.totalHours) || 40;
+                        const percentage = Math.round((absentHours / totalHours) * 100);
+                        const isRisk = percentage >= 10;
+                        const statusLabel = isRisk ? '<span style="color: #be123c; font-weight: bold;">ئاگاداری / دەرکردن</span>'
+                            : (percentage >= 5 ? '<span style="color: #b45309; font-weight: bold;">ئاگاداری سەرەتایی</span>'
+                            : '<span style="color: #15803d; font-weight: bold;">پابەندبووە ✓</span>');
+                        const studyLabel = student.study === 'evening' ? 'ئێواران' : 'بەیانیان';
+                        const bgRow = sIdx % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+                        html += `
+                            <tr style="background: ${bgRow}; page-break-inside: avoid; break-inside: avoid;">
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #64748b;">${sIdx + 1}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-family: monospace; font-weight: bold; color: #334155;">${student.code || '-'}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">${student.name}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; color: #475569;">${studyLabel}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center;">قۆناغی ${getStageArabic(student.stage)}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${isRisk ? '#be123c' : '#0f172a'};">${absentHours}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${isRisk ? '#be123c' : '#15803d'};">%${percentage}</td>
+                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center;">${statusLabel}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
                 `;
             });
 
             html += `
-                        </tbody>
-                    </table>
                 </div>
 
                 <div style="border-top: 2px dashed #94a3b8; padding-top: 15px; margin-top: 25px;">
@@ -3448,14 +3537,11 @@
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                         pagebreak: { mode: ['css', 'legacy'], before: '.pdf-page-break', avoid: ['tr'] }
                     };
-                    html2pdf().set(opt).from(container).save().then(() => {
-                        try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
-                    }).catch(err => {
-                        console.warn('[Dashboard] Annual html2pdf background save note:', err);
-                        try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
-                    });
-                } catch(e) {
-                    try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(err){}
+                    await html2pdf().set(opt).from(container).save();
+                } catch(err) {
+                    console.warn('[Dashboard] Annual html2pdf save note:', err);
+                } finally {
+                    try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
                 }
             } else {
                 try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
@@ -3500,10 +3586,10 @@
                     html: `
                         <div class="text-right text-sm space-y-3 leading-relaxed">
                             <div class="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs font-bold">
-                                <i class="fa-solid fa-circle-check text-emerald-600 ml-1"></i> تەواوی ئەرشیفی ساڵانەی کۆلێژ بە فایلی Excel دابەزێندرا!
+                                <i class="fa-solid fa-circle-check text-emerald-600 ml-1"></i> تەواوی ئەرشیفی ساڵانەی کۆلێژ (فایلی PDF و Excel) بە سەرکەوتوویی دابەزێندرا!
                             </div>
                             <p class="text-rose-700 font-bold text-xs">
-                                سەرجەم ناوی خوێندکاران و تۆمارەکانی غیابات بە تەواوەتی لە سیستەم و فایەربەیس سڕانەوە.
+                                سەرجەم فایلی خوێندکاران (ناو و ڕێژەی غیابات) لە داتابەیس و فایەربەیس بە تەواوەتی سڕانەوە.
                             </p>
                             <p class="text-slate-600 text-xs">
                                 سیستەمەکە بە تەواوەتی پاک و ئامادەیە بۆ وەرگرتن و ناونووسینی خوێندکارانی ساڵی نوێی خوێندن.

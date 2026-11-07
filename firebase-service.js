@@ -415,7 +415,7 @@
             // Pull courses
             const crsSnap = await db.collection('courses').get();
             if (!crsSnap.empty) {
-                const crsList = [];
+                let crsList = [];
                 const remoteIds = new Set();
                 crsSnap.forEach(d => {
                     const c = d.data();
@@ -423,11 +423,13 @@
                     if (c && c.id) remoteIds.add(c.id);
                 });
 
-                // Preserve local courses that may not have synced to cloud yet
+                // Preserve local courses that may not have synced to cloud yet (filtering deleted courses)
                 let localCourses = [];
+                const deletedCourses = new Set(JSON.parse(localStorage.getItem('college_deleted_courses') || '[]'));
                 try { localCourses = JSON.parse(localStorage.getItem('college_courses') || '[]'); } catch(e) {}
+                crsList = crsList.filter(c => c && c.id && !deletedCourses.has(c.id));
                 localCourses.forEach(lc => {
-                    if (lc && lc.id && !remoteIds.has(lc.id)) {
+                    if (lc && lc.id && !remoteIds.has(lc.id) && !deletedCourses.has(lc.id)) {
                         crsList.push(lc);
                     }
                 });
@@ -510,11 +512,19 @@
             setSyncingState(true);
             renderStatusBadge('syncing', 'داتاکان دەنێردرێنە فایەربەیس...');
 
-            // Merge default courses with any local additions
+            // Merge default courses with any local additions (excluding explicitly deleted ones)
+            const deletedCourses = new Set(JSON.parse(localStorage.getItem('college_deleted_courses') || '[]'));
             let localCourses = JSON.parse(localStorage.getItem('college_courses') || '[]');
             const cMap = new Map();
-            DEFAULT_COURSES.forEach(c => cMap.set(c.id, c));
-            localCourses.forEach(c => cMap.set(c.id, c));
+            if (!localStorage.getItem('college_courses_initialized')) {
+                DEFAULT_COURSES.forEach(c => {
+                    if (!deletedCourses.has(c.id)) cMap.set(c.id, c);
+                });
+                localStorage.setItem('college_courses_initialized', 'true');
+            }
+            localCourses.forEach(c => {
+                if (c && c.id && !deletedCourses.has(c.id)) cMap.set(c.id, c);
+            });
             localCourses = Array.from(cMap.values());
             originalSetItem.call(localStorage, 'college_courses', JSON.stringify(localCourses));
 
@@ -767,23 +777,53 @@
     }
 
     // Single course delete
-    async function deleteCourse(courseId) {
+    async function deleteCourse(courseId, courseSubject, teacherUsername) {
         if (!courseId) return false;
         if (!db) initFirebase();
+
+        const idStr = String(courseId);
+
+        // Track in college_deleted_courses so it is never re-added by sync
         try {
-            if (db && !isQuotaExceeded) {
-                await withTimeout(db.collection('courses').doc(String(courseId)).delete(), 8000);
-            } else if (firebaseConfig.apiKey && firebaseConfig.projectId) {
-                await fetch(`https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/courses/${courseId}?key=${firebaseConfig.apiKey}`, {
-                    method: 'DELETE'
-                });
+            let deletedList = JSON.parse(localStorage.getItem('college_deleted_courses') || '[]');
+            if (!deletedList.includes(idStr)) deletedList.push(idStr);
+            localStorage.setItem('college_deleted_courses', JSON.stringify(deletedList));
+        } catch (e) {}
+
+        let deleted = false;
+
+        // 1. Try SDK
+        if (db && !isQuotaExceeded) {
+            try {
+                await withTimeout(db.collection('courses').doc(idStr).delete(), 6000);
+                deleted = true;
+                console.log('[Firebase] ✅ Course deleted via SDK:', idStr);
+            } catch (e) {
+                console.warn('[Firebase] SDK deleteCourse error:', e.message);
+                handleFirestoreError(e, 'deleteCourse');
             }
-            console.log('[Firebase] ✅ Course deleted from cloud:', courseId);
-            return true;
-        } catch (e) {
-            handleFirestoreError(e, 'deleteCourse');
-            return false;
         }
+
+        // 2. Direct REST Fallback
+        if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+            try {
+                const restUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/courses/${encodeURIComponent(idStr)}?key=${firebaseConfig.apiKey}`;
+                const res = await fetch(restUrl, { method: 'DELETE' });
+                if (res.ok || res.status === 404) {
+                    deleted = true;
+                    console.log('[Firebase] ✅ Course deleted via REST:', idStr);
+                }
+            } catch (restErr) {
+                console.warn('[Firebase] REST deleteCourse fallback error:', restErr);
+            }
+        }
+
+        // 3. If teacherUsername provided, delete teacher account as well
+        if (teacherUsername) {
+            await deleteUser(teacherUsername);
+        }
+
+        return deleted;
     }
 
     // Single user save (Superadmin or Dept Head or Teacher)
@@ -865,16 +905,36 @@
     async function deleteUser(username) {
         if (!username) return false;
         if (!db) initFirebase();
-        if (!db) return false;
-        try {
-            const uName = String(username).toLowerCase().trim();
-            await db.collection('users').doc(uName).delete();
-            console.log('[Firebase] ✅ User removed from "users" collection:', uName);
-            return true;
-        } catch (e) {
-            handleFirestoreError(e, 'deleteUser');
-            return false;
+        const uName = String(username).toLowerCase().trim();
+        let deleted = false;
+
+        // 1. Try SDK
+        if (db && !isQuotaExceeded) {
+            try {
+                await withTimeout(db.collection('users').doc(uName).delete(), 6000);
+                deleted = true;
+                console.log('[Firebase] ✅ User removed via SDK from "users":', uName);
+            } catch (e) {
+                console.warn('[Firebase] SDK deleteUser error:', e.message);
+                handleFirestoreError(e, 'deleteUser');
+            }
         }
+
+        // 2. Direct REST Fallback
+        if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+            try {
+                const restUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/users/${encodeURIComponent(uName)}?key=${firebaseConfig.apiKey}`;
+                const res = await fetch(restUrl, { method: 'DELETE' });
+                if (res.ok || res.status === 404) {
+                    deleted = true;
+                    console.log('[Firebase] ✅ User removed via REST from "users":', uName);
+                }
+            } catch (e) {
+                console.warn('[Firebase] REST deleteUser error:', e);
+            }
+        }
+
+        return deleted;
     }
 
     // Save custom department meta (such as adminName)
@@ -1409,6 +1469,9 @@
             }
             if (typeof renderSessionsHistory === 'function') {
                 renderSessionsHistory();
+            }
+            if (typeof renderSuperPurgeView === 'function') {
+                renderSuperPurgeView();
             }
 
             // Dispatch global event for any modern listeners

@@ -2384,41 +2384,72 @@
             }
         }
 
-        function deleteCourse(courseId) {
+        async function deleteCourse(courseId) {
             const course = courses.find(c => c.id === courseId);
             if (!course) return;
 
-            Swal.fire({
+            const result = await Swal.fire({
                 title: `سڕینەوەی هەژماری وانەی (${course.subject})؟`,
-                text: `ئەم هەژمارە و ناوی بەکارهێنەری (${course.username}) دەسڕدرێتەوە!`,
+                text: `ئەم هەژمارە و ناوی بەکارهێنەری (${course.username}) ڕاستەوخۆ لە داتابەیس دەسڕدرێتەوە!`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',
                 cancelButtonColor: '#64748b',
                 confirmButtonText: 'بەڵێ، بسڕەوە',
                 cancelButtonText: 'پاشگەزبوونەوە'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    courses = courses.filter(c => c.id !== courseId);
-                    localStorage.setItem('college_courses', JSON.stringify(courses));
-
-                    // Remove from auth users
-                    try {
-                        let authUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
-                        authUsers = authUsers.filter(u => u.username.toLowerCase() !== course.username.toLowerCase());
-                        localStorage.setItem('college_auth_users', JSON.stringify(authUsers));
-                    } catch(e) {}
-
-                    // Remove from cloud
-                    if (window.FirebaseService) {
-                        if (typeof window.FirebaseService.deleteCourse === 'function') window.FirebaseService.deleteCourse(courseId);
-                        if (typeof window.FirebaseService.deleteUser === 'function') window.FirebaseService.deleteUser(course.username);
-                    }
-
-                    renderDeptCoursesTable();
-                    Swal.fire('سڕایەوە!', 'هەژماری وانەکە بە سەرکەوتوویی لادرا', 'success');
-                }
             });
+
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'سڕینەوە لە داتابەیس...',
+                    text: 'تکایە چاوەڕوان بن، وانەکە و هەژماری مامۆستا لە فایەربەیس دەسڕدرێنەوە...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                // Update local memory and storage immediately
+                courses = courses.filter(c => c.id !== courseId);
+                localStorage.setItem('college_courses', JSON.stringify(courses));
+
+                // Mark in college_deleted_courses so sync never resurrects it
+                try {
+                    let deletedList = JSON.parse(localStorage.getItem('college_deleted_courses') || '[]');
+                    if (!deletedList.includes(String(courseId))) deletedList.push(String(courseId));
+                    localStorage.setItem('college_deleted_courses', JSON.stringify(deletedList));
+                } catch(e) {}
+
+                // Remove from auth users
+                try {
+                    let authUsers = JSON.parse(localStorage.getItem('college_auth_users') || '[]');
+                    authUsers = authUsers.filter(u => u.username.toLowerCase() !== course.username.toLowerCase());
+                    localStorage.setItem('college_auth_users', JSON.stringify(authUsers));
+                } catch(e) {}
+
+                // Remove directly and immediately from Firebase Cloud
+                if (window.FirebaseService) {
+                    try {
+                        if (typeof window.FirebaseService.deleteCourse === 'function') {
+                            await window.FirebaseService.deleteCourse(courseId, course.subject, course.username);
+                        }
+                        if (typeof window.FirebaseService.deleteUser === 'function') {
+                            await window.FirebaseService.deleteUser(course.username);
+                        }
+                    } catch (fbErr) {
+                        console.warn('[Dashboard] Error removing course from Firebase:', fbErr);
+                    }
+                }
+
+                renderDeptCoursesTable();
+                renderDepartmentView();
+
+                Swal.fire({
+                    title: 'سڕایەوە!',
+                    text: 'ناوی وانەکە و هەژماری مامۆستا ڕاستەوخۆ لە داتابەیس بە تەواوەتی سڕایەوە',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
         }
 
         function quickLaunchTeacher(courseId) {
