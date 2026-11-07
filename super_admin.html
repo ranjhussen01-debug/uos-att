@@ -313,10 +313,6 @@
                             <i class="fa-solid fa-calendar-check text-emerald-200 text-base"></i>
                             <span>کۆتایی هاتنی سمستەر</span>
                         </button>
-                        <button onclick="endAcademicYearAndExportPDF()" class="w-full sm:w-auto justify-center bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2 border border-amber-300">
-                            <i class="fa-solid fa-graduation-cap text-rose-700 text-base"></i>
-                            <span>کۆتایی هاتنی ساڵی خوێندن</span>
-                        </button>
                         <button onclick="switchSuperTab('purge')" class="w-full sm:w-auto justify-center bg-rose-600/90 hover:bg-rose-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2">
                             <i class="fa-solid fa-trash-can"></i>
                             <span>دەسەڵاتی سڕینەوەی داتا</span>
@@ -658,60 +654,42 @@
                 </div>
             </div>
 
-            <!-- PRIMARY SEMESTER & ACADEMIC YEAR EXECUTIVE ACTIONS -->
+            <!-- PRIMARY SEMESTER EXECUTIVE ACTION -->
             <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 shadow-lg border border-slate-700/60 text-white">
                 <div class="mb-5 pb-3 border-b border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                         <h3 class="font-black text-white text-base sm:text-lg flex items-center gap-2">
-                            <i class="fa-solid fa-graduation-cap text-amber-400"></i>
-                            <span>فەرمانە فەرمییەکانی کۆتایی سمستەر و ساڵی خوێندن</span>
+                            <i class="fa-solid fa-calendar-check text-teal-400"></i>
+                            <span>فەرمانی فەرمی کۆتایی سمستەری خوێندن</span>
                         </h3>
-                        <p class="text-xs text-slate-300 mt-1">ئەم دوو فەرمانە داتاکان بە شێوازی فەرمی Excel و PDF ئەرشیف دەکەن و سیستەم ڕێکدەخەنەوە</p>
+                        <p class="text-xs text-slate-300 mt-1">ئەم فەرمانە داتاکان بە شێوازی فەرمی Excel و PDF بەپێی ٥ بەشەکە ئەرشیف دەکات و کاتژمێری غیاباتەکان سفر دەکاتەوە بە پاراستنی ناوی خوێندکاران</p>
                     </div>
-                    <span class="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-300 text-xs px-3 py-1 rounded-full font-bold self-start sm:self-auto border border-amber-400/30">
-                        <i class="fa-solid fa-lock text-amber-400"></i>
+                    <span class="inline-flex items-center gap-1.5 bg-teal-500/20 text-teal-300 text-xs px-3 py-1 rounded-full font-bold self-start sm:self-auto border border-teal-400/30">
+                        <i class="fa-solid fa-shield-halved text-teal-400"></i>
                         <span>دەسەڵاتی باڵا</span>
                     </span>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                     <!-- End of Semester Card -->
-                    <div class="p-5 rounded-2xl bg-slate-800/80 border border-teal-500/40 flex flex-col justify-between hover:border-teal-400 transition shadow-sm">
-                        <div>
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="w-11 h-11 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center text-xl">
-                                    <i class="fa-solid fa-calendar-check"></i>
-                                </div>
-                                <span class="bg-teal-500/20 text-teal-300 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-teal-500/30">پاراستنی خوێندکاران</span>
+                    <div class="p-6 rounded-2xl bg-slate-800/80 border border-teal-500/40 flex flex-col md:flex-row md:items-center justify-between gap-5 hover:border-teal-400 transition shadow-sm">
+                        <div class="flex items-start gap-4">
+                            <div class="w-14 h-14 rounded-2xl bg-teal-500/20 text-teal-400 flex items-center justify-center text-2xl flex-shrink-0">
+                                <i class="fa-solid fa-calendar-check"></i>
                             </div>
-                            <h4 class="font-black text-white text-base">کۆتایی هاتنی سمستەری خوێندن</h4>
-                            <p class="text-xs text-slate-300 mt-2 leading-relaxed">
-                                ئەرشیفی تەواوی ئەم سمستەرە بە فایلی Excel و PDF دادەبەزێنێت، کاتژمێری غیاباتەکان بۆ وەرزی نوێ دەکرێنەوە بە (٠) سفر، و <strong>ناوی سەرجەم خوێندکاران بە پارێزراوی دەمێننەوە</strong>.
-                            </p>
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h4 class="font-black text-white text-base sm:text-lg">کۆتایی هاتنی سمستەری خوێندن</h4>
+                                    <span class="bg-teal-500/20 text-teal-300 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-teal-500/30">پاراستنی خوێندکاران</span>
+                                </div>
+                                <p class="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
+                                    ئەرشیفی تەواوی ٥ بەشەکە بە فایلی فەرمی Excel و PDF (بە ڕیزبەندی بەش) دادەبەزێنێت، کاتژمێری غیاباتەکان بۆ وەرزی نوێ دەکرێنەوە بە (٠) سفر، و <strong>ناوی سەرجەم خوێندکاران بە پارێزراوی دەمێننەوە</strong>.
+                                </p>
+                            </div>
                         </div>
-                        <button onclick="endSemesterAndExportPDF()" class="mt-5 w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black py-3 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center justify-center gap-2 border border-teal-400/40">
-                            <i class="fa-solid fa-calendar-check text-base"></i>
+                        <button onclick="endSemesterAndExportPDF()" class="w-full md:w-auto px-6 py-3.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center justify-center gap-2 border border-teal-400/40 whitespace-nowrap flex-shrink-0">
+                            <i class="fa-solid fa-file-arrow-down text-base"></i>
                             <span>ڕاگەیاندنی کۆتایی سمستەر (ئەرشیف و سفرکردنەوە)</span>
-                        </button>
-                    </div>
-
-                    <!-- End of Academic Year Card -->
-                    <div class="p-5 rounded-2xl bg-slate-800/80 border border-amber-500/40 flex flex-col justify-between hover:border-amber-400 transition shadow-sm">
-                        <div>
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl">
-                                    <i class="fa-solid fa-graduation-cap"></i>
-                                </div>
-                                <span class="bg-rose-500/20 text-rose-300 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-rose-500/30">ساڵی نوێی خوێندن</span>
-                            </div>
-                            <h4 class="font-black text-white text-base">کۆتایی هاتنی ساڵی خوێندن</h4>
-                            <p class="text-xs text-slate-300 mt-2 leading-relaxed">
-                                ئەرشیفی گشتی تەواوی ساڵی خوێندن بە فایلی Excel و PDF دادەبەزێنێت، و پاشان <strong>سەرجەم ناوی خوێندکاران و تۆمارەکان بە یەکجاری دەسڕێتەوە</strong> بۆ ئامادەکاری ساڵی نوێ.
-                            </p>
-                        </div>
-                        <button onclick="endAcademicYearAndExportPDF()" class="mt-5 w-full bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-slate-950 font-black py-3 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center justify-center gap-2 border border-amber-300">
-                            <i class="fa-solid fa-graduation-cap text-base text-rose-800"></i>
-                            <span>ڕاگەیاندنی کۆتایی ساڵی خوێندن (ئەرشیف و پاکتاوکردن)</span>
                         </button>
                     </div>
                 </div>
