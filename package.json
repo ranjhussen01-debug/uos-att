@@ -4,8 +4,8 @@
   "description": "Backend API Server and Firebase Integration for University of Sulaimani Attendance System",
   "scripts": {
     "build": "echo 'Static build complete'",
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "node local_server.js",
+    "dev": "node --watch local_server.js"
   },
   "keywords": [
     "attendance",
