@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "routes": [
+    {
+      "src": "/admin",
+      "dest": "/super_admin.html"
+    },
+    {
+      "src": "/teacher",
+      "dest": "/teacher_attendance.html"
+    },
+    {
+      "src": "/departments",
+      "dest": "/departments.html"
+    },
+    {
+      "src": "/(.*)",
+      "headers": {
+        "cache-control": "no-cache, no-store, must-revalidate"
+      },
+      "dest": "/$1"
+    }
+  ]
+}
