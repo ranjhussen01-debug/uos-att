@@ -1349,11 +1349,11 @@
         function initStorage() {
             syncCustomDeptNames();
             const savedStudents = localStorage.getItem('college_students');
-            if (savedStudents) {
+            if (savedStudents !== null) {
                 try { students = JSON.parse(savedStudents); } catch(e) { students = []; }
             } else {
-                students = (typeof DEFAULT_STUDENTS !== 'undefined') ? JSON.parse(JSON.stringify(DEFAULT_STUDENTS)) : [];
-                localStorage.setItem('college_students', JSON.stringify(students));
+                students = [];
+                localStorage.setItem('college_students', JSON.stringify([]));
             }
 
             const savedCourses = localStorage.getItem('college_courses');
