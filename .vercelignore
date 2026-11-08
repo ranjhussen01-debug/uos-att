@@ -1,5 +1,9 @@
-server.js
+package.json
+package-lock.json
 local_server.js
+server.js
+node_modules
 start_system.bat
 push_to_github.bat
 *.bat
+*.py

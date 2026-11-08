@@ -1,7 +1,6 @@
 {
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/", "destination": "/index.html" },
     { "source": "/admin", "destination": "/super_admin.html" },
     { "source": "/teacher", "destination": "/teacher_attendance.html" },
     { "source": "/departments", "destination": "/departments.html" }
