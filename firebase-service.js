@@ -172,17 +172,17 @@
                 if (isQuotaExceeded) return;
                 if (snapshot.metadata && snapshot.metadata.hasPendingWrites) return;
 
-                const isYearResetActive = (typeof window !== 'undefined' && window._uosYearResetInProgress) ||
-                    sessionStorage.getItem('uos_year_reset') === 'true' ||
-                    localStorage.getItem('college_year_reset_done') === 'true';
-                const isSemesterResetActive = (typeof window !== 'undefined' && window._uosSemesterResetInProgress) ||
-                    sessionStorage.getItem('uos_semester_reset') === 'true' ||
-                    localStorage.getItem('college_semester_reset_done') === 'true';
+                // Stale flag cleanup
+                try {
+                    localStorage.removeItem('college_year_reset_done');
+                    sessionStorage.removeItem('uos_year_reset');
+                } catch(e) {}
+
+                const isYearResetActive = !!(typeof window !== 'undefined' && window._uosYearResetInProgress);
+                const isSemesterResetActive = !!(typeof window !== 'undefined' && window._uosSemesterResetInProgress);
 
                 if (isYearResetActive) {
                     if (snapshot.empty) {
-                        sessionStorage.removeItem('uos_year_reset');
-                        localStorage.removeItem('college_year_reset_done');
                         if (typeof window !== 'undefined') window._uosYearResetInProgress = false;
                         localStorage.setItem('college_students', JSON.stringify([]));
                         notifyLocalApp('students_updated', []);
@@ -399,12 +399,8 @@
         try {
             setSyncingState(true);
 
-            const isYearResetActive = (typeof window !== 'undefined' && window._uosYearResetInProgress) ||
-                sessionStorage.getItem('uos_year_reset') === 'true' ||
-                localStorage.getItem('college_year_reset_done') === 'true';
-            const isSemesterResetActive = (typeof window !== 'undefined' && window._uosSemesterResetInProgress) ||
-                sessionStorage.getItem('uos_semester_reset') === 'true' ||
-                localStorage.getItem('college_semester_reset_done') === 'true';
+            const isYearResetActive = !!(typeof window !== 'undefined' && window._uosYearResetInProgress);
+            const isSemesterResetActive = !!(typeof window !== 'undefined' && window._uosSemesterResetInProgress);
 
             // Pull students
             if (!isYearResetActive) {
