@@ -1643,6 +1643,15 @@
             });
         }
 
+        function isStudentInDept(s, activeDept) {
+            if (!s) return false;
+            const target = activeDept || currentActiveDept;
+            if (!target) return true;
+            const sDept = String(s.dept || s.deptId || '').replace(/^dept_/, '').toLowerCase();
+            const curDept = String(target).replace(/^dept_/, '').toLowerCase();
+            return s.dept === target || s.deptId === target || sDept === curDept;
+        }
+
         function getDeptDetailedCourseAbsenceList(deptKey) {
             const targetDept = deptKey || currentActiveDept;
             let allCourses = [];
@@ -1689,7 +1698,7 @@
             }
 
             // 2) Also check if students have absentHours > 0 on student record
-            const deptStudents = students.filter(s => s.dept === targetDept);
+            const deptStudents = students.filter(s => isStudentInDept(s, targetDept));
             deptStudents.forEach(s => {
                 const sAbs = Number(s.absentHours) || 0;
                 if (sAbs > 0) {
@@ -1746,7 +1755,7 @@
         }
 
         function renderDeptDashboard() {
-            const deptStus = students.filter(s => s.dept === currentActiveDept);
+            const deptStus = students.filter(s => isStudentInDept(s, currentActiveDept));
             const count = deptStus.length;
             const absHours = deptStus.reduce((acc, s) => acc + (s.absentHours || 0), 0);
             const avgAbs = count > 0 ? ((absHours / (count * 40)) * 100).toFixed(1) : 0;
@@ -2480,13 +2489,13 @@
             const tbody = document.getElementById('deptStudentsTableBody');
             tbody.innerHTML = '';
 
-            let filtered = students.filter(s => s.dept === currentActiveDept);
+            let filtered = students.filter(s => isStudentInDept(s, currentActiveDept));
 
             if (stageFilter !== 'all') {
                 filtered = filtered.filter(s => String(s.stage) === String(stageFilter));
             }
             if (search) {
-                filtered = filtered.filter(s => s.name.toLowerCase().includes(search) || s.code.toLowerCase().includes(search));
+                filtered = filtered.filter(s => (s.name && s.name.toLowerCase().includes(search)) || (s.code && s.code.toLowerCase().includes(search)));
             }
 
             if (filtered.length === 0) {
@@ -2561,7 +2570,7 @@
             document.getElementById('studentModal').classList.remove('hidden');
         }
 
-        function handleSaveStudent(e) {
+        async function handleSaveStudent(e) {
             e.preventDefault();
             const id = document.getElementById('modalStudentId').value;
             const code = document.getElementById('modalStudentCode').value.trim();
@@ -2571,22 +2580,28 @@
             const study = document.getElementById('modalStudentStudy').value;
             const group = document.getElementById('modalStudentGroup').value;
 
+            if (!name) {
+                Swal.fire('هەڵە', 'تکایە ناوی خوێندکار بە تەواوی بنووسە', 'warning');
+                return;
+            }
+
             let studentObj;
             if (id) {
                 const idx = students.findIndex(s => s.id === id);
                 if (idx !== -1) {
-                    students[idx] = { ...students[idx], code, name, dept, stage: String(stage), study, group };
+                    students[idx] = { ...students[idx], code, name, dept, deptId: dept, stage: String(stage), study, group };
                     studentObj = students[idx];
                 }
             } else {
                 studentObj = {
-                    id: String(Date.now()),
-                    code,
+                    id: 'stu_' + Date.now(),
+                    code: code || ('STU' + Math.floor(1000 + Math.random() * 9000)),
                     name,
                     dept,
+                    deptId: dept,
                     stage: String(stage),
                     study,
-                    group,
+                    group: group || 'A',
                     totalHours: 40,
                     absentHours: 0
                 };
@@ -2659,7 +2674,7 @@
 
         function exportDeptStudentsExcel() {
             const deptName = DEPARTMENTS[currentActiveDept]?.name;
-            const dataToExport = students.filter(s => s.dept === currentActiveDept).map((s, idx) => ({
+            const dataToExport = students.filter(s => isStudentInDept(s, currentActiveDept)).map((s, idx) => ({
                 'ژمارە': idx + 1,
                 'کۆدی زانکۆیی': s.code,
                 'ناوی تەواو': s.name,
@@ -2733,7 +2748,7 @@
             }
 
             // 2) Also check if students have absentHours > 0 on student record (mock / imported data)
-            const deptStudents = students.filter(s => s.dept === currentActiveDept);
+            const deptStudents = students.filter(s => isStudentInDept(s, currentActiveDept));
             deptStudents.forEach(s => {
                 const sAbs = Number(s.absentHours) || 0;
                 if (sAbs > 0) {
@@ -2985,7 +3000,7 @@
                 });
             }
 
-            const deptStudents = students.filter(s => s.dept === currentActiveDept);
+            const deptStudents = students.filter(s => isStudentInDept(s, currentActiveDept));
             deptStudents.forEach(s => {
                 const sAbs = Number(s.absentHours) || 0;
                 if (sAbs > 0) {
@@ -3616,25 +3631,29 @@
                 return;
             }
 
+            const newlyCreated = [];
             toAdd.forEach(stu => {
-                students.push({
+                const sObj = {
                     id: 'stu_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
                     code: stu.code,
                     name: stu.name,
                     dept: currentActiveDept,
+                    deptId: currentActiveDept,
                     stage: String(stu.stage),
                     study: stu.study,
                     group: stu.group || 'A',
                     totalHours: 40,
                     absentHours: 0
-                });
+                };
+                students.push(sObj);
+                newlyCreated.push(sObj);
             });
 
             localStorage.setItem('college_students', JSON.stringify(students));
 
             // Sync imported students to Firebase Cloud
             if (window.FirebaseService && typeof window.FirebaseService.saveBulkStudents === 'function') {
-                window.FirebaseService.saveBulkStudents(toAdd);
+                window.FirebaseService.saveBulkStudents(newlyCreated);
             }
 
             logAuditAction(`هاوردەکردنی (${toAdd.length}) خوێندکار لە ڕێگەی ئەکسڵەوە بۆ قۆناغی ${getStageArabic(toAdd[0].stage)} - گرووپ ${toAdd[0].group || 'A'}`, authUser?.name);

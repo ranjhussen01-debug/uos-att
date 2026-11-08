@@ -903,8 +903,9 @@
             const studyGroup = document.getElementById('teacherStudyGroupSelect')?.value || 'all';
 
             return students.filter(s => {
-                const sDept = s.dept || s.deptId;
-                if (sDept !== dept) return false;
+                const cleanSDept = String(s.dept || s.deptId || '').replace(/^dept_/, '').toLowerCase();
+                const cleanDept = String(dept || '').replace(/^dept_/, '').toLowerCase();
+                if (s.dept !== dept && s.deptId !== dept && cleanSDept !== cleanDept) return false;
                 if (String(s.stage) !== stage) return false;
 
                 if (studyGroup !== 'all') {

@@ -207,17 +207,29 @@
 
                 const localRaw = localStorage.getItem('college_students');
                 const localStudents = localRaw ? JSON.parse(localRaw) : [];
+                const deletedStudents = new Set(JSON.parse(localStorage.getItem('college_deleted_students') || '[]'));
 
                 if (remoteStudents.length > 0) {
-                    if (JSON.stringify(remoteStudents) !== JSON.stringify(localStudents)) {
-                        console.log('[Firebase] Realtime students update received from cloud:', remoteStudents.length);
-                        localStorage.setItem('college_students', JSON.stringify(remoteStudents));
-                        notifyLocalApp('students_updated', remoteStudents);
-                    }
+                    const remoteIdSet = new Set(remoteStudents.map(s => String(s.id)));
+                    const merged = remoteStudents.filter(s => s && s.id && !deletedStudents.has(String(s.id)));
+                    
+                    // Preserve any newly added local students that haven't reached cloud snapshot yet
+                    localStudents.forEach(ls => {
+                        if (ls && ls.id && !remoteIdSet.has(String(ls.id)) && !deletedStudents.has(String(ls.id))) {
+                            merged.push(ls);
+                            saveStudent(ls);
+                        }
+                    });
+
+                    localStorage.setItem('college_students', JSON.stringify(merged));
+                    notifyLocalApp('students_updated', merged);
                 } else if (snapshot.empty && localStudents.length > 0) {
-                    console.log('[Firebase] Cloud students collection is empty. Clearing local students...');
-                    localStorage.setItem('college_students', JSON.stringify([]));
-                    notifyLocalApp('students_updated', []);
+                    // Cloud has 0 students: DO NOT wipe local students! Push them to cloud!
+                    const validLocal = localStudents.filter(s => s && s.id && !deletedStudents.has(String(s.id)));
+                    if (validLocal.length > 0) {
+                        console.log('[Firebase] Cloud students empty; pushing local students to cloud:', validLocal.length);
+                        validLocal.forEach(s => saveStudent(s));
+                    }
                 }
                 lastSyncTime = new Date();
                 updateBadgeTooltip();
