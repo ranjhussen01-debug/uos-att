@@ -3388,9 +3388,18 @@
             // 1) Extract absences from attendanceSessions
             if (attendanceSessions && attendanceSessions.length > 0) {
                 attendanceSessions.forEach(sess => {
-                    const subName = sess.subject || 'محازەرە';
+                    if (sess.status === 'draft') return;
+                    const subName = (sess.subject || 'محازەرە').trim();
                     const lecHours = Number(sess.lectureHours) || 1;
-                    const totalHrs = Number(sess.totalCourseHours) || 60;
+
+                    let totalHrs = Number(sess.totalCourseHours) || 0;
+                    if (!totalHrs || totalHrs <= 0) {
+                        const matched = allCourses.find(c => {
+                            const cSub = (c.subject || '').trim().toLowerCase();
+                            return cSub === subName.toLowerCase() && (String(c.dept || c.deptId) === String(sess.dept || sess.deptId) || String(c.stage) === String(sess.stage));
+                        });
+                        totalHrs = (matched && Number(matched.totalHours) > 0) ? Number(matched.totalHours) : 60;
+                    }
 
                     if (sess.records) {
                         Object.keys(sess.records).forEach(stId => {
@@ -3401,10 +3410,14 @@
                                     studentCourseMap[stId][subName] = {
                                         subject: subName,
                                         absentHours: 0,
-                                        totalHours: totalHrs
+                                        totalHours: totalHrs,
+                                        dates: []
                                     };
                                 }
                                 studentCourseMap[stId][subName].absentHours += lecHours;
+                                if (sess.date && !studentCourseMap[stId][subName].dates.includes(sess.date)) {
+                                    studentCourseMap[stId][subName].dates.push(sess.date);
+                                }
                             }
                         });
                     }
@@ -3417,17 +3430,20 @@
                 if (sAbs > 0) {
                     if (!studentCourseMap[s.id] || Object.keys(studentCourseMap[s.id]).length === 0) {
                         let subName = s.subject || 'وانەی سەرەکی';
-                        let totHrs = s.totalHours || 60;
+                        let totHrs = 0;
                         const matched = allCourses.find(c => (c.deptId === s.dept || c.dept === s.dept) && String(c.stage) === String(s.stage));
                         if (matched) {
                             subName = matched.subject;
-                            totHrs = matched.totalHours || totHrs;
+                            totHrs = Number(matched.totalHours) || 60;
+                        } else {
+                            totHrs = Number(s.totalHours) || 60;
                         }
                         studentCourseMap[s.id] = {
                             [subName]: {
                                 subject: subName,
                                 absentHours: sAbs,
-                                totalHours: totHrs
+                                totalHours: totHrs,
+                                dates: s.absenceDate ? [s.absenceDate] : ['تۆماری گشتی']
                             }
                         };
                     }
@@ -3437,21 +3453,26 @@
             // Build flattened list of (Student, Subject) absence records - ONLY where absentHours > 0
             const absenceList = [];
             students.forEach(s => {
-                const coursesForStudent = studentCourseMap[s.id];
+                const coursesForStudent = studentCourseMap[s.id] || studentCourseMap[s.code];
                 if (coursesForStudent) {
                     Object.values(coursesForStudent).forEach(item => {
                         if (item.absentHours > 0) {
-                            const totalHours = item.totalHours || s.totalHours || 60;
-                            const pct = totalHours > 0 ? ((item.absentHours / totalHours) * 100) : 0;
+                            const totalHours = item.totalHours > 0 ? item.totalHours : 60;
+                            const pct = Math.round(((item.absentHours / totalHours) * 100) * 10) / 10;
+                            const datesFormatted = (item.dates && item.dates.length > 0)
+                                ? item.dates.sort().join('، ')
+                                : 'تۆمارکراو';
+
                             absenceList.push({
                                 studentId: s.id,
-                                studentCode: s.code,
+                                studentCode: s.code || '-',
                                 studentName: s.name,
-                                dept: s.dept,
-                                stage: String(s.stage),
-                                study: s.study,
-                                group: s.group,
+                                dept: s.dept || 'dept_accounting',
+                                stage: String(s.stage || '1'),
+                                study: s.study || 'morning',
+                                group: s.group || 'A',
                                 subject: item.subject,
+                                dates: datesFormatted,
                                 absentHours: item.absentHours,
                                 totalHours: totalHours,
                                 percentage: pct
@@ -3534,11 +3555,11 @@
 
                     let pctBadge = '';
                     if (item.percentage >= 10) {
-                        pctBadge = `<span class="inline-flex items-center gap-1 bg-rose-600 text-white text-xs px-2.5 py-0.5 rounded-full font-black shadow-sm">%${pctFormatted}</span>`;
+                        pctBadge = `<span class="inline-flex items-center gap-1 bg-rose-600 text-white text-xs px-2.5 py-0.5 rounded-full font-black shadow-sm">%${pctFormatted} (دەرکراو)</span>`;
                     } else if (item.percentage >= 7) {
-                        pctBadge = `<span class="inline-flex items-center gap-1 bg-amber-500 text-slate-950 text-xs px-2.5 py-0.5 rounded-full font-black shadow-sm">%${pctFormatted}</span>`;
+                        pctBadge = `<span class="inline-flex items-center gap-1 bg-amber-500 text-slate-950 text-xs px-2.5 py-0.5 rounded-full font-black shadow-sm">%${pctFormatted} (ئاگاداری ٢)</span>`;
                     } else if (item.percentage >= 5) {
-                        pctBadge = `<span class="inline-flex items-center gap-1 bg-yellow-400 text-slate-900 text-xs px-2.5 py-0.5 rounded-full font-bold shadow-sm">%${pctFormatted}</span>`;
+                        pctBadge = `<span class="inline-flex items-center gap-1 bg-yellow-400 text-slate-900 text-xs px-2.5 py-0.5 rounded-full font-bold shadow-sm">%${pctFormatted} (ئاگاداری ١)</span>`;
                     } else {
                         pctBadge = `<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs px-2.5 py-0.5 rounded-full font-bold border border-emerald-200">%${pctFormatted}</span>`;
                     }
@@ -3550,17 +3571,23 @@
                         <tr class="hover:bg-slate-50 transition border-b border-slate-100">
                             <td class="py-3 px-3 text-center text-slate-400 font-bold">${idx + 1}</td>
                             <td class="py-3 px-3 font-mono font-bold text-slate-700">${item.studentCode}</td>
-                            <td class="py-3 px-3 font-extrabold text-slate-900 text-sm">${item.studentName}</td>
+                            <td class="py-3 px-3 font-extrabold text-slate-900 text-sm whitespace-nowrap">${item.studentName}</td>
                             <td class="py-3 px-3">
                                 <span class="inline-flex items-center gap-1.5 font-extrabold text-indigo-900 bg-indigo-50/90 px-2.5 py-1 rounded-xl border border-indigo-200/80 text-xs shadow-xs">
                                     <i class="fa-solid fa-book-bookmark text-indigo-500 text-[11px]"></i>
                                     <span>${item.subject}</span>
                                 </span>
                             </td>
-                            <td class="py-3 px-3 text-xs font-semibold text-slate-600">${deptObj.name}</td>
-                            <td class="py-3 px-3 text-xs text-slate-600">${studyKurdish} - ${groupText}</td>
-                            <td class="py-3 px-3 text-center font-black text-rose-600 font-mono text-xs">${item.absentHours} کاتژمێر</td>
-                            <td class="py-3 px-3 text-center">${pctBadge}</td>
+                            <td class="py-3 px-3 text-center text-xs font-mono font-bold text-slate-700">
+                                <span class="inline-block bg-slate-100 text-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 text-[11px]">
+                                    ${item.dates}
+                                </span>
+                            </td>
+                            <td class="py-3 px-3 text-xs font-semibold text-slate-600 whitespace-nowrap">${deptObj.name}</td>
+                            <td class="py-3 px-3 text-xs text-slate-600 whitespace-nowrap">${studyKurdish} - ${groupText}</td>
+                            <td class="py-3 px-3 text-center font-black text-rose-600 font-mono text-xs whitespace-nowrap">${item.absentHours} کاتژمێر</td>
+                            <td class="py-3 px-3 text-center font-bold text-slate-500 font-mono text-xs whitespace-nowrap">${item.totalHours} ک.</td>
+                            <td class="py-3 px-3 text-center whitespace-nowrap">${pctBadge}</td>
                         </tr>
                     `;
                 });
@@ -3599,12 +3626,14 @@
                                 <tr>
                                     <th class="py-2.5 px-3 w-12 text-center">#</th>
                                     <th class="py-2.5 px-3">کۆدی خوێندکار</th>
-                                    <th class="py-2.5 px-3">ناوی تەواوی خوێندکار</th>
+                                    <th class="py-2.5 px-3">ناوی چواری خوێندکار</th>
                                     <th class="py-2.5 px-3">ناوی وانە</th>
+                                    <th class="py-2.5 px-3 text-center">بەرواری ڕۆژی غیاب</th>
                                     <th class="py-2.5 px-3">بەش</th>
                                     <th class="py-2.5 px-3">خوێندن / گرووپ</th>
                                     <th class="py-2.5 px-3 text-center">کاتژمێری نەهاتوو</th>
-                                    <th class="py-2.5 px-3 text-center">ڕێژەی غیابات</th>
+                                    <th class="py-2.5 px-3 text-center">کۆی کاتژمێری وانە</th>
+                                    <th class="py-2.5 px-3 text-center">ڕێژەی غیابات %</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 bg-white">
@@ -3633,9 +3662,18 @@
             const studentCourseMap = {};
             if (attendanceSessions && attendanceSessions.length > 0) {
                 attendanceSessions.forEach(sess => {
-                    const subName = sess.subject || 'محازەرە';
+                    if (sess.status === 'draft') return;
+                    const subName = (sess.subject || 'محازەرە').trim();
                     const lecHours = Number(sess.lectureHours) || 1;
-                    const totalHrs = Number(sess.totalCourseHours) || 60;
+
+                    let totalHrs = Number(sess.totalCourseHours) || 0;
+                    if (!totalHrs || totalHrs <= 0) {
+                        const matched = allCourses.find(c => {
+                            const cSub = (c.subject || '').trim().toLowerCase();
+                            return cSub === subName.toLowerCase() && (String(c.dept || c.deptId) === String(sess.dept || sess.deptId) || String(c.stage) === String(sess.stage));
+                        });
+                        totalHrs = (matched && Number(matched.totalHours) > 0) ? Number(matched.totalHours) : 60;
+                    }
 
                     if (sess.records) {
                         Object.keys(sess.records).forEach(stId => {
@@ -3646,10 +3684,14 @@
                                     studentCourseMap[stId][subName] = {
                                         subject: subName,
                                         absentHours: 0,
-                                        totalHours: totalHrs
+                                        totalHours: totalHrs,
+                                        dates: []
                                     };
                                 }
                                 studentCourseMap[stId][subName].absentHours += lecHours;
+                                if (sess.date && !studentCourseMap[stId][subName].dates.includes(sess.date)) {
+                                    studentCourseMap[stId][subName].dates.push(sess.date);
+                                }
                             }
                         });
                     }
@@ -3661,17 +3703,20 @@
                 if (sAbs > 0) {
                     if (!studentCourseMap[s.id] || Object.keys(studentCourseMap[s.id]).length === 0) {
                         let subName = s.subject || 'وانەی سەرەکی';
-                        let totHrs = s.totalHours || 60;
+                        let totHrs = 0;
                         const matched = allCourses.find(c => (c.deptId === s.dept || c.dept === s.dept) && String(c.stage) === String(s.stage));
                         if (matched) {
                             subName = matched.subject;
-                            totHrs = matched.totalHours || totHrs;
+                            totHrs = Number(matched.totalHours) || 60;
+                        } else {
+                            totHrs = Number(s.totalHours) || 60;
                         }
                         studentCourseMap[s.id] = {
                             [subName]: {
                                 subject: subName,
                                 absentHours: sAbs,
-                                totalHours: totHrs
+                                totalHours: totHrs,
+                                dates: s.absenceDate ? [s.absenceDate] : ['تۆماری گشتی']
                             }
                         };
                     }
@@ -3680,21 +3725,26 @@
 
             const absenceList = [];
             students.forEach(s => {
-                const coursesForStudent = studentCourseMap[s.id];
+                const coursesForStudent = studentCourseMap[s.id] || studentCourseMap[s.code];
                 if (coursesForStudent) {
                     Object.values(coursesForStudent).forEach(item => {
                         if (item.absentHours > 0) {
-                            const totalHours = item.totalHours || s.totalHours || 60;
-                            const pct = totalHours > 0 ? ((item.absentHours / totalHours) * 100) : 0;
+                            const totalHours = item.totalHours > 0 ? item.totalHours : 60;
+                            const pct = Math.round(((item.absentHours / totalHours) * 100) * 10) / 10;
+                            const datesFormatted = (item.dates && item.dates.length > 0)
+                                ? item.dates.sort().join('، ')
+                                : 'تۆمارکراو';
+
                             absenceList.push({
                                 studentId: s.id,
-                                studentCode: s.code,
+                                studentCode: s.code || '-',
                                 studentName: s.name,
-                                dept: s.dept,
-                                stage: String(s.stage),
-                                study: s.study,
-                                group: s.group,
+                                dept: s.dept || 'dept_accounting',
+                                stage: String(s.stage || '1'),
+                                study: s.study || 'morning',
+                                group: s.group || 'A',
                                 subject: item.subject,
+                                dates: datesFormatted,
                                 absentHours: item.absentHours,
                                 totalHours: totalHours,
                                 percentage: pct
@@ -3751,10 +3801,12 @@
                             'کۆدی خوێندکار': item.studentCode,
                             'ناوی چواری خوێندکار': item.studentName,
                             'ناوی وانە': item.subject,
+                            'بەرواری ڕۆژی غیاب': item.dates,
                             'بەش': deptObj.name,
                             'جۆری خوێندن': item.study === 'evening' ? 'ئێواران' : 'بەیانیان',
                             'گرووپ': item.group || 'A',
                             'کاتژمێری نەهاتوو': item.absentHours,
+                            'کۆی کاتژمێری وانە': item.totalHours,
                             'ڕێژەی غیابات': `${pctFormatted}%`
                         };
                     });

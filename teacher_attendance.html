@@ -1638,11 +1638,158 @@
         function printAttendanceSheet() {
             const courseTitle = currentCourse ? currentCourse.subject : document.getElementById('teacherSubjectInput').value;
             const teacher = currentCourse ? currentCourse.teacherName : document.getElementById('teacherLecturerNameInput').value;
-            const totalHours = currentCourseTotalHours;
+            const totalHours = currentCourseTotalHours || 60;
             const hours = currentLectureHours;
+            const sessDate = document.getElementById('teacherDateInput').value || new Date().toISOString().split('T')[0];
+            const filtered = getFilteredStudents();
 
-            document.getElementById('printReportTitle').textContent = `فۆڕمی فەرمی غیاباتی محازەرەی (${courseTitle}) - تۆتاڵ هاوەری وانە: ${totalHours} کاتژمێر - کاتژمێری ئەم محازەرەیە: ${hours} کاتژمێر - مامۆستا: ${teacher}`;
-            window.print();
+            Swal.fire({
+                title: 'شێوازی چاپکردن دیاریبکە',
+                text: 'دەتەوێت چۆن ڕاپۆرتەکە چاپ یان PDF بکەیت؟',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa-solid fa-user-xmark ml-1"></i> تەنها ناوی غائیبەکان',
+                cancelButtonText: '<i class="fa-solid fa-users ml-1"></i> سەرجەم خوێندکاران',
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#4f46e5'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // 1) Print ONLY ABSENT students
+                    const absentStudents = filtered.filter(s => {
+                        const st = currentSheetStates[s.id];
+                        return (st && st.status === 'absent') || (Number(s.absentHours) > 0);
+                    });
+
+                    if (absentStudents.length === 0) {
+                        Swal.fire('ئاگاداری', 'هیچ خوێندکارێکی غائیب نییە لەم پۆلەدا!', 'info');
+                        return;
+                    }
+
+                    renderPrintWindowForAbsents(absentStudents, courseTitle, teacher, totalHours, hours, sessDate);
+                } else if (result.dismiss === Swal.DismissReason.cancel) {
+                    // 2) Print all students in class
+                    document.getElementById('printReportTitle').textContent = `فۆڕمی فەرمی ئامادەبوونی محازەرەی (${courseTitle}) - بەروار: ${sessDate} - کاتژمێری وانە: ${totalHours}ک - مامۆستا: ${teacher}`;
+                    window.print();
+                }
+            });
+        }
+
+        function renderPrintWindowForAbsents(absentList, courseTitle, teacher, totalHours, lectureHours, sessDate) {
+            const printWin = window.open('', '_blank', 'width=1100,height=850');
+            if (!printWin) return;
+
+            let rowsHtml = '';
+            absentList.forEach((s, idx) => {
+                const isAbsentToday = (currentSheetStates[s.id] && currentSheetStates[s.id].status === 'absent');
+                const totalAbs = (s.absentHours || 0) + (isAbsentToday ? lectureHours : 0);
+                const pct = totalHours > 0 ? ((totalAbs / totalHours) * 100) : 0;
+                const pctFormatted = pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1);
+
+                let statusText = 'ئاسایی';
+                let statusBadge = '#10b981';
+                if (pct >= 10) { statusText = 'دەرکراو (10%)'; statusBadge = '#e11d48'; }
+                else if (pct >= 7) { statusText = 'ئاگاداری ٢ (7%)'; statusBadge = '#f59e0b'; }
+                else if (pct >= 5) { statusText = 'ئاگاداری ١ (5%)'; statusBadge = '#eab308'; }
+
+                rowsHtml += `
+                    <tr style="border-bottom: 1px solid #e2e8f0; text-align: right;">
+                        <td style="padding: 7px; text-align: center; font-weight: bold; color: #64748b; border: 1px solid #cbd5e1;">${idx + 1}</td>
+                        <td style="padding: 7px; font-family: monospace; font-weight: bold; border: 1px solid #cbd5e1;">${s.code || '-'}</td>
+                        <td style="padding: 7px; font-weight: bold; color: #0f172a; border: 1px solid #cbd5e1;">${s.name}</td>
+                        <td style="padding: 7px; font-weight: bold; color: #3730a3; border: 1px solid #cbd5e1;">${courseTitle}</td>
+                        <td style="padding: 7px; text-align: center; font-family: monospace; border: 1px solid #cbd5e1;">${sessDate}</td>
+                        <td style="padding: 7px; text-align: center; border: 1px solid #cbd5e1;">${s.study === 'evening' ? 'ئێواران' : 'بەیانیان'} (${s.group || 'A'})</td>
+                        <td style="padding: 7px; text-align: center; font-weight: bold; color: #e11d48; border: 1px solid #cbd5e1;">${lectureHours} ک.</td>
+                        <td style="padding: 7px; text-align: center; font-weight: bold; border: 1px solid #cbd5e1;">${totalAbs} ک.</td>
+                        <td style="padding: 7px; text-align: center; border: 1px solid #cbd5e1;">${totalHours} ک.</td>
+                        <td style="padding: 7px; text-align: center; font-weight: 900; color: #0f172a; border: 1px solid #cbd5e1;">%${pctFormatted}</td>
+                        <td style="padding: 7px; text-align: center; font-weight: bold; color: ${statusBadge}; border: 1px solid #cbd5e1;">${statusText}</td>
+                    </tr>
+                `;
+            });
+
+            printWin.document.write(`
+                <!DOCTYPE html>
+                <html lang="ku" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>ڕاپۆرتی خوێندکارانی غائیب - ${courseTitle}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&display=swap" rel="stylesheet">
+                    <style>
+                        body { font-family: 'Tajawal', Arial, sans-serif; margin: 15px; color: #0f172a; }
+                        @media print {
+                            body { margin: 8mm; }
+                            table { page-break-inside: auto; }
+                            tr { page-break-inside: avoid; }
+                            thead { display: table-header-group; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; text-align: center;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="text-align: right;">
+                                <h3 style="margin: 0; font-size: 16px; font-weight: 900;">حکومەتی هەرێمی کوردستان</h3>
+                                <h4 style="margin: 3px 0; font-size: 13px; font-weight: bold; color: #475569;">وەزارەتی خوێندنی باڵا و توێژینەوەی زانستی</h4>
+                                <h4 style="margin: 0; font-size: 14px; font-weight: 900; color: #0f172a;">کۆلێژی کارگێڕی و ئابووری</h4>
+                            </div>
+                            <div style="text-align: center;">
+                                <h2 style="margin: 0; font-size: 18px; font-weight: 900; color: #1e1b4b; text-decoration: underline;">
+                                    فۆڕمی فەرمی غیاباتی محازەرە (${courseTitle})
+                                </h2>
+                                <p style="margin: 4px 0 0; font-size: 12px; font-weight: bold; color: #b91c1c;">
+                                    تەنها ناوی ئەو خوێندکارانەی کە لەم بەروارەدا غیاب بوون
+                                </p>
+                            </div>
+                            <div style="text-align: left; font-size: 11px; font-weight: bold; direction: ltr;">
+                                <p style="margin: 0;">Date: ${sessDate}</p>
+                                <p style="margin: 2px 0;">Teacher: ${teacher}</p>
+                                <p style="margin: 0; color: #64748b;">Course Hours: ${totalHours}h</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px;">
+                        <thead>
+                            <tr style="background-color: #f1f5f9;">
+                                <th style="padding: 7px; border: 1px solid #cbd5e1; width: 35px; text-align: center;">#</th>
+                                <th style="padding: 7px; border: 1px solid #cbd5e1;">کۆدی خوێندکار</th>
+                                <th style="padding: 7px; border: 1px solid #cbd5e1;">ناوی چواری خوێندکار</th>
+                                <th style="padding: 7px; border: 1px solid #cbd5e1;">ناوی وانە</th>
+                                <th style="padding: 7px; border: 1px solid #cbd5e1; text-align: center;">بەرواری غیاب</th>
+                                <th style="padding: 7px; border: 1px solid #cbd5e1; text-align: center;">خوێندن / گرووپ</th>
+                                <th style="padding: 7px; border: 1px solid #cbd5e1; text-align: center;">کاتژمێری ئەم وانەیە</th>
+                                <th style="padding: 7px; border: 1px solid #cbd5e1; text-align: center;">کۆی کاتژمێری نەهاتوو</th>
+                                <th style="padding: 7px; border: 1px solid #cbd5e1; text-align: center;">کۆی کاتژمێری وانە</th>
+                                <th style="padding: 7px; border: 1px solid #cbd5e1; text-align: center;">ڕێژەی غیابات %</th>
+                                <th style="padding: 7px; border: 1px solid #cbd5e1; text-align: center;">دۆخی ئاگاداری</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+
+                    <div style="margin-top: 40px; padding-top: 15px; border-top: 1px solid #94a3b8; display: flex; justify-content: space-around; text-align: center; font-size: 12px; font-weight: bold;">
+                        <div>
+                            <p style="margin-bottom: 35px; color: #475569;">مامۆستای وانە</p>
+                            <p style="margin: 0; color: #0f172a;">${teacher}</p>
+                            <p style="margin-top: 5px; border-top: 1px dashed #94a3b8; display: inline-block; padding: 2px 25px 0;">واژۆ</p>
+                        </div>
+                        <div>
+                            <p style="margin-bottom: 35px; color: #475569;">سەرۆکی بەشی زانستی</p>
+                            <p style="margin: 0; color: #0f172a;">سەرۆکایەتی بەش</p>
+                            <p style="margin-top: 5px; border-top: 1px dashed #94a3b8; display: inline-block; padding: 2px 25px 0;">واژۆ و مۆر</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
+            printWin.document.close();
+            printWin.focus();
+            setTimeout(() => {
+                try { printWin.print(); } catch(e) {}
+            }, 500);
         }
 
         function getStageKurdish(st) {
