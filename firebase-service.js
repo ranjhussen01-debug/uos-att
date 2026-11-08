@@ -396,20 +396,73 @@
 
             // Pull students
             if (!isYearResetActive) {
-                const stuSnap = await db.collection('students').get();
-                if (!stuSnap.empty) {
-                    const stuList = [];
-                    stuSnap.forEach(d => {
-                        const sData = d.data();
-                        if (isSemesterResetActive) sData.absentHours = 0;
-                        stuList.push(sData);
-                    });
-                    localStorage.setItem('college_students', JSON.stringify(stuList));
-                    notifyLocalApp('students_updated', stuList);
-                } else {
-                    localStorage.setItem('college_students', JSON.stringify([]));
-                    notifyLocalApp('students_updated', []);
+                let stuList = [];
+                const remoteStuIds = new Set();
+
+                // 1. Try SDK with timeout
+                try {
+                    const stuSnap = await withTimeout(db.collection('students').get(), 8000);
+                    if (!stuSnap.empty) {
+                        stuSnap.forEach(d => {
+                            const sData = d.data();
+                            if (isSemesterResetActive) sData.absentHours = 0;
+                            stuList.push(sData);
+                            if (sData && sData.id) remoteStuIds.add(String(sData.id));
+                        });
+                    }
+                } catch(sdkStuErr) {
+                    console.warn('[Firebase] SDK pull students failed, attempting REST:', sdkStuErr.message);
                 }
+
+                // 2. REST Fallback if SDK yielded nothing
+                if (stuList.length === 0 && firebaseConfig.apiKey && firebaseConfig.projectId) {
+                    try {
+                        const restUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/students?pageSize=300&key=${firebaseConfig.apiKey}`;
+                        const restRes = await fetch(restUrl);
+                        if (restRes.ok) {
+                            const restData = await restRes.json();
+                            if (restData.documents && restData.documents.length) {
+                                restData.documents.forEach(doc => {
+                                    const f = doc.fields || {};
+                                    const sId = f.id?.stringValue || doc.name.split('/').pop();
+                                    const s = {
+                                        id: sId,
+                                        code: f.code?.stringValue || '',
+                                        name: f.name?.stringValue || '',
+                                        dept: f.dept?.stringValue || f.deptId?.stringValue || 'dept_accounting',
+                                        deptId: f.deptId?.stringValue || f.dept?.stringValue || 'dept_accounting',
+                                        stage: f.stage?.stringValue || '1',
+                                        study: f.study?.stringValue || 'morning',
+                                        group: f.group?.stringValue || 'A',
+                                        totalHours: parseInt(f.totalHours?.integerValue || 40),
+                                        absentHours: isSemesterResetActive ? 0 : parseInt(f.absentHours?.integerValue || 0)
+                                    };
+                                    stuList.push(s);
+                                    remoteStuIds.add(String(sId));
+                                });
+                            }
+                        }
+                    } catch(restStuErr) {
+                        console.warn('[Firebase] REST pull students error:', restStuErr);
+                    }
+                }
+
+                // 3. Preserve any local students that haven't synced to cloud yet
+                let localStudents = [];
+                const deletedStudents = new Set(JSON.parse(localStorage.getItem('college_deleted_students') || '[]'));
+                try { localStudents = JSON.parse(localStorage.getItem('college_students') || '[]'); } catch(e) {}
+                
+                stuList = stuList.filter(s => s && s.id && !deletedStudents.has(String(s.id)));
+                localStudents.forEach(ls => {
+                    if (ls && ls.id && !remoteStuIds.has(String(ls.id)) && !deletedStudents.has(String(ls.id))) {
+                        stuList.push(ls);
+                        // Trigger background sync for this local student so cloud gets it
+                        saveStudent(ls);
+                    }
+                });
+
+                localStorage.setItem('college_students', JSON.stringify(stuList));
+                notifyLocalApp('students_updated', stuList);
             }
 
             // Pull courses
@@ -645,41 +698,145 @@
         }
     }
 
-    // Single student save
+    // Single student save with SDK + direct REST fallback
     async function saveStudent(student) {
         if (!student || !student.id) return false;
         if (!db) initFirebase();
-        if (!db) return false;
+
+        const idStr = String(student.id);
+        const stageStr = String(student.stage || '1');
+        const deptStr = student.dept || student.deptId || 'dept_accounting';
+        const serverTs = (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+            ? firebase.firestore.FieldValue.serverTimestamp()
+            : new Date().toISOString();
+
+        const payload = {
+            ...student,
+            id: idStr,
+            stage: stageStr,
+            dept: deptStr,
+            deptId: deptStr,
+            updatedAt: serverTs
+        };
+
+        // Remove from deleted tracking if re-added
         try {
-            const idStr = String(student.id);
-            await db.collection('students').doc(idStr).set({
-                ...student,
-                id: idStr,
-                stage: String(student.stage || '1'),
-                dept: student.dept || student.deptId || 'dept_accounting',
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-            console.log('[Firebase] ✅ Student synced to cloud:', student.name, 'Stage:', student.stage);
+            const delSet = new Set(JSON.parse(localStorage.getItem('college_deleted_students') || '[]'));
+            if (delSet.has(idStr)) {
+                delSet.delete(idStr);
+                localStorage.setItem('college_deleted_students', JSON.stringify(Array.from(delSet)));
+            }
+        } catch(e) {}
+
+        let saved = false;
+
+        // 1. Try SDK with timeout
+        if (db && !isQuotaExceeded) {
+            try {
+                await withTimeout(db.collection('students').doc(idStr).set(payload, { merge: true }), 6000);
+                saved = true;
+                console.log('[Firebase] ✅ Student synced to cloud via SDK:', student.name, 'Stage:', stageStr);
+            } catch (e) {
+                console.warn('[Firebase] SDK saveStudent failed, trying REST fallback:', e.message);
+                handleFirestoreError(e, 'saveStudent');
+            }
+        }
+
+        // 2. Direct REST Fallback
+        if (!saved && firebaseConfig.apiKey && firebaseConfig.projectId) {
+            try {
+                const restUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/students/${encodeURIComponent(idStr)}?key=${firebaseConfig.apiKey}`;
+                const restRes = await fetch(restUrl, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fields: {
+                            id: { stringValue: idStr },
+                            code: { stringValue: String(student.code || '') },
+                            name: { stringValue: String(student.name || '') },
+                            dept: { stringValue: deptStr },
+                            deptId: { stringValue: deptStr },
+                            stage: { stringValue: stageStr },
+                            study: { stringValue: String(student.study || 'morning') },
+                            group: { stringValue: String(student.group || 'A') },
+                            totalHours: { integerValue: String(student.totalHours || 40) },
+                            absentHours: { integerValue: String(student.absentHours || 0) },
+                            updatedAt: { timestampValue: new Date().toISOString() }
+                        }
+                    })
+                });
+                if (restRes.ok) {
+                    saved = true;
+                    console.log('[Firebase] ✅ Student synced to cloud via REST fallback:', student.name);
+                }
+            } catch (restErr) {
+                console.warn('[Firebase] REST saveStudent fallback error:', restErr);
+            }
+        }
+
+        return saved;
+    }
+
+    // Save multiple students in bulk (e.g. from Excel import)
+    async function saveBulkStudents(studentsArray) {
+        if (!Array.isArray(studentsArray) || studentsArray.length === 0) return true;
+        setSyncingState(true);
+        try {
+            for (const s of studentsArray) {
+                await saveStudent(s);
+            }
+            console.log('[Firebase] ✅ Bulk students synced to cloud:', studentsArray.length);
             return true;
         } catch (e) {
-            handleFirestoreError(e, 'saveStudent');
+            console.error('[Firebase] Bulk student sync error:', e);
             return false;
+        } finally {
+            setSyncingState(false);
         }
     }
 
-    // Single student delete
+    // Single student delete with SDK + REST fallback
     async function deleteStudent(studentId) {
         if (!studentId) return false;
         if (!db) initFirebase();
-        if (!db) return false;
+        const idStr = String(studentId);
+
+        // Track in deleted students to avoid re-pull
         try {
-            await db.collection('students').doc(String(studentId)).delete();
-            console.log('[Firebase] ✅ Student removed from cloud:', studentId);
-            return true;
-        } catch (e) {
-            handleFirestoreError(e, 'deleteStudent');
-            return false;
+            const delSet = new Set(JSON.parse(localStorage.getItem('college_deleted_students') || '[]'));
+            delSet.add(idStr);
+            localStorage.setItem('college_deleted_students', JSON.stringify(Array.from(delSet)));
+        } catch(e) {}
+
+        let deleted = false;
+
+        // 1. Try SDK
+        if (db && !isQuotaExceeded) {
+            try {
+                await withTimeout(db.collection('students').doc(idStr).delete(), 6000);
+                deleted = true;
+                console.log('[Firebase] ✅ Student removed via SDK from cloud:', idStr);
+            } catch (e) {
+                console.warn('[Firebase] SDK deleteStudent error:', e.message);
+                handleFirestoreError(e, 'deleteStudent');
+            }
         }
+
+        // 2. Direct REST Fallback
+        if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+            try {
+                const restUrl = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/students/${encodeURIComponent(idStr)}?key=${firebaseConfig.apiKey}`;
+                const res = await fetch(restUrl, { method: 'DELETE' });
+                if (res.ok || res.status === 404) {
+                    deleted = true;
+                    console.log('[Firebase] ✅ Student removed via REST from cloud:', idStr);
+                }
+            } catch (e) {
+                console.warn('[Firebase] REST deleteStudent error:', e);
+            }
+        }
+
+        return deleted;
     }
 
     function withTimeout(promise, ms = 10000) {
@@ -1634,6 +1791,7 @@
         pushAllToCloud: pushAllLocalToCloud,
         pullAllFromCloud: pullAllCloudToLocal,
         saveStudent,
+        saveBulkStudents,
         deleteStudent,
         saveCourse,
         deleteCourse,

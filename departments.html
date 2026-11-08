@@ -2594,6 +2594,15 @@
             }
 
             localStorage.setItem('college_students', JSON.stringify(students));
+
+            // Clear from deleted tracking if re-added
+            try {
+                const delStudents = new Set(JSON.parse(localStorage.getItem('college_deleted_students') || '[]'));
+                if (studentObj && studentObj.id && delStudents.has(String(studentObj.id))) {
+                    delStudents.delete(String(studentObj.id));
+                    localStorage.setItem('college_deleted_students', JSON.stringify(Array.from(delStudents)));
+                }
+            } catch(e) {}
             
             // Sync directly to Firebase Firestore
             if (window.FirebaseService && typeof window.FirebaseService.saveStudent === 'function' && studentObj) {
@@ -2628,6 +2637,13 @@
                 if (result.isConfirmed) {
                     students = students.filter(s => s.id !== id);
                     localStorage.setItem('college_students', JSON.stringify(students));
+
+                    // Track deleted student so it doesn't get re-pulled
+                    try {
+                        const delStudents = new Set(JSON.parse(localStorage.getItem('college_deleted_students') || '[]'));
+                        delStudents.add(String(id));
+                        localStorage.setItem('college_deleted_students', JSON.stringify(Array.from(delStudents)));
+                    } catch(e) {}
 
                     // Sync delete to Firebase Firestore
                     if (window.FirebaseService && typeof window.FirebaseService.deleteStudent === 'function') {
@@ -3615,6 +3631,11 @@
             });
 
             localStorage.setItem('college_students', JSON.stringify(students));
+
+            // Sync imported students to Firebase Cloud
+            if (window.FirebaseService && typeof window.FirebaseService.saveBulkStudents === 'function') {
+                window.FirebaseService.saveBulkStudents(toAdd);
+            }
 
             logAuditAction(`هاوردەکردنی (${toAdd.length}) خوێندکار لە ڕێگەی ئەکسڵەوە بۆ قۆناغی ${getStageArabic(toAdd[0].stage)} - گرووپ ${toAdd[0].group || 'A'}`, authUser?.name);
 
