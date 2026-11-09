@@ -2601,12 +2601,14 @@
             });
         }
 
-        function generateSemesterMasterArchiveExcel(snapshotStudents, currentDate) {
+        function generateSemesterMasterArchiveExcel(snapshotStudents, semesterAbsenceRecords, currentDate) {
             try {
                 if (typeof XLSX === 'undefined') return;
-                const totalStus = snapshotStudents.length;
-                const totalAbs = snapshotStudents.reduce((a, b) => a + (Number(b.absentHours) || 0), 0);
-                const overallRate = totalStus > 0 ? (100 - ((totalAbs / (totalStus * 40)) * 100)).toFixed(1) : '100';
+                const totalStus = (snapshotStudents && snapshotStudents.length) || 0;
+                const absRecords = Array.isArray(semesterAbsenceRecords) ? semesterAbsenceRecords : [];
+                const uniqueAbsentStudents = new Set(absRecords.map(r => r.studentId || r.studentCode)).size;
+                const totalAbs = absRecords.reduce((a, b) => a + (Number(b.absentHours) || 0), 0);
+                const totalWarnings = absRecords.filter(r => (Number(r.percentage) || 0) >= 10).length;
 
                 const wb = XLSX.utils.book_new();
 
@@ -2615,61 +2617,75 @@
                     { 'بڕگە': 'ناونیشانی فەرمی', 'زانیاری / ژمارە': 'ڕاپۆرتی فەرمی کۆتایی سمستەری خوێندن (2025 - 2026)' },
                     { 'بڕگە': 'بەرواری دەرکردن', 'زانیاری / ژمارە': currentDate },
                     { 'بڕگە': 'کۆی گشتی خوێندکارانی کۆلێژ', 'زانیاری / ژمارە': totalStus },
+                    { 'بڕگە': 'کۆی خوێندکارانی خاوەن غیابات', 'زانیاری / ژمارە': uniqueAbsentStudents },
+                    { 'بڕگە': 'کۆی تۆمارەکانی غیابات بەپێی وانە', 'زانیاری / ژمارە': absRecords.length },
                     { 'بڕگە': 'کۆی کاتژمێرە غیابکراوەکان', 'زانیاری / ژمارە': totalAbs },
-                    { 'بڕگە': 'تێکڕای ڕێژەی ئامادەبوونی کۆلێژ', 'زانیاری / ژمارە': `%${overallRate}` },
+                    { 'بڕگە': 'خوێندکارانی مەترسیدار و بێبەشبوو (١٠٪+)', 'زانیاری / ژمارە': totalWarnings },
                     { 'بڕگە': 'دۆخی سیستەم', 'زانیاری / ژمارە': 'غیاباتەکان بۆ سمستەری نوێ سفر کرانەوە و ناوی خوێندکاران پارێزراون' }
                 ];
                 const wsSummary = XLSX.utils.json_to_sheet(summaryData);
                 XLSX.utils.book_append_sheet(wb, wsSummary, 'پوختەی_کۆلێژ');
 
-                // 2. All Students Sheet
-                const allStusData = snapshotStudents.map((s, idx) => {
-                    const deptObj = DEPARTMENTS[s.dept] || { name: s.dept };
-                    const absH = Number(s.absentHours) || 0;
-                    const totH = Number(s.totalHours) || 40;
-                    const pct = Math.round((absH / totH) * 100);
-                    const statusKu = pct >= 10 ? 'ئاگاداری / بێبەشبوون' : (pct >= 5 ? 'ئاگاداری سەرەتایی' : 'پابەندبووە');
+                // 2. All Absent Students Sheet (Only Absent records broken down by Subject)
+                const allAbsData = absRecords.map((r, idx) => {
+                    const deptObj = DEPARTMENTS[r.dept] || { name: r.dept };
+                    const pctFormatted = r.percentage % 1 === 0 ? r.percentage.toFixed(0) : r.percentage.toFixed(1);
+                    const statusKu = r.percentage >= 10 ? 'دەرکراو / بێبەشبوون' : (r.percentage >= 7 ? 'ئاگاداری دووەم' : (r.percentage >= 5 ? 'ئاگاداری یەکەم' : 'ئاسایی'));
 
                     return {
                         'ڕیزبەندی': idx + 1,
-                        'کۆدی زانکۆیی': s.code || '',
-                        'ناوی خوێندکار': s.name || '',
-                        'بەشی زانستی': deptObj.name || s.dept,
-                        'قۆناغ': `قۆناغی ${getStageArabic(s.stage)}`,
-                        'جۆری خوێندن': s.study === 'evening' ? 'ئێواران' : 'بەیانیان',
-                        'گرووپ': s.group || 'A',
-                        'کاتژمێری غیابات': absH,
-                        'ڕێژەی غیابات': `%${pct}`,
+                        'کۆدی خوێندکار': r.studentCode || '',
+                        'ناوی چواری خوێندکار': r.studentName || '',
+                        'ناوی وانە': r.subject || '',
+                        'بەرواری ڕۆژی غیاب': r.dates || '',
+                        'بەشی زانستی': deptObj.name || r.dept,
+                        'قۆناغ': `قۆناغی ${getStageArabic(r.stage)}`,
+                        'جۆری خوێندن': r.study === 'evening' ? 'ئێواران' : 'بەیانیان',
+                        'گرووپ': r.group || 'A',
+                        'کاتژمێری نەهاتوو': r.absentHours,
+                        'کۆی کاتژمێری وانە': r.totalHours,
+                        'ڕێژەی غیابات': `%${pctFormatted}`,
                         'دۆخی سمستەر': statusKu
                     };
                 });
-                const wsAll = XLSX.utils.json_to_sheet(allStusData);
-                XLSX.utils.book_append_sheet(wb, wsAll, 'تەواوی_خوێندکاران');
+                const wsAll = XLSX.utils.json_to_sheet(allAbsData.length > 0 ? allAbsData : [{ 'تێبینی': 'هیچ خوێندکارێک لەم سمستەرەدا غیاباتی نەبووە' }]);
+                XLSX.utils.book_append_sheet(wb, wsAll, 'غیاباتی_تەواوی_وانەکان');
 
-                // 3. Sheets per Department
-                Object.keys(DEPARTMENTS).forEach(deptKey => {
-                    const dept = DEPARTMENTS[deptKey];
-                    const deptStus = snapshotStudents.filter(s => s.dept === deptKey);
-                    if (deptStus.length > 0) {
-                        const deptData = deptStus.map((s, idx) => {
-                            const absH = Number(s.absentHours) || 0;
-                            const totH = Number(s.totalHours) || 40;
-                            const pct = Math.round((absH / totH) * 100);
+                // 3. Sheets per Department (Only Absent records per Department)
+                const allDepts = Array.from(new Set([
+                    'dept_accounting', 'dept_business', 'dept_economics', 'dept_finance', 'dept_statistics',
+                    ...Object.keys(DEPARTMENTS)
+                ]));
+
+                allDepts.forEach(deptKey => {
+                    const dept = DEPARTMENTS[deptKey] || { name: deptKey };
+                    const deptRecords = absRecords.filter(r => r.dept === deptKey);
+                    let deptData = [];
+                    if (deptRecords.length > 0) {
+                        deptData = deptRecords.map((r, idx) => {
+                            const pctFormatted = r.percentage % 1 === 0 ? r.percentage.toFixed(0) : r.percentage.toFixed(1);
+                            const statusKu = r.percentage >= 10 ? 'دەرکراو / بێبەشبوون' : (r.percentage >= 7 ? 'ئاگاداری دووەم' : (r.percentage >= 5 ? 'ئاگاداری یەکەم' : 'ئاسایی'));
                             return {
                                 'ڕیزبەندی': idx + 1,
-                                'کۆدی زانکۆیی': s.code || '',
-                                'ناوی خوێندکار': s.name || '',
-                                'قۆناغ': `قۆناغی ${getStageArabic(s.stage)}`,
-                                'جۆری خوێندن': s.study === 'evening' ? 'ئێواران' : 'بەیانیان',
-                                'گرووپ': s.group || 'A',
-                                'کاتژمێری غیابات': absH,
-                                'ڕێژەی غیابات': `%${pct}`
+                                'کۆدی خوێندکار': r.studentCode || '',
+                                'ناوی چواری خوێندکار': r.studentName || '',
+                                'ناوی وانە': r.subject || '',
+                                'بەرواری ڕۆژی غیاب': r.dates || '',
+                                'قۆناغ': `قۆناغی ${getStageArabic(r.stage)}`,
+                                'جۆری خوێندن': r.study === 'evening' ? 'ئێواران' : 'بەیانیان',
+                                'گرووپ': r.group || 'A',
+                                'کاتژمێری نەهاتوو': r.absentHours,
+                                'کۆی کاتژمێری وانە': r.totalHours,
+                                'ڕێژەی غیابات': `%${pctFormatted}`,
+                                'دۆخی سمستەر': statusKu
                             };
                         });
-                        const wsDept = XLSX.utils.json_to_sheet(deptData);
-                        const cleanSheetName = (dept.name || deptKey).replace(/بەشی\s*/g, '').substring(0, 25);
-                        XLSX.utils.book_append_sheet(wb, wsDept, cleanSheetName);
+                    } else {
+                        deptData = [{ 'تێبینی': 'سەرجەم خوێندکارانی ئەم بەشە ئامادە بوون و هیچ غیاباتێک لەم سمستەرەدا نییە' }];
                     }
+                    const wsDept = XLSX.utils.json_to_sheet(deptData);
+                    const cleanSheetName = (dept.name || deptKey).replace(/بەشی\s*/g, '').substring(0, 25);
+                    XLSX.utils.book_append_sheet(wb, wsDept, cleanSheetName);
                 });
 
                 XLSX.writeFile(wb, `Raporti_Kotayi_Semester_2025_2026_${currentDate}.xlsx`);
@@ -2685,7 +2701,7 @@
                 Swal.fire('ئاگاداری', 'تکایە سەرەتا فەرمانی کۆتایی سمستەر بدە تا ڕاپۆرتەکە ئامادە بێت.', 'info');
                 return;
             }
-            const printWin = window.open('', '_blank', 'width=1000,height=800');
+            const printWin = window.open('', '_blank', 'width=1150,height=850');
             if (printWin) {
                 printWin.document.write(`
                     <!DOCTYPE html>
@@ -2695,8 +2711,8 @@
                         <title>ڕاپۆرتی فەرمی کۆتایی سمستەری خوێندن</title>
                         <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
                         <style>
-                            body { font-family: 'Tajawal', 'Vazirmatn', Arial, sans-serif; margin: 15px; color: #0f172a; direction: rtl; }
-                            @media print { body { margin: 8px; } @page { size: A4 portrait; margin: 8mm; } }
+                            body { font-family: 'Tajawal', 'Vazirmatn', Arial, sans-serif; margin: 10px; color: #0f172a; direction: rtl; }
+                            @media print { body { margin: 6px; } @page { size: A4 landscape; margin: 6mm; } }
                         </style>
                     </head>
                     <body>
@@ -2720,23 +2736,70 @@
                 }
             });
 
-            // 1) Compute real aggregated absence hours per student from attendance sessions + base absentHours
-            const studentAbsMap = {};
-            if (Array.isArray(attendanceSessions)) {
+            // 1) Load courses list for subject identification and accurate total hours
+            let allCourses = [];
+            try {
+                allCourses = JSON.parse(localStorage.getItem('college_courses') || '[]');
+            } catch(e) { allCourses = []; }
+
+            if (!allCourses || allCourses.length === 0) {
+                if (typeof DEFAULT_COURSES !== 'undefined' && Array.isArray(DEFAULT_COURSES)) {
+                    allCourses = JSON.parse(JSON.stringify(DEFAULT_COURSES));
+                } else {
+                    allCourses = [
+                        { id: 'crs_1', dept: 'dept_accounting', subject: 'بنەماکانی ژمێریاری', stage: '1', totalHours: 60 },
+                        { id: 'crs_2', dept: 'dept_accounting', subject: 'ژمێریاری نەوت و گاز', stage: '2', totalHours: 60 },
+                        { id: 'crs_3', dept: 'dept_business', subject: 'پڕەنسیپەکانی کارگێڕی', stage: '1', totalHours: 60 },
+                        { id: 'crs_4', dept: 'dept_economics', subject: 'مایکرۆ ئابووری', stage: '1', totalHours: 60 },
+                        { id: 'crs_5', dept: 'dept_finance', subject: 'دارایی گشتی و بانک', stage: '1', totalHours: 60 },
+                        { id: 'crs_6', dept: 'dept_statistics', subject: 'ئاماری سەرەتایی', stage: '1', totalHours: 60 }
+                    ];
+                }
+            }
+
+            // 2) Map absences per student per subject: studentId -> { [subject]: { subject, absentHours, totalHours, dates: [] } }
+            const studentCourseMap = {};
+
+            // Extract from attendanceSessions
+            if (Array.isArray(attendanceSessions) && attendanceSessions.length > 0) {
                 attendanceSessions.forEach(sess => {
                     if (!sess || sess.status === 'draft') return;
+                    const subName = (sess.subject || 'محازەرە').trim();
                     const lecHours = Number(sess.lectureHours) || 1;
+
+                    let totalHrs = Number(sess.totalCourseHours) || 0;
+                    if (!totalHrs || totalHrs <= 0) {
+                        const matched = allCourses.find(c => {
+                            const cSub = (c.subject || '').trim().toLowerCase();
+                            return cSub === subName.toLowerCase() && (String(c.dept || c.deptId) === String(sess.dept || sess.deptId) || String(c.stage) === String(sess.stage));
+                        });
+                        totalHrs = (matched && Number(matched.totalHours) > 0) ? Number(matched.totalHours) : 60;
+                    }
+
                     if (sess.records) {
                         Object.keys(sess.records).forEach(stId => {
                             const rec = sess.records[stId];
                             if (rec && rec.status === 'absent') {
-                                studentAbsMap[stId] = (studentAbsMap[stId] || 0) + lecHours;
+                                if (!studentCourseMap[stId]) studentCourseMap[stId] = {};
+                                if (!studentCourseMap[stId][subName]) {
+                                    studentCourseMap[stId][subName] = {
+                                        subject: subName,
+                                        absentHours: 0,
+                                        totalHours: totalHrs,
+                                        dates: []
+                                    };
+                                }
+                                studentCourseMap[stId][subName].absentHours += lecHours;
+                                if (sess.date && !studentCourseMap[stId][subName].dates.includes(sess.date)) {
+                                    studentCourseMap[stId][subName].dates.push(sess.date);
+                                }
                             }
                         });
                     }
                 });
             }
 
+            // Load valid students list
             let validStudentsList = (Array.isArray(students) ? students : []).filter(s => s && typeof s === 'object');
             if (validStudentsList.length === 0) {
                 try {
@@ -2750,127 +2813,183 @@
                 }
             }
 
-            const snapshotStudents = validStudentsList.map(s => {
+            // Also check student record fallback (imported or mock data where absentHours > 0)
+            validStudentsList.forEach(s => {
                 const sAbs = Number(s.absentHours) || 0;
-                const sessAbs = studentAbsMap[s.id] || studentAbsMap[s.code] || 0;
-                const totalStudentAbs = Math.max(sAbs, sessAbs);
-                return {
-                    ...s,
-                    absentHours: totalStudentAbs
-                };
+                if (sAbs > 0) {
+                    const idKey = s.id || s.code;
+                    if (!studentCourseMap[idKey] || Object.keys(studentCourseMap[idKey]).length === 0) {
+                        let subName = s.subject || 'وانەی سەرەکی';
+                        let totHrs = 0;
+                        const matched = allCourses.find(c => (c.deptId === s.dept || c.dept === s.dept) && String(c.stage) === String(s.stage));
+                        if (matched) {
+                            subName = matched.subject;
+                            totHrs = Number(matched.totalHours) || 60;
+                        } else {
+                            totHrs = Number(s.totalHours) || 60;
+                        }
+                        studentCourseMap[idKey] = {
+                            [subName]: {
+                                subject: subName,
+                                absentHours: sAbs,
+                                totalHours: totHrs,
+                                dates: s.absenceDate ? [s.absenceDate] : ['تۆماری گشتی']
+                            }
+                        };
+                    }
+                }
             });
 
-            const totalStus = snapshotStudents.length;
-            const totalAbs = snapshotStudents.reduce((a, b) => a + (Number(b.absentHours) || 0), 0);
-            const totalPossible = totalStus * 40;
-            const overallRate = totalPossible > 0 ? (100 - ((totalAbs / totalPossible) * 100)).toFixed(1) : '100';
-            const totalWarnings = snapshotStudents.filter(s => ((Number(s.absentHours) || 0) / (Number(s.totalHours) || 40)) >= 0.10).length;
+            // 3) Build flattened list of ONLY ABSENT student-subject records (Rule 1 & Rule 2)
+            const semesterAbsenceRecords = [];
+            validStudentsList.forEach(s => {
+                const coursesForStudent = studentCourseMap[s.id] || studentCourseMap[s.code];
+                if (coursesForStudent) {
+                    Object.values(coursesForStudent).forEach(item => {
+                        if (item.absentHours > 0) {
+                            const totalHours = item.totalHours > 0 ? item.totalHours : 60;
+                            // Rule 4: Accurate percentage based on course hours
+                            const pct = Math.round(((item.absentHours / totalHours) * 100) * 10) / 10;
+                            // Rule 3: Formatted absence dates
+                            const datesFormatted = (item.dates && item.dates.length > 0)
+                                ? item.dates.sort().join('، ')
+                                : 'تۆمارکراو';
+
+                            semesterAbsenceRecords.push({
+                                studentId: s.id,
+                                studentCode: s.code || '-',
+                                studentName: s.name,
+                                dept: s.dept || s.deptId || 'dept_accounting',
+                                stage: String(s.stage || '1'),
+                                study: s.study || 'morning',
+                                group: s.group || 'A',
+                                subject: item.subject,
+                                dates: datesFormatted,
+                                absentHours: item.absentHours,
+                                totalHours: totalHours,
+                                percentage: pct
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Global stats
+            const totalStus = validStudentsList.length;
+            const uniqueAbsentStudents = new Set(semesterAbsenceRecords.map(r => r.studentId || r.studentCode)).size;
+            const totalAbsHours = semesterAbsenceRecords.reduce((a, b) => a + (Number(b.absentHours) || 0), 0);
+            const totalWarnings = semesterAbsenceRecords.filter(r => (Number(r.percentage) || 0) >= 10).length;
 
             const currentDate = new Date().toISOString().split('T')[0];
 
-            // 2) Instantly generate and trigger download of Master Excel Archive
-            generateSemesterMasterArchiveExcel(snapshotStudents, currentDate);
+            // 4) Instantly generate and trigger download of Master Excel Archive
+            generateSemesterMasterArchiveExcel(validStudentsList, semesterAbsenceRecords, currentDate);
 
+            // 5) Render Landscape A4 PDF Container
             const container = document.createElement('div');
             container.id = 'semester-pdf-render';
-            container.style.cssText = 'position: absolute; left: 0; top: 0; width: 800px; z-index: -9999; background: #ffffff; color: #0f172a; font-family: "Tajawal", "Vazirmatn", Arial, sans-serif; direction: rtl; padding: 24px; box-sizing: border-box; opacity: 1; pointer-events: none;';
+            container.style.cssText = 'position: absolute; left: 0; top: 0; width: 1040px; z-index: -9999; background: #ffffff; color: #0f172a; font-family: "Tajawal", "Vazirmatn", Arial, sans-serif; direction: rtl; padding: 20px; box-sizing: border-box; opacity: 1; pointer-events: none;';
 
             let html = `
-                <div style="border-bottom: 2px solid #0f172a; padding-bottom: 14px; margin-bottom: 20px;">
+                <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px;">
                     <table style="width: 100%; direction: rtl; border-collapse: collapse;">
                         <tr>
                             <td style="text-align: right; width: 35%; vertical-align: top;">
                                 <div style="font-size: 13px; font-weight: bold; color: #0f172a;">حکومەتی هەرێمی کوردستان</div>
                                 <div style="font-size: 11px; font-weight: 600; color: #475569;">وەزارەتی خوێندنی باڵا و توێژینەوەی زانستی</div>
                                 <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-top: 2px;">دەستەی باڵای سەرپەرشتیاری گشتی</div>
-                                <div style="font-size: 10px; color: #64748b;">بەڕێوەبەرایەتی تۆماری گشتی</div>
+                                <div style="font-size: 10px; color: #64748b;">بەڕێوەبەرایەتی تۆماری گشتی و بەدواداچوونی غیابات</div>
                             </td>
                             <td style="text-align: center; width: 30%; vertical-align: middle;">
-                                <div style="width: 52px; height: 52px; border-radius: 14px; background: #0f172a; color: #14b8a6; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; line-height: 52px; text-align: center; margin: 0 auto;">
+                                <div style="width: 48px; height: 48px; border-radius: 12px; background: #0f172a; color: #14b8a6; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; line-height: 48px; text-align: center; margin: 0 auto;">
                                     📋
                                 </div>
                             </td>
                             <td style="text-align: left; width: 35%; vertical-align: top; direction: ltr;">
                                 <div style="font-size: 11px; font-weight: bold; color: #0f172a;">Date: ${currentDate}</div>
                                 <div style="font-size: 10px; color: #64748b;">Academic Year: 2025 - 2026</div>
-                                <div style="font-size: 10px; font-weight: bold; color: #0d9488;">SEMESTER FINAL REPORT</div>
+                                <div style="font-size: 10px; font-weight: bold; color: #0d9488;">SEMESTER FINAL ARCHIVE (ABSENCES ONLY)</div>
                             </td>
                         </tr>
                     </table>
 
-                    <div style="text-align: center; margin-top: 14px;">
-                        <h2 style="font-size: 18px; font-weight: 900; color: #0f172a; margin: 0; text-decoration: underline;">
-                            ڕاپۆرتی فەرمی کۆتایی سمستەری خوێندن و تۆماری غیابات (2025 - 2026)
+                    <div style="text-align: center; margin-top: 10px;">
+                        <h2 style="font-size: 17px; font-weight: 900; color: #0f172a; margin: 0; text-decoration: underline;">
+                            ڕاپۆرتی فەرمی کۆتایی سمستەری خوێندن - تۆماری تەواوی غیابات بەپێی وانەکان
                         </h2>
                         <p style="font-size: 11px; color: #475569; margin: 4px 0 0 0;">
-                            ئاماری گشتگیری پابەندبوون، ئامادەبوون و غیاباتی سەرجەم خوێندکارانی ٥ بەشەکەی کۆلێژ بۆ ئەم سمستەرە
+                            تەنها ناوی ئەو خوێندکارانەی غیاباتیان هەبووە بەپێی وانەکان، بەرواری ڕۆژانی غیاب، و ڕێژەی دروستی غیابات
                         </p>
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; text-align: center; background: #f8fafc;">
-                        <div style="font-size: 10px; color: #64748b; font-weight: bold;">کۆی گشتی خوێندکاران</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #0f172a; margin-top: 2px;">${totalStus}</div>
+                <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 10px; text-align: center; background: #f8fafc;">
+                        <div style="font-size: 10px; color: #64748b; font-weight: bold;">کۆی گشتی خوێندکارانی کۆلێژ</div>
+                        <div style="font-size: 18px; font-weight: 900; color: #0f172a; margin-top: 2px;">${totalStus}</div>
                         <div style="font-size: 9px; color: #3b82f6;">لە سەرجەم ٥ بەشەکە</div>
                     </div>
-                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; text-align: center; background: #f0fdf4;">
-                        <div style="font-size: 10px; color: #166534; font-weight: bold;">تێکڕای ڕێژەی ئامادەبوون</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #15803d; margin-top: 2px;">%${overallRate}</div>
-                        <div style="font-size: 9px; color: #16a34a;">پابەندبوونی سمستەر</div>
+                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 10px; text-align: center; background: #fff1f2;">
+                        <div style="font-size: 10px; color: #9f1239; font-weight: bold;">خوێندکارانی خاوەن غیابات</div>
+                        <div style="font-size: 18px; font-weight: 900; color: #be123c; margin-top: 2px;">${uniqueAbsentStudents}</div>
+                        <div style="font-size: 9px; color: #e11d48;">خوێندکاری غائیب لە سمستەر</div>
                     </div>
-                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; text-align: center; background: #fff1f2;">
-                        <div style="font-size: 10px; color: #9f1239; font-weight: bold;">کۆی کاتژمێری غیابات</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #be123c; margin-top: 2px;">${totalAbs}</div>
-                        <div style="font-size: 9px; color: #e11d48;">کاتژمێری غیابکراو</div>
+                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 10px; text-align: center; background: #eff6ff;">
+                        <div style="font-size: 10px; color: #1e40af; font-weight: bold;">کۆی کاتژمێری غیابات</div>
+                        <div style="font-size: 18px; font-weight: 900; color: #1d4ed8; margin-top: 2px;">${totalAbsHours}</div>
+                        <div style="font-size: 9px; color: #2563eb;">کۆی کاتژمێر لە تەواوی وانەکان</div>
                     </div>
-                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; text-align: center; background: #fffbeb;">
-                        <div style="font-size: 10px; color: #92400e; font-weight: bold;">خوێندکاری مەترسیدار (>%10)</div>
-                        <div style="font-size: 20px; font-weight: 900; color: #b45309; margin-top: 2px;">${totalWarnings}</div>
+                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 10px; text-align: center; background: #fffbeb;">
+                        <div style="font-size: 10px; color: #92400e; font-weight: bold;">خوێندکاری مەترسیدار (١٠٪+)</div>
+                        <div style="font-size: 18px; font-weight: 900; color: #b45309; margin-top: 2px;">${totalWarnings}</div>
                         <div style="font-size: 9px; color: #d97706;">ئاگاداری / بێبەشبوون</div>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 22px;">
-                    <h3 style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; border-right: 4px solid #14b8a6; padding-right: 8px;">
+                <div style="margin-bottom: 18px;">
+                    <h3 style="font-size: 12.5px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; border-right: 4px solid #14b8a6; padding-right: 8px;">
                         ١. پوختەی ئاماری غیاباتی ٥ بەشەکە لە کۆتایی سمستەر:
                     </h3>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: right; border: 1px solid #cbd5e1;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 9.5px; text-align: right; border: 1px solid #cbd5e1;">
                         <thead>
                             <tr style="background: #0f172a; color: #ffffff;">
-                                <th style="padding: 7px 8px; border: 1px solid #334155;">#</th>
-                                <th style="padding: 7px 8px; border: 1px solid #334155;">بەشی زانستی</th>
-                                <th style="padding: 7px 8px; border: 1px solid #334155;">سەرپەرشتیار / ئادمین</th>
-                                <th style="padding: 7px 8px; border: 1px solid #334155; text-align: center;">ژمارەی خوێندکار</th>
-                                <th style="padding: 7px 8px; border: 1px solid #334155; text-align: center;">کۆی غیابات (کاتژمێر)</th>
-                                <th style="padding: 7px 8px; border: 1px solid #334155; text-align: center;">ڕێژەی ئامادەبوون</th>
-                                <th style="padding: 7px 8px; border: 1px solid #334155; text-align: center;">مەترسیدار (>%10)</th>
-                                <th style="padding: 7px 8px; border: 1px solid #334155; text-align: center;">دۆخی کۆتایی</th>
+                                <th style="padding: 6px 8px; border: 1px solid #334155; text-align: center; width: 30px;">#</th>
+                                <th style="padding: 6px 8px; border: 1px solid #334155;">بەشی زانستی</th>
+                                <th style="padding: 6px 8px; border: 1px solid #334155;">سەرپەرشتیار / ئادمین</th>
+                                <th style="padding: 6px 8px; border: 1px solid #334155; text-align: center;">کۆی خوێندکار</th>
+                                <th style="padding: 6px 8px; border: 1px solid #334155; text-align: center;">خوێندکاری غائیب</th>
+                                <th style="padding: 6px 8px; border: 1px solid #334155; text-align: center;">تۆماری وانەکان</th>
+                                <th style="padding: 6px 8px; border: 1px solid #334155; text-align: center;">کۆی غیابات (کاتژمێر)</th>
+                                <th style="padding: 6px 8px; border: 1px solid #334155; text-align: center;">مەترسیدار (>%10)</th>
+                                <th style="padding: 6px 8px; border: 1px solid #334155; text-align: center;">دۆخی کۆتایی</th>
                             </tr>
                         </thead>
                         <tbody>
             `;
 
             let deptIdx = 1;
-            Object.keys(DEPARTMENTS).forEach(deptKey => {
-                const dept = DEPARTMENTS[deptKey];
-                const deptStus = snapshotStudents.filter(s => s.dept === deptKey);
+            const semesterDeptOrder = ['dept_accounting', 'dept_business', 'dept_economics', 'dept_finance', 'dept_statistics'];
+            semesterDeptOrder.forEach(deptKey => {
+                const dept = DEPARTMENTS[deptKey] || { name: deptKey, adminName: 'سەرۆک بەش' };
+                const deptStus = validStudentsList.filter(s => s.dept === deptKey || s.deptId === deptKey);
+                const deptRecords = semesterAbsenceRecords.filter(r => r.dept === deptKey);
                 const dCount = deptStus.length;
-                const dAbs = deptStus.reduce((a, b) => a + (Number(b.absentHours) || 0), 0);
-                const dRate = dCount > 0 ? (100 - ((dAbs / (dCount * 40)) * 100)).toFixed(1) : '100';
-                const dWarns = deptStus.filter(s => ((Number(s.absentHours) || 0) / 40) >= 0.10).length;
+                const dAbsentStudents = new Set(deptRecords.map(r => r.studentId || r.studentCode)).size;
+                const dAbsHours = deptRecords.reduce((a, b) => a + (Number(b.absentHours) || 0), 0);
+                const dWarns = deptRecords.filter(r => (Number(r.percentage) || 0) >= 10).length;
 
                 const bgRow = deptIdx % 2 === 0 ? '#f8fafc' : '#ffffff';
                 html += `
                     <tr style="background: ${bgRow};">
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">${deptIdx++}</td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">${dept.name}</td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; color: #475569;">${dept.adminName}</td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">${dCount}</td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; color: #be123c; font-weight: bold;">${dAbs}</td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; color: #15803d; font-weight: bold;">%${dRate}</td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${dWarns > 0 ? '#b45309' : '#64748b'};">${dWarns}</td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 9px; font-weight: bold; color: #0f172a;">پەسەندکراوە ✓</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">${deptIdx++}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">${dept.name}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; color: #475569;">${dept.adminName}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">${dCount}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; text-align: center; color: #be123c; font-weight: bold;">${dAbsentStudents}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; text-align: center; color: #0284c7; font-weight: bold;">${deptRecords.length}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; text-align: center; color: #be123c; font-weight: bold;">${dAbsHours}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${dWarns > 0 ? '#b45309' : '#64748b'};">${dWarns}</td>
+                        <td style="padding: 5px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 9px; font-weight: bold; color: #0f172a;">پەسەندکراوە ✓</td>
                     </tr>
                 `;
             });
@@ -2880,86 +2999,102 @@
                     </table>
                 </div>
 
-                <div class="pdf-page-break" style="page-break-before: always; break-before: page; margin-top: 25px; margin-bottom: 24px;">
-                    <h3 style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0 0 14px 0; border-right: 4px solid #059669; padding-right: 8px;">
-                        ٢. تۆماری وردی ناوی خوێندکاران و ڕێژەی غیابات بەپێی ڕیزبەندی ٥ بەشەکە:
+                <div class="pdf-page-break" style="page-break-before: always; break-before: page; margin-top: 20px; margin-bottom: 20px;">
+                    <h3 style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0 0 12px 0; border-right: 4px solid #059669; padding-right: 8px;">
+                        ٢. تۆماری فەرمی غیاباتی خوێندکاران بەپێی وانە و بەشەکان لە کۆتایی سمستەر:
                     </h3>
             `;
 
-            const semesterDeptOrder = ['dept_accounting', 'dept_business', 'dept_economics', 'dept_finance', 'dept_statistics'];
             semesterDeptOrder.forEach((deptKey, dIdx) => {
                 const dept = DEPARTMENTS[deptKey] || { name: deptKey, adminName: 'سەرۆک بەش' };
-                const deptStudents = snapshotStudents.filter(s => s && (s.dept === deptKey || s.deptId === deptKey));
-                deptStudents.sort((a, b) => {
+                // Filter ONLY absent records for this department (Rule 1)
+                const deptAbsRecords = semesterAbsenceRecords.filter(r => r.dept === deptKey);
+
+                // Sort: Stage -> Subject -> Student Name
+                deptAbsRecords.sort((a, b) => {
                     const stgA = String(a.stage || '1');
                     const stgB = String(b.stage || '1');
                     if (stgA !== stgB) return stgA.localeCompare(stgB);
-                    return String(a.name || '').localeCompare(String(b.name || ''), 'ku');
+                    const subA = String(a.subject || '');
+                    const subB = String(b.subject || '');
+                    if (subA !== subB) return subA.localeCompare(subB, 'ku');
+                    return String(a.studentName || '').localeCompare(String(b.studentName || ''), 'ku');
                 });
 
-                const deptTotalAbs = deptStudents.reduce((acc, s) => acc + (Number(s.absentHours) || 0), 0);
-                const deptPossible = deptStudents.length * 40;
-                const deptAttRate = deptPossible > 0 ? (100 - ((deptTotalAbs / deptPossible) * 100)).toFixed(1) : '100';
+                const deptUniqueAbsentCount = new Set(deptAbsRecords.map(r => r.studentId || r.studentCode)).size;
+                const deptTotalAbs = deptAbsRecords.reduce((acc, r) => acc + (Number(r.absentHours) || 0), 0);
 
                 html += `
-                    <div style="margin-top: 14px; margin-bottom: 20px; page-break-inside: avoid;">
-                        <div style="background: #1e293b; color: #ffffff; padding: 7px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="margin-top: 14px; margin-bottom: 18px; page-break-inside: avoid;">
+                        <div style="background: #1e293b; color: #ffffff; padding: 6px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center;">
                             <div style="font-size: 11px; font-weight: 800;">
                                 <span>${dIdx + 1}. ${dept.name}</span>
                                 <span style="font-size: 10px; font-weight: normal; color: #cbd5e1; margin-right: 8px;">(سەرپەرشتیار: ${dept.adminName || 'سەرۆک بەش'})</span>
                             </div>
-                            <div style="font-size: 10px; color: #94a3b8;">
-                                <span style="color: #ffffff; font-weight: bold;">ژمارەی خوێندکار: ${deptStudents.length}</span> | 
-                                <span style="color: #38bdf8;">ئامادەبوون: %${deptAttRate}</span> | 
-                                <span style="color: #f87171;">غیابات: ${deptTotalAbs} کاتژمێر</span>
+                            <div style="font-size: 9.5px; color: #94a3b8;">
+                                <span style="color: #ffffff; font-weight: bold;">خوێندکارانی غائیب: ${deptUniqueAbsentCount}</span> | 
+                                <span style="color: #38bdf8;">تۆماری وانەکان: ${deptAbsRecords.length}</span> | 
+                                <span style="color: #f87171;">کۆی غیابات: ${deptTotalAbs} کاتژمێر</span>
                             </div>
                         </div>
-                        <table style="width: 100%; border-collapse: collapse; font-size: 9px; text-align: right; border: 1px solid #cbd5e1;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 8.5px; text-align: right; border: 1px solid #cbd5e1;">
                             <thead>
                                 <tr style="background: #334155; color: #ffffff;">
-                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 30px;">#</th>
-                                    <th style="padding: 5px 6px; border: 1px solid #475569; width: 85px;">کۆدی خوێندکار</th>
-                                    <th style="padding: 5px 6px; border: 1px solid #475569;">ناوی چواری / سیانی خوێندکار</th>
-                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 65px;">خوێندن</th>
-                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 65px;">قۆناغ</th>
-                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 80px;">غیابات (کاتژمێر)</th>
-                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 65px;">ڕێژە %</th>
-                                    <th style="padding: 5px 6px; border: 1px solid #475569; text-align: center; width: 90px;">دۆخی سمستەر</th>
+                                    <th style="padding: 5px 3px; border: 1px solid #475569; text-align: center; width: 24px;">#</th>
+                                    <th style="padding: 5px 4px; border: 1px solid #475569; width: 68px;">کۆدی خوێندکار</th>
+                                    <th style="padding: 5px 4px; border: 1px solid #475569; width: 140px;">ناوی چواری خوێندکار</th>
+                                    <th style="padding: 5px 4px; border: 1px solid #475569; width: 115px;">ناوی وانە</th>
+                                    <th style="padding: 5px 4px; border: 1px solid #475569; width: 135px; text-align: center;">بەرواری ڕۆژی غیاب</th>
+                                    <th style="padding: 5px 3px; border: 1px solid #475569; text-align: center; width: 55px;">قۆناغ</th>
+                                    <th style="padding: 5px 3px; border: 1px solid #475569; text-align: center; width: 65px;">خوێندن/گرووپ</th>
+                                    <th style="padding: 5px 3px; border: 1px solid #475569; text-align: center; width: 55px;">نەهاتوو</th>
+                                    <th style="padding: 5px 3px; border: 1px solid #475569; text-align: center; width: 50px;">کۆی وانە</th>
+                                    <th style="padding: 5px 3px; border: 1px solid #475569; text-align: center; width: 55px;">ڕێژە %</th>
+                                    <th style="padding: 5px 3px; border: 1px solid #475569; text-align: center; width: 95px;">دۆخی سمستەر</th>
                                 </tr>
                             </thead>
                             <tbody>
                 `;
 
-                if (deptStudents.length === 0) {
+                if (deptAbsRecords.length === 0) {
                     html += `
                         <tr>
-                            <td colspan="8" style="padding: 8px; text-align: center; color: #64748b; font-size: 10px; background: #f8fafc;">
-                                هیچ خوێندکارێک لەم بەشەدا تۆمار نەکراوە
+                            <td colspan="11" style="padding: 10px; text-align: center; color: #166534; font-size: 10px; font-weight: bold; background: #f0fdf4; border: 1px dashed #86efac;">
+                                ✓ سەرجەم خوێندکارانی ئەم بەشە لەم سمستەرەدا بە تەواوی ئامادە بوون و هیچ غیاباتێکیان نییە
                             </td>
                         </tr>
                     `;
                 } else {
-                    deptStudents.forEach((student, sIdx) => {
-                        const absentHours = Number(student.absentHours) || 0;
-                        const totalHours = Number(student.totalHours) || 40;
-                        const percentage = Math.round((absentHours / totalHours) * 100);
-                        const isRisk = percentage >= 10;
-                        const statusLabel = isRisk ? '<span style="color: #be123c; font-weight: bold;">ئاگاداری / بێبەشبوون</span>'
-                            : (percentage >= 5 ? '<span style="color: #b45309; font-weight: bold;">ئاگاداری سەرەتایی</span>'
-                            : '<span style="color: #15803d; font-weight: bold;">پابەندبووە ✓</span>');
-                        const studyLabel = student.study === 'evening' ? 'ئێواران' : 'بەیانیان';
+                    deptAbsRecords.forEach((item, sIdx) => {
+                        const pctFormatted = item.percentage % 1 === 0 ? item.percentage.toFixed(0) : item.percentage.toFixed(1);
+                        const isRisk = item.percentage >= 10;
+                        let statusBadge = '';
+                        if (item.percentage >= 10) {
+                            statusBadge = '<span style="color: #991b1b; font-weight: bold; background: #fee2e2; border: 1px solid #fecaca; padding: 1.5px 5px; border-radius: 4px; font-size: 8px; display: inline-block;">دەرکراو (١٠٪+)</span>';
+                        } else if (item.percentage >= 7) {
+                            statusBadge = '<span style="color: #9a3412; font-weight: bold; background: #ffedd5; border: 1px solid #fed7aa; padding: 1.5px 5px; border-radius: 4px; font-size: 8px; display: inline-block;">ئاگاداری ٢ (٧٪)</span>';
+                        } else if (item.percentage >= 5) {
+                            statusBadge = '<span style="color: #854d0e; font-weight: bold; background: #fef9c3; border: 1px solid #fef08a; padding: 1.5px 5px; border-radius: 4px; font-size: 8px; display: inline-block;">ئاگاداری ١ (٥٪)</span>';
+                        } else {
+                            statusBadge = '<span style="color: #166534; font-weight: bold; background: #dcfce7; border: 1px solid #bbf7d0; padding: 1.5px 5px; border-radius: 4px; font-size: 8px; display: inline-block;">ئاسایی (<٥٪)</span>';
+                        }
+
+                        const studyLabel = item.study === 'evening' ? 'ئێواران' : 'بەیانیان';
                         const bgRow = sIdx % 2 === 0 ? '#ffffff' : '#f8fafc';
 
                         html += `
                             <tr style="background: ${bgRow}; page-break-inside: avoid; break-inside: avoid;">
-                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #64748b;">${sIdx + 1}</td>
-                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-family: monospace; font-weight: bold; color: #334155;">${student.code || '-'}</td>
-                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f172a;">${student.name}</td>
-                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; color: #475569;">${studyLabel}</td>
-                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center;">قۆناغی ${getStageArabic(student.stage)}</td>
-                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${isRisk ? '#be123c' : '#0f172a'};">${absentHours}</td>
-                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${isRisk ? '#be123c' : '#15803d'};">%${percentage}</td>
-                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center;">${statusLabel}</td>
+                                <td style="padding: 4px 3px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #64748b;">${sIdx + 1}</td>
+                                <td style="padding: 4px 4px; border: 1px solid #cbd5e1; font-family: monospace; font-weight: bold; color: #334155;">${item.studentCode || '-'}</td>
+                                <td style="padding: 4px 4px; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a;">${item.studentName}</td>
+                                <td style="padding: 4px 4px; border: 1px solid #cbd5e1; font-weight: 700; color: #1e3a8a;">${item.subject}</td>
+                                <td style="padding: 4px 4px; border: 1px solid #cbd5e1; text-align: center; font-size: 8px; color: #334155;">${item.dates}</td>
+                                <td style="padding: 4px 3px; border: 1px solid #cbd5e1; text-align: center; font-weight: 600;">قۆناغی ${getStageArabic(item.stage)}</td>
+                                <td style="padding: 4px 3px; border: 1px solid #cbd5e1; text-align: center; color: #475569;">${studyLabel} (${item.group || 'A'})</td>
+                                <td style="padding: 4px 3px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${isRisk ? '#be123c' : '#0f172a'};">${item.absentHours} ک</td>
+                                <td style="padding: 4px 3px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;">${item.totalHours} ک</td>
+                                <td style="padding: 4px 3px; border: 1px solid #cbd5e1; text-align: center; font-weight: 900; color: ${isRisk ? '#be123c' : (item.percentage >= 5 ? '#b45309' : '#15803d')};">%${pctFormatted}</td>
+                                <td style="padding: 4px 3px; border: 1px solid #cbd5e1; text-align: center;">${statusBadge}</td>
                             </tr>
                         `;
                     });
@@ -2980,7 +3115,7 @@
                         <tr>
                             <td style="width: 33.3%; vertical-align: top;">
                                 <div style="font-weight: bold; color: #0f172a;">سەرۆکایەتی بەشە زانستییەکان</div>
-                                <div style="font-size: 10px; color: #64748b; margin-top: 3px;">٥ بەشەکەی کۆلێژی کارگێڕی</div>
+                                <div style="font-size: 10px; color: #64748b; margin-top: 3px;">٥ بەشەکەی کۆلێژی کارگێڕی و ئابووری</div>
                                 <div style="margin-top: 35px; border-bottom: 1px dotted #94a3b8; width: 70%; margin-left: auto; margin-right: auto;"></div>
                                 <div style="font-size: 9px; color: #64748b; margin-top: 4px;">واژۆ و مۆر</div>
                             </td>
@@ -3011,15 +3146,15 @@
 
             const filename = `Raporti_Kotayi_Semester_2025_2026_${currentDate}.pdf`;
 
-            // Background PDF generation with clean pagination
+            // Background PDF generation with clean pagination and landscape layout
             if (typeof html2pdf !== 'undefined') {
                 try {
                     const opt = {
-                        margin: [8, 8, 8, 8],
+                        margin: [6, 6, 6, 6],
                         filename: filename,
                         image: { type: 'jpeg', quality: 0.98 },
                         html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0 },
-                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
                         pagebreak: { mode: ['css', 'legacy'], before: '.pdf-page-break', avoid: ['tr'] }
                     };
                     await html2pdf().set(opt).from(container).save();
