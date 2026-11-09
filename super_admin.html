@@ -690,10 +690,16 @@
                                 </p>
                             </div>
                         </div>
-                        <button onclick="endSemesterAndExportPDF()" class="w-full md:w-auto px-6 py-3.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center justify-center gap-2 border border-teal-400/40 whitespace-nowrap flex-shrink-0">
-                            <i class="fa-solid fa-file-arrow-down text-base"></i>
-                            <span>ڕاگەیاندنی کۆتایی سمستەر (ئەرشیف و سفرکردنەوە)</span>
-                        </button>
+                        <div class="flex flex-col sm:flex-row items-center gap-2.5 flex-shrink-0">
+                            <button onclick="printSemesterReportDirectly()" class="w-full sm:w-auto px-4 py-3 bg-slate-800/80 hover:bg-slate-700 text-teal-300 hover:text-white font-black rounded-xl text-xs sm:text-sm transition shadow flex items-center justify-center gap-2 border border-teal-500/30 whitespace-nowrap">
+                                <i class="fa-solid fa-print text-sm"></i>
+                                <span>چاپکردن و بینینی ڕاپۆرتی فەرمی (PDF)</span>
+                            </button>
+                            <button onclick="endSemesterAndExportPDF()" class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center justify-center gap-2 border border-teal-400/40 whitespace-nowrap">
+                                <i class="fa-solid fa-file-arrow-down text-base"></i>
+                                <span>ڕاگەیاندنی کۆتایی سمستەر (ئەرشیف و سفرکردنەوە)</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2695,47 +2701,7 @@
             }
         }
 
-        function printSemesterReportDirectly() {
-            const html = window._lastSemesterReportHTML;
-            if (!html) {
-                Swal.fire('ئاگاداری', 'تکایە سەرەتا فەرمانی کۆتایی سمستەر بدە تا ڕاپۆرتەکە ئامادە بێت.', 'info');
-                return;
-            }
-            const printWin = window.open('', '_blank', 'width=1150,height=850');
-            if (printWin) {
-                printWin.document.write(`
-                    <!DOCTYPE html>
-                    <html lang="ku" dir="rtl">
-                    <head>
-                        <meta charset="UTF-8">
-                        <title>ڕاپۆرتی فەرمی کۆتایی سمستەری خوێندن</title>
-                        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
-                        <style>
-                            body { font-family: 'Tajawal', 'Vazirmatn', Arial, sans-serif; margin: 10px; color: #0f172a; direction: rtl; }
-                            @media print { body { margin: 6px; } @page { size: A4 landscape; margin: 6mm; } }
-                        </style>
-                    </head>
-                    <body>
-                        ${html}
-                    </body>
-                    </html>
-                `);
-                printWin.document.close();
-                printWin.focus();
-                setTimeout(() => { try { printWin.print(); } catch(e){} }, 400);
-            }
-        }
-
-        async function processSemesterEndPDFAndReset() {
-            Swal.fire({
-                title: 'ئامادەکردنی ئەرشیف و سفرکردنەوەی غیابات...',
-                html: 'تکایە کەمێک چاوەڕوانبە، ئەرشیفی سمستەر دادەبەزێت و غیاباتەکان بۆ سمستەری نوێ سفر دەکرێنەوە...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
+        function generateSemesterReportHTML() {
             // 1) Load courses list for subject identification and accurate total hours
             let allCourses = [];
             try {
@@ -2881,14 +2847,6 @@
             const totalWarnings = semesterAbsenceRecords.filter(r => (Number(r.percentage) || 0) >= 10).length;
 
             const currentDate = new Date().toISOString().split('T')[0];
-
-            // 4) Instantly generate and trigger download of Master Excel Archive
-            generateSemesterMasterArchiveExcel(validStudentsList, semesterAbsenceRecords, currentDate);
-
-            // 5) Render Landscape A4 PDF Container
-            const container = document.createElement('div');
-            container.id = 'semester-pdf-render';
-            container.style.cssText = 'position: absolute; left: 0; top: 0; width: 1040px; z-index: -9999; background: #ffffff; color: #0f172a; font-family: "Tajawal", "Vazirmatn", Arial, sans-serif; direction: rtl; padding: 20px; box-sizing: border-box; opacity: 1; pointer-events: none;';
 
             let html = `
                 <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px;">
@@ -3140,13 +3098,85 @@
                 </div>
             `;
 
+            return { html, validStudentsList, semesterAbsenceRecords, currentDate };
+        }
+
+        function printSemesterReportDirectly() {
+            let html = window._lastSemesterReportHTML;
+            if (!html) {
+                try {
+                    html = localStorage.getItem('college_last_semester_report_html') || sessionStorage.getItem('college_last_semester_report_html');
+                } catch(e) {}
+            }
+            if (!html) {
+                const gen = generateSemesterReportHTML();
+                html = gen.html;
+                window._lastSemesterReportHTML = html;
+                try {
+                    localStorage.setItem('college_last_semester_report_html', html);
+                } catch(e) {}
+            }
+            if (!html) {
+                Swal.fire('ئاگاداری', 'تکایە سەرەتا فەرمانی کۆتایی سمستەر بدە تا ڕاپۆرتەکە ئامادە بێت.', 'info');
+                return;
+            }
+            const printWin = window.open('', '_blank', 'width=1150,height=850');
+            if (printWin) {
+                printWin.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="ku" dir="rtl">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>ڕاپۆرتی فەرمی کۆتایی سمستەری خوێندن</title>
+                        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&family=Vazirmatn:wght@400;700;800&display=swap" rel="stylesheet">
+                        <style>
+                            body { font-family: 'Tajawal', 'Vazirmatn', Arial, sans-serif; margin: 10px; color: #0f172a; direction: rtl; }
+                            @media print { body { margin: 6px; } @page { size: A4 landscape; margin: 6mm; } }
+                        </style>
+                    </head>
+                    <body>
+                        ${html}
+                    </body>
+                    </html>
+                `);
+                printWin.document.close();
+                printWin.focus();
+                setTimeout(() => { try { printWin.print(); } catch(e){} }, 400);
+            }
+        }
+
+        async function processSemesterEndPDFAndReset() {
+            Swal.fire({
+                title: 'ئامادەکردنی ئەرشیف و سفرکردنەوەی غیابات...',
+                html: 'تکایە کەمێک چاوەڕوانبە، ئەرشیفی سمستەر دادەبەزێت و غیاباتەکان بۆ سمستەری نوێ سفر دەکرێنەوە...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // 1. Generate full semester report HTML and dataset
+            const { html, validStudentsList, semesterAbsenceRecords, currentDate } = generateSemesterReportHTML();
+
+            // Cache for direct printing & persistent storage across reloads
             window._lastSemesterReportHTML = html;
+            try {
+                localStorage.setItem('college_last_semester_report_html', html);
+                sessionStorage.setItem('college_last_semester_report_html', html);
+            } catch(e) {}
+
+            // 2. Instantly generate and trigger download of Master Excel Archive
+            generateSemesterMasterArchiveExcel(validStudentsList, semesterAbsenceRecords, currentDate);
+
+            // 3. Render and save Landscape A4 PDF
+            const container = document.createElement('div');
+            container.id = 'semester-pdf-render';
+            container.style.cssText = 'position: absolute; left: 0; top: 0; width: 1040px; z-index: -9999; background: #ffffff; color: #0f172a; font-family: "Tajawal", "Vazirmatn", Arial, sans-serif; direction: rtl; padding: 20px; box-sizing: border-box; opacity: 1; pointer-events: none;';
             container.innerHTML = html;
             document.body.appendChild(container);
 
             const filename = `Raporti_Kotayi_Semester_2025_2026_${currentDate}.pdf`;
 
-            // Background PDF generation with clean pagination and landscape layout
             if (typeof html2pdf !== 'undefined') {
                 try {
                     const opt = {
@@ -3167,7 +3197,7 @@
                 try { if (container && container.parentNode) container.parentNode.removeChild(container); } catch(e){}
             }
 
-            // Immediately finalize reset with 0ms UI delay
+            // 4. Immediately finalize reset with 0ms UI delay
             await finalizeSemesterReset();
         }
 
